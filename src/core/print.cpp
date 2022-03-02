@@ -1,24 +1,29 @@
 #include "core/print.hpp"
 
-auto printType(const char* str) -> void {
-	printf("%s", str);
+auto fprintType(FILE* desc, const char* str) -> void {
+	fprintf(desc, "%s", str);
 }
 
-auto printType(char value) -> void {
-	printf("%c", value);
+auto fprintType(FILE* desc, char value) -> void {
+	fprintf(desc, "%c", value);
 }
-auto printType(unsigned char value) -> void {
-	printf("%c", value);
+
+auto fprintType(FILE* desc, unsigned char value) -> void {
+	fprintf(desc, "%c", value);
 }
-auto printType(int value) -> void {
-	printf("%d", value);
+
+auto fprintType(FILE* desc, int value) -> void {
+	fprintf(desc, "%d", value);
 }
-auto printType(size_t value) -> void {
-	printf("%lu", value);
+
+auto fprintType(FILE* desc, size_t value) -> void {
+	fprintf(desc, "%lu", value);
 }
-auto printType(float value) -> void {
-	printf("%f", value);
+
+auto fprintType(FILE* desc, float value) -> void {
+	fprintf(desc, "%f", value);
 }
-auto printType(double value) -> void {
-	printf("%f", value);
+
+auto fprintType(FILE* desc, double value) -> void {
+	fprintf(desc, "%f", value);
 }

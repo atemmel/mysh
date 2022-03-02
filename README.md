@@ -3,7 +3,7 @@
 ### todo:
 
 * basic STL features
-  * printing to `stdout`/`stderr`
+  * ~~printing to `stdout`/`stderr`~~
   * memory management
   * buffer
   * array

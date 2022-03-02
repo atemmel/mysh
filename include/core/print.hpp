@@ -2,28 +2,34 @@
 
 #include <stdio.h>
 
-auto printType(const char* str) -> void;
-auto printType(char value) -> void;
-auto printType(unsigned char value) -> void;
-auto printType(int value) -> void;
-auto printType(size_t value) -> void;
-auto printType(float value) -> void;
-auto printType(double value) -> void;
+auto fprintType(FILE* desc, const char* str) -> void;
+auto fprintType(FILE* desc, char value) -> void;
+auto fprintType(FILE* desc, unsigned char value) -> void;
+auto fprintType(FILE* desc, int value) -> void;
+auto fprintType(FILE* desc, size_t value) -> void;
+auto fprintType(FILE* desc, float value) -> void;
+auto fprintType(FILE* desc, double value) -> void;
 
 template<typename Param>
-auto print(Param param) -> void {
-	printType(param);
+auto fprint(FILE* desc, Param param) -> void {
+	fprintType(desc, param);
 }
 
 template<typename Param, typename ...Params>
-auto print(Param param, Params... params) -> void {
-	printType(param);
-	printf(" ");
-	print(params...);
+auto fprint(FILE* desc, Param param, Params... params) -> void {
+	fprintType(desc, param);
+	fprintf(desc, " ");
+	fprint(desc, params...);
 }
 
 template<typename Param, typename ...Params>
 auto println(Param param, Params... params) -> void {
-	print(param, params...);
-	printf("\n");
+	fprint(stdout, param, params...);
+	fprintf(stdout, "\n");
+}
+
+template<typename Param, typename ...Params>
+auto errprintln(Param param, Params... params) -> void {
+	fprint(stderr, param, params...);
+	fprintf(stderr, "\n");
 }
