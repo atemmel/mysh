@@ -3,6 +3,7 @@
 #include "core/mem.hpp"
 #include "core/array.hpp"
 #include "core/buffer.hpp"
+#include "core/list.hpp"
 
 struct Nugget {
 	float spiciness;
@@ -10,6 +11,12 @@ struct Nugget {
 	int value;
 	bool vego;
 };
+
+auto myprint(List<int> numbers) -> void {
+	for(const auto& e : numbers) {
+		println("There!", e);
+	}
+}
 
 auto main() -> int {
 	//println("Gaming", 'h', 4, 3.145f, 3.145);
@@ -64,10 +71,18 @@ auto main() -> int {
 	println("After append:", nuggets.size(), nuggets.capacity());
 	*/
 
+	/*
 	Array<int> numbers;
 	numbers.reserve(5);
 	for(int i = 0; i < 5; i++) {
 		numbers.append(i);
 	}
 	println(numbers);
+	*/
+
+	List<int> numbers;
+	for(int i = 0; i < 5; i++) {
+		numbers.append(i);
+	}
+	myprint(numbers);
 }

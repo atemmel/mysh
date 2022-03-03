@@ -90,6 +90,10 @@ struct Buffer {
 	auto data() const -> const Value* {
 		return beginPtr;
 	}
+	
+	auto empty() const -> bool {
+		return beginPtr == endPtr;
+	}
 
 private:
 	Value* beginPtr = nullptr;

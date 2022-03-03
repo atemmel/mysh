@@ -94,6 +94,10 @@ struct Array {
 		return buffer.data();
 	}
 
+	auto empty() const -> bool {
+		return currentSize == 0;
+	}
+
 private:
 	auto grow() -> void {
 		size_t newCapacity = buffer.size() * 2;

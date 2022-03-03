@@ -7,7 +7,7 @@
   * ~~memory management~~
   * ~~buffer~~
   * ~~array~~
-  * linked list
+  * ~~linked list~~
   * hashmap
   * string support
 * tokenization

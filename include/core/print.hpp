@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+#include "core/meta.hpp"
+
 auto fprintType(FILE* desc, const char* str) -> void;
 auto fprintType(FILE* desc, char value) -> void;
 auto fprintType(FILE* desc, unsigned char value) -> void;
@@ -22,25 +24,25 @@ auto fprintType(FILE* desc, const Container& container) -> void {
 }
 
 template<typename Param>
-auto fprint(FILE* desc, Param param) -> void {
+auto fprint(FILE* desc, const Param& param) -> void {
 	fprintType(desc, param);
 }
 
 template<typename Param, typename ...Params>
-auto fprint(FILE* desc, Param param, Params... params) -> void {
+auto fprint(FILE* desc, const Param& param, Params... params) -> void {
 	fprintType(desc, param);
 	fprintf(desc, " ");
-	fprint(desc, params...);
+	fprint(desc, forward<Params>(params)...);
 }
 
 template<typename Param, typename ...Params>
-auto println(Param param, Params... params) -> void {
-	fprint(stdout, param, params...);
+auto println(const Param& param, Params... params) -> void {
+	fprint(stdout, param, forward<Params>(params)...);
 	fprintf(stdout, "\n");
 }
 
 template<typename Param, typename ...Params>
-auto errprintln(Param param, Params... params) -> void {
-	fprint(stderr, param, params...);
+auto errprintln(const Param& param, Params... params) -> void {
+	fprint(stderr, param, forward<Params>(params)...);
 	fprintf(stderr, "\n");
 }
