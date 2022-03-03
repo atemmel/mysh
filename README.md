@@ -4,8 +4,8 @@
 
 * basic STL features
   * ~~printing to `stdout`/`stderr`~~
-  * memory management
-  * buffer
+  * ~~memory management~~
+  * ~~buffer~~
   * array
   * linked list
   * hashmap
