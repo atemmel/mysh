@@ -27,3 +27,7 @@ auto fprintType(FILE* desc, float value) -> void {
 auto fprintType(FILE* desc, double value) -> void {
 	fprintf(desc, "%f", value);
 }
+
+auto fprintType(FILE* desc, bool value) -> void {
+	fprintf(desc, value ? "true" : "false");
+}

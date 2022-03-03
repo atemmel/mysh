@@ -9,6 +9,7 @@ auto fprintType(FILE* desc, int value) -> void;
 auto fprintType(FILE* desc, size_t value) -> void;
 auto fprintType(FILE* desc, float value) -> void;
 auto fprintType(FILE* desc, double value) -> void;
+auto fprintType(FILE* desc, bool value) -> void;
 
 template<typename Param>
 auto fprint(FILE* desc, Param param) -> void {
