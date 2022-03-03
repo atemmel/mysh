@@ -4,10 +4,10 @@
 
 template<typename Value>
 struct Array {
-	Array() : buffer(0) {
-	};
-	Array(size_t amount) : buffer(amount) {
-	}
+	Array() : buffer(0) {}
+
+	Array(size_t amount) : buffer(amount) {}
+
 	Array(size_t amount, const Value& value) : buffer(amount) {
 		mem::fill(buffer, value);
 	}
