@@ -6,7 +6,7 @@
   * ~~printing to `stdout`/`stderr`~~
   * ~~memory management~~
   * ~~buffer~~
-  * array
+  * ~~array~~
   * linked list
   * hashmap
   * string support

@@ -38,9 +38,13 @@ struct Buffer {
 		swap(other);
 	}
 
+	auto operator==(const Buffer<Value>& rhs) const -> void {
+		return mem::equal(*this, rhs);
+	}
+
 	auto swap(Buffer<Value>& other) -> void {
-		swap(beginPtr, other.beginPtr);
-		swap(endPtr, other.endPtr);
+		::swap(beginPtr, other.beginPtr);
+		::swap(endPtr, other.endPtr);
 	}
 
 	auto free() -> void {
@@ -77,6 +81,14 @@ struct Buffer {
 
 	auto end() const -> const Value* {
 		return endPtr;
+	}
+
+	auto data() -> Value* {
+		return beginPtr;
+	}
+
+	auto data() const -> const Value* {
+		return beginPtr;
 	}
 
 private:

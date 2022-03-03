@@ -15,12 +15,25 @@ auto fill(Container& container, const Value& value) -> void {
 
 template<typename ContainerA, typename ContainerB>
 auto copy(const ContainerA& source, ContainerB& destination) -> void {
-	const auto n = source.size();
-	assert(n >= destination.size());
+	auto n = source.size();
+	assert(n <= destination.size());
 
 	for(decltype(n) i = 0; i < n; i++) {
 		destination[i] = source[i];
 	}
+}
+
+template<typename ContainerA, typename ContainerB>
+auto equal(const ContainerA& lhs, ContainerB& rhs) -> bool {
+	const auto n = lhs.size();
+	assert(n <= rhs.size());
+	
+	for(decltype(n) i = 0; i < n; i++) {
+		if(!(lhs[i] == rhs[i])) {
+			return false;
+		}
+	}
+	return true;
 }
 
 template<typename Value>

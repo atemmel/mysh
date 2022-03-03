@@ -1,6 +1,7 @@
 #include "core/assert.hpp"
 #include "core/print.hpp"
 #include "core/mem.hpp"
+#include "core/array.hpp"
 #include "core/buffer.hpp"
 
 struct Nugget {
@@ -16,14 +17,8 @@ auto main() -> int {
 	//println("Gaming");
 	//assert(true);
 
+	/*
 	Buffer<Nugget> nuggets(20);
-
-	auto sample = Nugget{
-		.spiciness = 0.2,
-		.friedness = 0.4,
-		.value = 60,
-		.vego = false,
-	};
 
 	mem::fill(nuggets, sample);
 
@@ -33,4 +28,46 @@ auto main() -> int {
 				"value:", nugget.value,
 				"vego:", nugget.vego);
 	}
+	*/
+
+	/*
+	auto sample = Nugget{
+		.spiciness = 0.2,
+		.friedness = 0.4,
+		.value = 60,
+		.vego = false,
+	};
+
+	
+	Array<Nugget> nuggets;
+	nuggets.resize(4);
+
+	println("Before append:", nuggets.size(), nuggets.capacity());
+
+	nuggets.append(sample);
+
+	println("After append:", nuggets.size(), nuggets.capacity());
+	nuggets.append(sample);
+
+	println("After append:", nuggets.size(), nuggets.capacity());
+	nuggets.append(sample);
+
+	println("After append:", nuggets.size(), nuggets.capacity());
+	nuggets.append(sample);
+
+	println("After append:", nuggets.size(), nuggets.capacity());
+	nuggets.append(sample);
+
+	println("After append:", nuggets.size(), nuggets.capacity());
+	nuggets.append(sample);
+
+	println("After append:", nuggets.size(), nuggets.capacity());
+	*/
+
+	Array<int> numbers;
+	numbers.reserve(5);
+	for(int i = 0; i < 5; i++) {
+		numbers.append(i);
+	}
+	println(numbers);
 }
