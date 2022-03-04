@@ -8,6 +8,8 @@
   * ~~buffer~~
   * ~~array~~
   * ~~linked list~~
+  * string support (~~String~~ + StringView)
+  * FILE* wrapper
   * hashmap
-  * ~~string support~~
+
 * tokenization
