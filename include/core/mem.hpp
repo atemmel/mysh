@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/assert.hpp"
+#include "core/print.hpp"
 
 #include <stdlib.h>
 
@@ -20,6 +21,14 @@ auto copy(const ContainerA& source, ContainerB& destination) -> void {
 
 	for(decltype(n) i = 0; i < n; i++) {
 		destination[i] = source[i];
+	}
+}
+
+template<typename SrcIterator, typename DestIterator>
+auto copy(SrcIterator begin, SrcIterator end, DestIterator dest) -> void {
+	for(; begin != end; ++begin) {
+		*dest = *begin;
+		dest++;
 	}
 }
 

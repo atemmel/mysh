@@ -4,6 +4,7 @@
 #include "core/array.hpp"
 #include "core/buffer.hpp"
 #include "core/list.hpp"
+#include "core/string.hpp"
 
 struct Nugget {
 	float spiciness;
@@ -80,9 +81,15 @@ auto main() -> int {
 	println(numbers);
 	*/
 
+	/*
 	List<int> numbers;
 	for(int i = 0; i < 5; i++) {
 		numbers.append(i);
 	}
 	myprint(numbers);
+	*/
+
+
+	String string = "Tjolahopp";
+	println(string, string.size());
 }

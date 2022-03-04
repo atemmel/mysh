@@ -9,5 +9,5 @@
   * ~~array~~
   * ~~linked list~~
   * hashmap
-  * string support
+  * ~~string support~~
 * tokenization

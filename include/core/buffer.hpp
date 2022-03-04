@@ -9,6 +9,11 @@ struct Buffer {
 		: beginPtr(mem::alloc<Value>(amount)),
 		endPtr(beginPtr + amount){}
 
+	Buffer(const Value* data, size_t amount) 
+		: Buffer(amount) {
+		mem::copy(data, data + amount, beginPtr);
+	}
+
 	~Buffer() {
 		free();
 	}
