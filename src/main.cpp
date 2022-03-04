@@ -6,6 +6,7 @@
 #include "core/list.hpp"
 #include "core/string.hpp"
 #include "core/stringview.hpp"
+#include "core/file.hpp"
 
 struct Nugget {
 	float spiciness;
@@ -96,4 +97,9 @@ auto main() -> int {
 
 	auto view = string.view(5, 9);
 	println(view);
+
+	auto contents = file::readAll("testfile.txt");
+	println(contents);
+	
+	assert(file::writeAll("othertest.txt", view));
 }

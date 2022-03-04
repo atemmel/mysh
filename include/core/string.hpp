@@ -9,6 +9,7 @@ struct String {
 	String();
 	String(const char* other);
 	String(const char* other, size_t amount);
+	String(size_t amount, char toFill);
 
 	auto size() const -> size_t;
 	auto empty() const -> bool;

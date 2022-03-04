@@ -13,6 +13,11 @@ String::String(const char* other, size_t amount) : buffer(other, amount + 1) {
 
 }
 
+String::String(size_t amount, char toFill) : buffer(amount + 1) {
+	mem::fill(buffer, toFill);
+	buffer[size()] = '\0';
+}
+
 auto String::size() const -> size_t {
 	return empty() ? 0 : buffer.size() - 1;
 }
