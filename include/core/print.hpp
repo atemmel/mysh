@@ -5,6 +5,7 @@
 #include "core/meta.hpp"
 
 auto fprintType(FILE* desc, const char* str) -> void;
+auto fprintType(FILE* desc, char* str) -> void;
 auto fprintType(FILE* desc, char value) -> void;
 auto fprintType(FILE* desc, unsigned char value) -> void;
 auto fprintType(FILE* desc, int value) -> void;

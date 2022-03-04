@@ -14,9 +14,10 @@ struct ArgParser {
 
 	auto args() const -> const Array<StringView>&;
 private:
-	
 	auto handleFlag(const char* arg, size_t flagIndex) -> void;
 	auto flagIndex(const char* arg) -> size_t;
+	auto checkHelp(int argc, char** argv) const -> void;
+	auto printHelp(char** argv) const -> void;
 
 	struct Flag {
 		enum struct Type {

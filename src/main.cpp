@@ -1,5 +1,6 @@
 #include "core/argparser.hpp"
 #include "core/file.hpp"
+#include "globals.hpp"
 
 #include "tokenizer.hpp"
 
@@ -16,10 +17,8 @@ auto doEverything(StringView path) {
 }
 
 auto main(int argc, char** argv) -> int {
-	bool verbose = false;
-
 	ArgParser parser;
-	parser.flag(&verbose,
+	parser.flag(&globals::verbose,
 		"--verbose",
 		"Enable verbose mode");
 	parser.parse(argc, argv);

@@ -1,6 +1,7 @@
 #include "core/argparser.hpp"
 
 #include "core/assert.hpp"
+#include "core/staticarray.hpp"
 
 auto ArgParser::flag(bool* result, 
 		StringView flagName, 
@@ -15,6 +16,8 @@ auto ArgParser::flag(bool* result,
 }
 
 auto ArgParser::parse(int argc, char** argv) -> void {
+	checkHelp(argc, argv);
+
 	int i = 1;
 	for(; i < argc; ++i) {
 		auto index = flagIndex(argv[i]);
@@ -53,3 +56,41 @@ auto ArgParser::handleFlag(const char* arg,
 	}
 }
 
+auto ArgParser::checkHelp(int argc, char** argv) const -> void {
+	StaticArray<StringView, 3> helps = {
+		"--help",
+		"-help",
+		"help",
+		"-h",
+	};
+
+	int index = 1;
+	for(; index < argc; ++index) {
+		for(auto help : helps) {
+			if(argv[index] == help) {
+				printHelp(argv);
+				exit(EXIT_SUCCESS);
+			}
+		}
+	}
+}
+
+auto ArgParser::printHelp(char** argv) const -> void {
+	auto exeName = argv[0];
+	println(exeName, "usage:");
+	for(const auto& flag : flags) {
+		fprintf(stdout, "  ");
+		fprintType(stdout, flag.flagName);
+
+		switch(flag.type) {
+			case Flag::Type::Boolean:
+				fprintf(stdout, ": bool");
+				break;
+		}
+
+		fprintf(stdout, "  ");
+		fprintType(stdout, flag.helpText);
+	}
+
+	fprintf(stdout, "\n");
+}

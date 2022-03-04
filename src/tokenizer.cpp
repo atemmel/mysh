@@ -126,7 +126,7 @@ auto Tokenizer::isKeyword(Token& token) -> bool {
 		if(token.value == Token::Strings[keywordIndex]) {
 			token.kind = (Token::Kind)keywordIndex;
 			return true;
-		}
+		} 
 	}
 	return false;
 }
