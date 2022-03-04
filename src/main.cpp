@@ -5,6 +5,7 @@
 #include "core/buffer.hpp"
 #include "core/list.hpp"
 #include "core/string.hpp"
+#include "core/stringview.hpp"
 
 struct Nugget {
 	float spiciness;
@@ -92,4 +93,7 @@ auto main() -> int {
 
 	String string = "Tjolahopp";
 	println(string, string.size());
+
+	auto view = string.view(5, 9);
+	println(view);
 }

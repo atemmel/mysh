@@ -65,6 +65,12 @@ auto String::end() const -> const char* {
 	return buffer.end();
 }
 
+auto String::view(size_t first, size_t last) const -> StringView {
+	assert(first < size());
+	assert(last <= size());
+	return StringView(buffer.data() + first, buffer.data() + last);
+}
+
 auto fprintType(FILE* desc, const String& value) -> void {
 	fprintf(desc, "%s", value.data());
 }

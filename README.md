@@ -8,7 +8,7 @@
   * ~~buffer~~
   * ~~array~~
   * ~~linked list~~
-  * string support (~~String~~ + StringView)
+  * ~~string support (String + StringView)~~
   * FILE* wrapper
   * hashmap
 

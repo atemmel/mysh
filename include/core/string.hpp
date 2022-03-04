@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/buffer.hpp"
+#include "core/stringview.hpp"
 
 #include <stdio.h>
 
@@ -23,6 +24,8 @@ struct String {
 	auto end() -> char*;
 	auto begin() const -> const char*;
 	auto end() const -> const char*;
+
+	auto view(size_t first, size_t last) const -> StringView;
 
 private:
 	Buffer<char> buffer;
