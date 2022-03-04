@@ -52,5 +52,5 @@ constexpr auto stringeq(const char* lhs, const char* rhs) -> bool {
 			return false;
 		}
 	}
-	return true;
+	return lhs[i] == rhs[i];
 }

@@ -1,3 +1,5 @@
+#!../build/mysh
+
 # regular shell command
 ls -l -a
 

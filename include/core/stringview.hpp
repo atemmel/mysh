@@ -73,6 +73,14 @@ constexpr auto operator==(const StringView& lhs, const StringView& rhs) -> bool 
 	return stringeq(lhs.data(), rhs.data());
 }
 
+constexpr auto operator==(const StringView& lhs, const char* rhs) -> bool {
+	return stringeq(lhs.data(), rhs);
+}
+
+constexpr auto operator==(const char* lhs, const StringView& rhs) -> bool {
+	return stringeq(lhs, rhs.data());
+}
+
 auto operator==(const String& lhs, const StringView& rhs) -> bool;
 auto operator==(const StringView& lhs, const String& rhs) -> bool;
 
