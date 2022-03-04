@@ -1,0 +1,8 @@
+# regular shell command
+ls -l -a
+
+# declare variable
+var myvar="hello"
+
+# function call
+print $myvar

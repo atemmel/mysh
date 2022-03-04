@@ -1,11 +1,11 @@
 #include "core/string.hpp"
 
-#include <string.h>
+#include "core/stringview.hpp"
 
 String::String() : buffer(0) {
 }
 
-String::String(const char* other) : String(other, strlen(other)) {
+String::String(const char* other) : String(other, ::size(other)) {
 
 }
 
@@ -13,7 +13,7 @@ String::String(const char* other, size_t amount) : buffer(other, amount + 1) {
 
 }
 
-String::String(size_t amount, char toFill) : buffer(amount + 1) {
+String::String(size_t amount, char toFill) : buffer(amount) {
 	mem::fill(buffer, toFill);
 	buffer[size()] = '\0';
 }
@@ -74,6 +74,13 @@ auto String::view(size_t first, size_t last) const -> StringView {
 	assert(first < size());
 	assert(last <= size());
 	return StringView(buffer.data() + first, buffer.data() + last);
+}
+
+auto operator==(const String& lhs, const String& rhs) -> bool {
+	if(lhs.size() != rhs.size()) {
+		return false;
+	}
+	return stringeq(lhs.data(), rhs.data());
 }
 
 auto fprintType(FILE* desc, const String& value) -> void {

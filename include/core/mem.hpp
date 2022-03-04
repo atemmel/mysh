@@ -8,24 +8,14 @@
 namespace mem {
 
 template<typename Container, typename Value>
-auto fill(Container& container, const Value& value) -> void {
+constexpr auto fill(Container& container, const Value& value) -> void {
 	for(auto& element : container) {
 		element = value;
 	}
 }
 
-template<typename ContainerA, typename ContainerB>
-auto copy(const ContainerA& source, ContainerB& destination) -> void {
-	auto n = source.size();
-	assert(n <= destination.size());
-
-	for(decltype(n) i = 0; i < n; i++) {
-		destination[i] = source[i];
-	}
-}
-
 template<typename SrcIterator, typename DestIterator>
-auto copy(SrcIterator begin, SrcIterator end, DestIterator dest) -> void {
+constexpr auto copy(SrcIterator begin, SrcIterator end, DestIterator dest) -> void {
 	for(; begin != end; ++begin) {
 		*dest = *begin;
 		dest++;
@@ -33,16 +23,20 @@ auto copy(SrcIterator begin, SrcIterator end, DestIterator dest) -> void {
 }
 
 template<typename ContainerA, typename ContainerB>
-auto equal(const ContainerA& lhs, ContainerB& rhs) -> bool {
-	const auto n = lhs.size();
-	assert(n <= rhs.size());
-	
-	for(decltype(n) i = 0; i < n; i++) {
-		if(!(lhs[i] == rhs[i])) {
+constexpr auto copy(const ContainerA& source, ContainerB& destination) -> void {
+	mem::copy(source.begin(), source.end(), destination.begin());
+}
+
+template<typename ContainerA, typename ContainerB>
+constexpr auto equal(const ContainerA& lhs, ContainerB& rhs) -> bool {
+	auto lit = lhs.begin();
+	auto rit = rhs.begin();
+	for(; lit != lhs.end() && rit != rhs.end(); ++lit, ++rit) {
+		if(!(*lit == *rit)) {
 			return false;
 		}
 	}
-	return true;
+	return lit == lhs.end() && rit == rhs.end();
 }
 
 template<typename Value>
