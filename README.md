@@ -13,3 +13,13 @@
   * hashmap
 
 * tokenization
+	~~`var`~~
+	~~`=`~~
+	~~`$variable`~~
+	~~`"stringliteral"`~~
+	~~`identifier`~~
+
+* astgen
+  * regular shell command
+  * variable declarations
+  * function call
