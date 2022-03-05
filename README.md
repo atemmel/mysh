@@ -20,6 +20,14 @@
 	~~`identifier`~~
 
 * astgen
-  * regular shell command
-  * variable declarations
-  * function call
+  * ~~regular shell command~~
+  * ~~variable declarations~~
+  * ~~function call~~
+  * variable assignment
+
+* interpreter
+  * ~~regular shell command~~
+  * ~~variable declarations~~
+  * ~~function call (exec)~~
+  * function call (internal)
+  * variable assignment

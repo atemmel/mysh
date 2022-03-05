@@ -8,7 +8,9 @@
 # declare variable
 #var myvar = "hello"
 
-var flag = "-a"
+#TODO:
+# "a b" is considered two separate commands
+var flag = "-l"
 
 ls $flag
 
