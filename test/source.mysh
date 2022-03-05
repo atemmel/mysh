@@ -1,14 +1,18 @@
 #!../build/mysh
 
 # regular shell commands
-ls -l -a
+#ls -l -a
 
-cp this that
+#cp this that
 
 # declare variable
-var myvar = "hello"
+#var myvar = "hello"
+
+var flag = "-a"
+
+ls $flag
 
 # function calls
-print $myvar
+#print $myvar
 
-print hello world
+#print hello world

@@ -18,6 +18,10 @@ String::String(size_t amount, char toFill) : buffer(amount) {
 	buffer[size()] = '\0';
 }
 
+String::String(StringView other) : String(other.data(), other.size()) {
+	*end() = '\0';
+}
+
 auto String::size() const -> size_t {
 	return empty() ? 0 : buffer.size() - 1;
 }
@@ -59,7 +63,7 @@ auto String::begin() -> char* {
 }
 
 auto String::end() -> char* {
-	return buffer.end();
+	return buffer.end() - 1;
 }
 
 auto String::begin() const -> const char* {
@@ -67,7 +71,7 @@ auto String::begin() const -> const char* {
 }
 
 auto String::end() const -> const char* {
-	return buffer.end();
+	return buffer.end() - 1;
 }
 
 auto String::view(size_t first, size_t last) const -> StringView {

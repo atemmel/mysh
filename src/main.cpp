@@ -4,6 +4,7 @@
 
 #include "ast.hpp"
 #include "astprinter.hpp"
+#include "interpreter.hpp"
 #include "tokenizer.hpp"
 
 auto doEverything(StringView path) {
@@ -27,12 +28,20 @@ auto doEverything(StringView path) {
 		return;
 	}
 
-	AstPrinter printer;
-	println("Printing AST:");
-	root->accept(printer);
+	if(globals::verbose) {
+		AstPrinter printer;
+		println("Printing AST:");
+		root->accept(printer);
+	}
+
+	// exec code
+	Interpreter interpreter;
+	interpreter.interpret(*root);
 }
 
 auto main(int argc, char** argv) -> int {
+	globals::init();
+
 	ArgParser parser;
 	parser.flag(&globals::verbose,
 		"--verbose",

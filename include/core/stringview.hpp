@@ -19,6 +19,13 @@ struct StringView {
 
 	}
 
+	constexpr auto equals(StringView other) const -> bool {
+		if(other.size() != size()) {
+			return false;
+		}
+		return mem::equal(other, *this);
+	}
+
 	constexpr auto find(char delimeter) const -> size_t {
 		size_t index = 0;
 		for(; index < size(); index++) {
@@ -66,13 +73,6 @@ private:
 	const char* endPtr = nullptr;
 };
 
-constexpr auto operator==(const StringView& lhs, const StringView& rhs) -> bool {
-	if(lhs.size() != rhs.size()) {
-		return false;
-	}
-	return stringeq(lhs.data(), rhs.data());
-}
-
 constexpr auto operator==(const StringView& lhs, const char* rhs) -> bool {
 	return stringeq(lhs.data(), rhs);
 }
@@ -83,5 +83,12 @@ constexpr auto operator==(const char* lhs, const StringView& rhs) -> bool {
 
 auto operator==(const String& lhs, const StringView& rhs) -> bool;
 auto operator==(const StringView& lhs, const String& rhs) -> bool;
+
+constexpr auto operator==(const StringView& lhs, const StringView& rhs) -> bool {
+	if(lhs.size() != rhs.size()) {
+		return false;
+	}
+	return stringeq(lhs.data(), rhs.data());
+}
 
 auto fprintType(FILE* desc, StringView view) -> void;

@@ -55,6 +55,7 @@ struct RootNode : public AstNode {
 using AstRoot = OwnPtr<RootNode>;
 
 struct AstVisitor {
+	virtual ~AstVisitor() = default;
 	virtual auto visit(IdentifierNode& node) -> void = 0;
 	virtual auto visit(StringLiteralNode& node) -> void = 0;
 	virtual auto visit(DeclarationNode& node) -> void = 0;

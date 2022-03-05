@@ -1,11 +1,19 @@
 #include "core/print.hpp"
 
 auto fprintType(FILE* desc, const char* str) -> void {
-	fprintf(desc, "%s", str);
+	if(str == nullptr) {
+		fprintf(desc, "null str");
+	} else {
+		fprintf(desc, "%s", str);
+	}
 }
 
 auto fprintType(FILE* desc, char* str) -> void {
-	fprintf(desc, "%s", str);
+	if(str == nullptr) {
+		fprintf(desc, "null str");
+	} else {
+		fprintf(desc, "%s", str);
+	}
 }
 
 auto fprintType(FILE* desc, char value) -> void {

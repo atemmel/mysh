@@ -12,6 +12,18 @@ struct Array {
 		mem::fill(buffer, value);
 	}
 
+	Array(const Array& other) 
+		: buffer(other.buffer), currentSize(other.currentSize) {}
+
+	Array(Array&& other) 
+		: buffer(move(other.buffer)), currentSize(other.currentSize) {
+		other.currentSize = 0;
+	}
+
+	auto operator=(Array&& other) -> void {
+		swap(other, *this);
+	}
+
 	auto resize(size_t newSize) -> void {
 		if(newSize <= capacity()) {
 			currentSize = newSize;
