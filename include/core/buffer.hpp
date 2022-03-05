@@ -6,7 +6,7 @@
 template<typename Value>
 struct Buffer {
 	Buffer(size_t amount) 
-		: beginPtr(mem::alloc<Value>(amount)),
+		: beginPtr(mem::allocN<Value>(amount)),
 		endPtr(beginPtr + amount){}
 
 	Buffer(const Value* data, size_t amount) 

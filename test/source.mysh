@@ -3,8 +3,9 @@
 # regular shell command
 ls -l -a
 
+cp this that
 # declare variable
-var myvar="hello"
+#var myvar = "hello"
 
 # function call
-print $myvar
+#print $myvar

@@ -27,6 +27,19 @@ constexpr auto copy(const ContainerA& source, ContainerB& destination) -> void {
 	mem::copy(source.begin(), source.end(), destination.begin());
 }
 
+template<typename SrcIterator, typename DestIterator>
+constexpr auto moveRange(SrcIterator begin, SrcIterator end, DestIterator dest) -> void {
+	for(; begin != end; ++begin) {
+		*dest = move(*begin);
+		dest++;
+	}
+}
+
+template<typename ContainerA, typename ContainerB>
+constexpr auto moveRange(ContainerA& source, ContainerB& dest) -> void {
+	mem::moveRange(source.begin(), source.end(), dest.begin());
+}
+
 template<typename ContainerA, typename ContainerB>
 constexpr auto equal(const ContainerA& lhs, ContainerB& rhs) -> bool {
 	auto lit = lhs.begin();
@@ -44,8 +57,13 @@ auto alloc() -> Value* {
 	return new Value;
 }
 
+template<typename Value, typename ...Params>
+auto alloc(Params... params) -> Value* {
+	return new Value(forward<Params>(params)...);
+}
+
 template<typename Value>
-auto alloc(size_t amount) -> Value* {
+auto allocN(size_t amount) -> Value* {
 	return new Value[amount];
 }
 

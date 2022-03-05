@@ -5,6 +5,7 @@
 
 struct Token {
 	enum struct Kind {
+		Newline,		// \n
 		VarKeyword,		// var
 		Equals,			// =
 		Variable,		// $hello
@@ -14,6 +15,7 @@ struct Token {
 	};
 
 	static constexpr StaticArray<StringView, (size_t)Kind::NTokens> PrintableStrings = {
+		"Newline",
 		"VarKeyword",
 		"Equals",
 		"Variable",
@@ -22,6 +24,7 @@ struct Token {
 	};
 
 	static constexpr StaticArray<StringView, (size_t)Kind::NTokens> Strings = {
+		"\n",
 		"var",
 		"=",
 		"",
@@ -29,11 +32,11 @@ struct Token {
 		"",
 	};
 
-	static constexpr size_t KeywordBegin = 0;
-	static constexpr size_t KeywordEnd = 1;
+	static constexpr size_t KeywordBegin = 1;
+	static constexpr size_t KeywordEnd = 2;
 
-	static constexpr size_t OperatorBegin = 1;
-	static constexpr size_t OperatorEnd = 2;
+	static constexpr size_t OperatorBegin = 2;
+	static constexpr size_t OperatorEnd = 3;
 
 	static auto isOperator(StringView view) -> bool;
 

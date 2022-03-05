@@ -13,7 +13,27 @@ auto Tokenizer::tokenize(StringView source) -> Array<Token> {
 
 	while(!eof()) {
 		char c = peek();
-		if(isspace(c)) {
+
+		if(c == '\n') {
+			if(tokens.empty()) {
+				next();
+				continue;
+			}
+			if(tokens[tokens.size() - 1].kind == Token::Kind::Newline) {
+				next();
+				continue;
+			}
+			tokens.append(Token{
+				.kind = Token::Kind::Newline,
+				.value = source.view(current, current + 1),
+				.column = currentColumn,
+				.row = currentRow,
+			});
+			next();
+			continue;
+		}
+
+		if(isspace(c) && c != '\n') {
 			skipWhitespace();
 			continue;
 		}
@@ -54,7 +74,7 @@ auto Tokenizer::eof() -> bool {
 }
 
 auto Tokenizer::skipWhitespace() -> void {
-	while(isspace(peek())) {
+	while(isspace(peek()) && peek() != '\n') {
 		next();
 	}
 }
@@ -67,7 +87,10 @@ auto Tokenizer::skipComments() -> void {
 	while(!eof() && peek() != '\n') {
 		next();
 	}
-	next();
+
+	if(!eof()) {
+		next();
+	}
 }
 
 auto Tokenizer::readToken(Token& token) -> bool {

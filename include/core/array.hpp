@@ -19,8 +19,8 @@ struct Array {
 		}
 
 		Buffer<Value> newBuffer(newSize);
-		mem::copy(buffer, newBuffer);
-		buffer = newBuffer;
+		mem::moveRange(buffer, newBuffer);
+		buffer = move(newBuffer);
 		currentSize = newSize;
 	}
 
@@ -30,8 +30,8 @@ struct Array {
 		}
 
 		Buffer<Value> newBuffer(newCapacity);
-		mem::copy(buffer, newBuffer);
-		buffer = newBuffer;
+		mem::moveRange(buffer, newBuffer);
+		buffer = move(newBuffer);
 	}
 
 	auto append(const Value& toAppend) -> void {
@@ -40,6 +40,15 @@ struct Array {
 		}
 
 		buffer[currentSize] = toAppend;
+		currentSize++;
+	}
+
+	auto append(Value&& toAppend) -> void {
+		if(capacity() == size()) {
+			grow();
+		}
+
+		buffer[currentSize] = move(toAppend);
 		currentSize++;
 	}
 
@@ -105,8 +114,8 @@ private:
 			newCapacity = 4;
 		}
 		Buffer<Value> newBuffer(newCapacity);
-		mem::copy(buffer, newBuffer);
-		buffer = newBuffer;
+		mem::moveRange(buffer, newBuffer);
+		buffer = move(newBuffer);
 	}
 
 	Buffer<Value> buffer;
