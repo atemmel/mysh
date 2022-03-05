@@ -77,12 +77,23 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 
 	auto root = OwnPtr<RootNode>::create();
 	while(!eot()) {
-		auto child = parseFunctionCall();
-		if(child != nullptr) {
+		if(auto child = parseFunctionCall();
+			child != nullptr) {
 			root->addChild(child);
 			continue;
 		}
 
+		if(auto child = parseDeclaration(); 
+			child != nullptr) {
+			root->addChild(child);
+			continue;
+		}
+
+		println("");
+		println("");
+		println(tokens[current]);
+		println("");
+		println("");
 		assert(false);
 	}
 
@@ -97,10 +108,10 @@ auto AstParser::parseFunctionCall() -> Child {
 
 	Child node = OwnPtr<FunctionCallNode>::create(token);
 
-	Child child = parseIdentifier();
+	Child child = parseExpr();
 	while(child != nullptr) {
 		node->addChild(child);
-		child = parseIdentifier();
+		child = parseExpr();
 	}
 
 	if(!eot()) {
@@ -110,12 +121,80 @@ auto AstParser::parseFunctionCall() -> Child {
 	return node;
 }
 
+auto AstParser::parseDeclaration() -> Child {
+	auto token = getIf(Token::Kind::VarKeyword);
+	if(token == nullptr) {
+		return nullptr;
+	}
+
+	auto identifier = getIf(Token::Kind::Identifier);
+	if(identifier == nullptr) {
+		//TODO: Print error message
+		println("failure 1");
+		return nullptr;
+	}
+
+	if(getIf(Token::Kind::Equals) == nullptr) {
+		//TODO: Print error message
+		println("failure 2");
+		return nullptr;
+	}
+
+	auto expr = parseExpr();
+	if(expr == nullptr) {
+		//TODO: Print error message
+		println("failure 3");
+		return nullptr;
+	}
+
+	if(!eot()) {
+		assert(getIf(Token::Kind::Newline) != nullptr);
+	}
+
+	Child decl = OwnPtr<DeclarationNode>::create(identifier);
+	decl->addChild(expr);
+
+	return decl;
+}
+
+auto AstParser::parseExpr() -> Child {
+	if(auto identifier = parseIdentifier(); 
+		identifier != nullptr) {
+		return identifier;
+	}
+	if(auto variable = parseVariable(); 
+		variable != nullptr) {
+		return variable;
+	}
+	if(auto stringLiteral = parseStringLiteral();
+		stringLiteral != nullptr) {
+		return stringLiteral;
+	}
+	return nullptr;
+}
+
 auto AstParser::parseIdentifier() -> Child {
 	auto token = getIf(Token::Kind::Identifier);
 	if(token == nullptr) {
 		return nullptr;
 	}
 	return OwnPtr<IdentifierNode>::create(token);
+}
+
+auto AstParser::parseVariable() -> Child {
+	auto token = getIf(Token::Kind::Variable);
+	if(token == nullptr) {
+		return nullptr;
+	}
+	return OwnPtr<VariableNode>::create(token);
+}
+
+auto AstParser::parseStringLiteral() -> Child {
+	auto token = getIf(Token::Kind::StringLiteral);
+	if(token == nullptr) {
+		return nullptr;
+	}
+	return OwnPtr<StringLiteralNode>::create(token);
 }
 
 auto AstParser::eot() const -> bool {

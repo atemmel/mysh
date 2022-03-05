@@ -68,7 +68,11 @@ struct AstParser {
 	auto parse(const Array<Token>& tokens) -> AstRoot;
 private:
 	auto parseFunctionCall() -> Child;
+	auto parseDeclaration() -> Child;
+	auto parseExpr() -> Child;
 	auto parseIdentifier() -> Child;
+	auto parseVariable() -> Child;
+	auto parseStringLiteral() -> Child;
 
 	auto eot() const -> bool;
 	auto getIf(Token::Kind kind) -> const Token*;

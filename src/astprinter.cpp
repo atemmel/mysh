@@ -13,7 +13,13 @@ auto AstPrinter::visit(StringLiteralNode& node) -> void {
 }
 
 auto AstPrinter::visit(DeclarationNode& node) -> void {
-
+	pad();
+	println("DeclarationNode:", node.token->value);
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	--depth;
 }
 
 auto AstPrinter::visit(VariableNode& node) -> void {
@@ -22,7 +28,6 @@ auto AstPrinter::visit(VariableNode& node) -> void {
 }
 
 auto AstPrinter::visit(AssignmentNode& node) -> void {
-
 }
 
 auto AstPrinter::visit(FunctionCallNode& node) -> void {
