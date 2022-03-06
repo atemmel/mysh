@@ -11,6 +11,7 @@
   * ~~string support (String + StringView)~~
   * ~~FILE* wrapper~~
   * hashmap
+  * stringbuilder
 
 * tokenization
 	~~`var`~~
@@ -29,5 +30,6 @@
   * ~~regular shell command~~
   * ~~variable declarations~~
   * ~~function call (exec)~~
-  * function call (internal)
+  * function call (builtin)
   * variable assignment
+  * type system
