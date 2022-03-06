@@ -9,7 +9,7 @@ auto assertCall(const char* file, const int line, const char* function) -> void 
 	char stacktrace[4096];
 	StackTrace::dump(stacktrace, sizeof(stacktrace));
 	fprintf(stderr, 
-		"Assertion failed in:\nfile:%s, line%d, "
+		"Assertion failed in:\nfile:%s, line:%d, "
 		"function:%s\nstacktrace:\n\n%s",
 		file, line, function, stacktrace);
 	exit(EXIT_FAILURE);
