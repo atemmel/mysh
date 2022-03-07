@@ -18,7 +18,7 @@
   * ~~`=`~~
   * ~~`$variable`~~
   * ~~`"stringliteral"`~~
-  * "string literal"
+  * `"string literal"`
   * ~~`identifier`~~
 
 * astgen
