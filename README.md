@@ -14,11 +14,12 @@
   * stringbuilder
 
 * tokenization
-	~~`var`~~
-	~~`=`~~
-	~~`$variable`~~
-	~~`"stringliteral"`~~
-	~~`identifier`~~
+  * ~~`var`~~
+  * ~~`=`~~
+  * ~~`$variable`~~
+  * ~~`"stringliteral"`~~
+  * "string literal"
+  * ~~`identifier`~~
 
 * astgen
   * ~~regular shell command~~
