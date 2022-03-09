@@ -3,12 +3,17 @@
 #include "core/algorithm.hpp"
 #include "core/mem.hpp"
 
+#include <stdio.h>
+
 template<typename Value>
 struct List {
 private:
 		struct Node;
 public:
-	List() = default;
+	struct Iterator;
+	struct ConstIterator;
+
+	List() : head(nullptr) {};
 
 	~List() {
 		clear();
@@ -32,7 +37,6 @@ public:
 			return;
 		}
 
-		clear();
 		List<Value> copy(rhs);
 		swap(*this, copy);
 	}
@@ -62,6 +66,19 @@ public:
 		ptr->next = node;
 	}
 
+	auto remove(ConstIterator it) -> bool {
+		auto ptr = head;
+		while(ptr != nullptr && ptr->next != it.ptr) {
+			ptr = ptr->next;
+		}
+		if(ptr == nullptr) {
+			return false;
+		}
+		ptr->next = it.ptr->next;
+		mem::free(it.ptr);
+		return true;
+	}
+
 	auto clear() -> void {
 		auto ptr = head;
 		while(ptr != nullptr) {
@@ -71,7 +88,9 @@ public:
 		}
 	}
 
-	struct ConstIterator;
+	auto empty() const -> bool {
+		return head == nullptr;
+	}
 
 	struct Iterator {
 		Iterator() = default;
@@ -109,6 +128,16 @@ public:
 			assert(ptr != nullptr);
 			return ptr->value;
 		}
+
+		auto operator->() -> Value* {
+			assert(ptr != nullptr);
+			return &ptr->value;
+		}
+
+		auto operator->() const -> const Value* {
+			assert(ptr != nullptr);
+			return &ptr->value;
+		}
 	private:
 		Node* ptr = nullptr;
 	};
@@ -119,6 +148,8 @@ public:
 		}
 		ConstIterator(Iterator other) : ptr(other.ptr) {
 		}
+
+		friend List;
 
 		auto operator==(ConstIterator rhs) const -> bool {
 			return ptr == rhs.ptr;
@@ -170,5 +201,5 @@ private:
 		Value value;
 		Node* next = nullptr;
 	};
-	Node* head = nullptr;;
+	Node* head = nullptr;
 };

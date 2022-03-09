@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/assert.hpp"
-#include "core/print.hpp"
 
 #include <stdlib.h>
 

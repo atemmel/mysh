@@ -2,6 +2,7 @@
 
 #include "core/assert.hpp"
 #include "core/staticarray.hpp"
+#include "core/print.hpp"
 
 auto ArgParser::flag(bool* result, 
 		StringView flagName, 
@@ -18,8 +19,7 @@ auto ArgParser::flag(bool* result,
 auto ArgParser::parse(int argc, char** argv) -> void {
 	checkHelp(argc, argv);
 
-	int i = 1;
-	for(; i < argc; ++i) {
+	for(int i = 1; i < argc; ++i) {
 		auto index = flagIndex(argv[i]);
 		if(index == -1) {
 			otherArgs.append(argv[i]);
@@ -35,8 +35,7 @@ auto ArgParser::args() const -> const Array<StringView>& {
 }
 
 auto ArgParser::flagIndex(const char* arg) -> size_t {
-	size_t i = 0;
-	for(; i < flags.size(); ++i) {
+	for(size_t i = 0; i < flags.size(); ++i) {
 		if(flags[i].flagName == arg) {
 			return i;
 		}
@@ -64,8 +63,7 @@ auto ArgParser::checkHelp(int argc, char** argv) const -> void {
 		"-h",
 	};
 
-	int index = 1;
-	for(; index < argc; ++index) {
+	for(int index = 1; index < argc; ++index) {
 		for(auto help : helps) {
 			if(argv[index] == help) {
 				printHelp(argv);

@@ -1,5 +1,7 @@
 #include "token.hpp"
 
+#include "core/print.hpp"
+
 auto Token::isOperator(StringView view) -> bool {
 	auto i = Token::OperatorBegin;
 

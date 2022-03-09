@@ -40,14 +40,6 @@ struct OwnPtr {
 		swap(ptr, rhs.ptr);
 	}
 
-	/*
-	template<typename OtherValue>
-	operator OwnPtr<OtherValue>() const {
-		return OwnPtr<OtherValue>(this->disown());
-	}
-	*/
-
-
 	auto free() -> void {
 		mem::free(ptr);
 		ptr = nullptr;

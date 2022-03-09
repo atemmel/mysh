@@ -1,6 +1,7 @@
 #include "ast.hpp"
 
 #include "core/meta.hpp"
+#include "core/print.hpp"
 
 #include <memory>
 

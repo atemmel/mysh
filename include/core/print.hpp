@@ -17,8 +17,8 @@ auto fprintType(FILE* desc, bool value) -> void;
 template<typename Container>
 auto fprintType(FILE* desc, const Container& container) -> void {
 	fprintf(desc, "[ ");
-	for(const auto& element : container) {
-		fprintType(desc, element);
+	for(auto it = container.begin(); it != container.end(); ++it) {
+		fprint(desc, *it);
 		fprintf(desc, " ");
 	}
 	fprintf(desc, "]");

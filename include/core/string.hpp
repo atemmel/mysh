@@ -47,11 +47,15 @@ constexpr auto size(const char* ptr) -> size_t {
 }
 
 constexpr auto stringeq(const char* lhs, const char* rhs) -> bool {
+	if(lhs == nullptr && rhs == nullptr) {
+		return true;
+	}
 	size_t i = 0;
 	for(; lhs[i] != '\0' && rhs[i] != '\0'; i++) {
 		if(lhs[i] != rhs[i]) {
 			return false;
 		}
 	}
-	return lhs[i - 1] == rhs[i - 1];
+	return i == 0 ? lhs[i] == rhs[i]
+		: lhs[i - 1] == rhs[i - 1];
 }
