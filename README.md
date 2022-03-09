@@ -10,7 +10,7 @@
   * ~~linked list~~
   * ~~string support (String + StringView)~~
   * ~~FILE* wrapper~~
-  * hashmap
+  * ~~hashtable~~
   * stringbuilder
 
 * tokenization
