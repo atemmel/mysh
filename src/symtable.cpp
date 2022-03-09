@@ -22,8 +22,6 @@ auto SymTable::getVariable(StringView identifier) -> String* {
 		if(it->identifier.equals(identifier)) {
 			return &it->value;
 		}
-		println(it->identifier, "is not", identifier);
-		println(it->identifier.size(), "is not", identifier.size());
 	}
 
 	// lookup failed
