@@ -74,11 +74,11 @@ private:
 };
 
 constexpr auto operator==(const StringView& lhs, const char* rhs) -> bool {
-	return stringeq(lhs.data(), rhs);
+	return stringeq(lhs.begin(), lhs.end(), rhs);
 }
 
 constexpr auto operator==(const char* lhs, const StringView& rhs) -> bool {
-	return stringeq(lhs, rhs.data());
+	return stringeq(rhs.begin(), rhs.end(), lhs);
 }
 
 auto operator==(const String& lhs, const StringView& rhs) -> bool;
@@ -88,7 +88,7 @@ constexpr auto operator==(const StringView& lhs, const StringView& rhs) -> bool 
 	if(lhs.size() != rhs.size()) {
 		return false;
 	}
-	return stringeq(lhs.data(), rhs.data());
+	return stringeq(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 }
 
 auto fprintType(FILE* desc, StringView view) -> void;

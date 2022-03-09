@@ -2,6 +2,7 @@
 
 #include "core/assert.hpp"
 #include "core/string.hpp"
+#include "core/print.hpp"
 
 StringView::StringView(const String& src) 
 	: StringView(src.begin(), src.end()) {

@@ -1,29 +1,11 @@
 #include "symtable.hpp"
 
 auto SymTable::putVariable(StringView identifier, StringView value) -> void {
-	auto it = variables.begin();
-	for(; it != variables.end(); ++it) {
-		if(it->identifier == identifier) {
-			it->value = value;
-			return;
-		}
-	}
-
-	// identifier is never found
-	variables.append(Variable{
-		.identifier = identifier,
+	variables.put(identifier, Variable{
 		.value = value,
 	});
 }
 
-auto SymTable::getVariable(StringView identifier) -> String* {
-	auto it = variables.begin();
-	for(; it != variables.end(); ++it) {
-		if(it->identifier.equals(identifier)) {
-			return &it->value;
-		}
-	}
-
-	// lookup failed
-	return nullptr;
+auto SymTable::getVariable(StringView identifier) -> Variable* {
+	return variables.get(identifier);
 }

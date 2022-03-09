@@ -59,3 +59,33 @@ constexpr auto stringeq(const char* lhs, const char* rhs) -> bool {
 	return i == 0 ? lhs[i] == rhs[i]
 		: lhs[i - 1] == rhs[i - 1];
 }
+
+constexpr auto stringeq(const char* lhsFirst, const char* lhsLast, const char* rhs) -> bool {
+	size_t lhsLen = lhsLast - lhsFirst;
+	if(lhsLen == 0 && (rhs == nullptr || rhs[0] == '\0')) {
+		return true;
+	}
+	size_t i = 0;
+	for(; i < lhsLen && rhs[i] != '\0'; ++i) {
+		if(lhsFirst[i] != rhs[i]) {
+			return false;
+		}
+	}
+
+	return i == lhsLen;
+}
+
+constexpr auto stringeq(const char* lhsFirst, const char* lhsLast,
+	const char* rhsFirst, const char* rhsLast) -> bool {
+	if(lhsLast - lhsFirst != rhsLast - rhsFirst) {
+		return false;
+	}
+	size_t len = lhsLast - lhsFirst;
+	size_t i = 0;
+	for(; i < len; i++) {
+		if(lhsFirst[i] != rhsFirst[i]) {
+			return false;
+		}
+	}
+	return true;
+}

@@ -1,17 +1,17 @@
 #pragma once
 
-#include "core/array.hpp"
+#include "core/hashtable.hpp"
 #include "core/string.hpp"
 #include "core/stringview.hpp"
 
+struct Variable {
+	//TODO: replace type later
+	String value;
+};
+
 struct SymTable {
 	auto putVariable(StringView identifier, StringView value) -> void;
-	auto getVariable(StringView identifier) -> String*;
+	auto getVariable(StringView identifier) -> Variable*;
 private:
-	struct Variable {
-		StringView identifier;
-		//TODO: replace type later
-		String value;
-	};
-	Array<Variable> variables;
+	HashTable<StringView, Variable> variables;
 };

@@ -3,6 +3,7 @@
 #include "core/array.hpp"
 #include "core/hash.hpp"
 #include "core/list.hpp"
+#include "core/print.hpp"
 
 template<typename Key, typename Value>
 struct HashTable {
@@ -19,6 +20,7 @@ struct HashTable {
 	auto get(const Key& key) -> Value* {
 		auto it = lookup(key);
 		if(it == end()) {
+			println("Did not find :(");
 			return nullptr;
 		}
 		return &it->value;
@@ -246,9 +248,11 @@ private:
 		size_t index = hash(key) % buckets.size();
 		const Bucket& bucket = buckets[index];
 		auto it = bucket.begin();
-		auto end = bucket.end();
-		while(it != end && it->key != key) {
+		while(it != bucket.end() && it->key != key) {
 			++it;
+		}
+		if(it == bucket.end()) {
+			return end();
 		}
 		return ConstIterator(it, &bucket, buckets.end());
 	}

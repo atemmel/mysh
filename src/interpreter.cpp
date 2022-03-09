@@ -31,7 +31,7 @@ auto Interpreter::visit(VariableNode& node) -> void {
 	auto variable = symTable.getVariable(identifier);
 	//TODO: check for usage of undeclared variables
 	assert(variable != nullptr);
-	collectedStrings.append(*variable);
+	collectedStrings.append(variable->value);
 }
 
 auto Interpreter::visit(AssignmentNode& node) -> void {
