@@ -42,34 +42,6 @@ auto doEverything(StringView path) {
 	interpreter.interpret(*root);
 }
 
-auto testHashTable() -> void {
-
-	StringView text = "What is lorem Ipsum? lorem Ipsum is";
-	HashTable<String, int> frequency;
-
-	size_t wordBegin = 0;
-	while(wordBegin < text.size()) {
-		auto wordEnd = wordBegin;
-		while(wordEnd < text.size() 
-				&& !isspace(text[wordEnd])) {
-			++wordEnd;
-		}
-
-		auto word = text.view(wordBegin, wordEnd);
-		auto valuePtr = frequency.get(word);
-		if(valuePtr != nullptr) {
-			(*valuePtr)++;
-		} else {
-			frequency.put(word, 1);
-		}
-		wordBegin = wordEnd + 1;
-	}
-
-	for(auto it = frequency.begin(); it != frequency.end(); ++it) {
-		println("{", it->key, ":", it->value, "}");
-	}
-}
-
 auto main(int argc, char** argv) -> int {
 	globals::init();
 
