@@ -1,0 +1,10 @@
+#!../build/mysh
+
+# create variable
+var flag = "-l"
+
+# print variable
+print $flag
+
+# use variable with external command
+ls $flag

@@ -4,14 +4,35 @@
 #include "core/string.hpp"
 #include "core/stringview.hpp"
 
-struct Variable {
-	//TODO: replace type later
-	String value;
+struct SymTable;
+
+struct Value {
+	constexpr static auto OwnerLess = static_cast<size_t>(-1);
+	enum struct Kind {
+		String,
+		Bool,
+		Null,
+	};
+	union {
+		StringView string;
+		bool boolean;
+	};
+	Kind kind;
+	size_t ownerIndex = OwnerLess;
+
+	auto free(SymTable& owner) -> void;
 };
 
 struct SymTable {
+	friend struct Value;
+
 	auto putVariable(StringView identifier, StringView value) -> void;
-	auto getVariable(StringView identifier) -> Variable*;
+	auto getVariable(StringView identifier) -> Value*;
 private:
-	HashTable<StringView, Variable> variables;
+	auto createString(StringView string) -> size_t;
+	auto freeString(const Value* variable) -> void;
+
+	Array<String> strings;
+	Array<size_t> freeStrings;
+	HashTable<StringView, Value> variables;
 };

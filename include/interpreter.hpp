@@ -16,8 +16,8 @@ struct Interpreter : public AstVisitor {
 private:
 
 	auto executeFunction(StringView identifier,
-		const Array<StringView>& args) -> void;
+		const Array<Value>& args) -> void;
 
+	Array<Value> collectedValues;
 	SymTable symTable;
-	Array<StringView> collectedStrings;
 };

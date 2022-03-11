@@ -8,11 +8,25 @@ auto Interpreter::interpret(RootNode& root) -> bool {
 }
 
 auto Interpreter::visit(IdentifierNode& node) -> void {
-	collectedStrings.append(node.token->value);
+	auto value = Value{
+		.kind = Value::Kind::String,
+		.ownerIndex = static_cast<size_t>(-1),
+	};
+
+	value.string = node.token->value;
+
+	collectedValues.append(value);
 }
 
 auto Interpreter::visit(StringLiteralNode& node) -> void {
-	collectedStrings.append(node.token->value);
+	auto value = Value{
+		.kind = Value::Kind::String,
+		.ownerIndex = static_cast<size_t>(-1),
+	};
+
+	value.string = node.token->value;
+
+	collectedValues.append(value);
 }
 
 auto Interpreter::visit(DeclarationNode& node) -> void {
@@ -20,10 +34,19 @@ auto Interpreter::visit(DeclarationNode& node) -> void {
 	for(auto& child : node.children) {
 		child->accept(*this);
 	}
-	assert(collectedStrings.size() == 1);
+	assert(collectedValues.size() == 1);
 	//TODO: check for redeclaration
-	symTable.putVariable(identifier, collectedStrings[0]);
-	collectedStrings.clear();
+	auto& value = collectedValues[0];
+	switch(value.kind) {
+		case Value::Kind::String:
+			symTable.putVariable(identifier, collectedValues[0].string);
+			break;
+			//TODO: this
+		case Value::Kind::Bool:
+		case Value::Kind::Null:
+			break;
+	}
+	collectedValues.clear();
 }
 
 auto Interpreter::visit(VariableNode& node) -> void {
@@ -31,7 +54,7 @@ auto Interpreter::visit(VariableNode& node) -> void {
 	auto variable = symTable.getVariable(identifier);
 	//TODO: check for usage of undeclared variables
 	assert(variable != nullptr);
-	collectedStrings.append(variable->value);
+	collectedValues.append(*variable);
 }
 
 auto Interpreter::visit(AssignmentNode& node) -> void {
@@ -47,7 +70,7 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 		child->accept(*this);
 	}
 	
-	auto args = move(collectedStrings);
+	auto args = move(collectedValues);
 
 	// execute
 	executeFunction(func, args);
@@ -60,13 +83,22 @@ auto Interpreter::visit(RootNode& node) -> void {
 }
 
 auto Interpreter::executeFunction(StringView identifier,
-	const Array<StringView>& args) -> void {
+	const Array<Value>& args) -> void {
 
 	Array<String> strings;
 	strings.reserve(1 + args.size());
 	strings.append(identifier);
-	for(auto arg : args) {
-		strings.append(arg);
+	for(auto& arg : args) {
+		switch(arg.kind) {
+			case Value::Kind::String:
+				strings.append(arg.string);
+				break;
+			//TODO: this
+			case Value::Kind::Bool:
+			case Value::Kind::Null:
+				assert(false);
+				break;
+		}
 	}
 	spawn(strings);
 }

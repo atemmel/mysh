@@ -5,6 +5,9 @@
 
 struct StringView {
 	constexpr StringView() = default;
+
+	constexpr StringView(nullptr_t) : beginPtr(nullptr), endPtr(nullptr) {};
+
 	constexpr StringView(const char* src) 
 		: beginPtr(src), endPtr(beginPtr + ::size(src)) {
 	}
@@ -68,9 +71,8 @@ struct StringView {
 	}
 
 private:
-	const char* beginPtr = nullptr;
-	// points to one behind last element
-	const char* endPtr = nullptr;
+	const char* beginPtr;
+	const char* endPtr;
 };
 
 constexpr auto operator==(const StringView& lhs, const char* rhs) -> bool {

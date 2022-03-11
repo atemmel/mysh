@@ -64,6 +64,13 @@ struct Array {
 		currentSize++;
 	}
 
+	auto remove(size_t index) -> void {
+		assert(index >= 0);
+		assert(index < size());
+		mem::moveRange(begin() + index + 1, end(), begin() + index);
+		pop();
+	}
+
 	auto pop() -> void {
 		assert(size() > 0);
 		currentSize--;
