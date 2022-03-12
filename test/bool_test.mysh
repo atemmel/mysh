@@ -13,3 +13,8 @@ $b = false
 
 # print variables
 print $a $b
+
+# assign variable to variable
+print $b
+$b = $a
+print $b
