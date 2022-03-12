@@ -2,6 +2,7 @@
 
 #include "core/array.hpp"
 #include "core/hash.hpp"
+#include "core/initializerlist.hpp"
 #include "core/list.hpp"
 #include "core/print.hpp"
 
@@ -16,6 +17,15 @@ struct HashTable {
 	using Buckets = Array<Bucket>;
 	struct Iterator;
 	struct ConstIterator;
+
+	HashTable() = default;
+
+	HashTable(InitializerList<KeyValuePair> list) {
+		maybeRehash();
+		for(const auto& item : list) {
+			insert(item);
+		}
+	}
 
 	auto get(const Key& key) -> Value* {
 		auto it = lookup(key);
@@ -197,7 +207,7 @@ struct HashTable {
 					++currentBucket;
 				}
 				if(currentBucket == lastBucket) {
-					currentPair = nullptr;
+					currentPair = typename Bucket::ConstIterator(nullptr);
 				} else {
 					currentPair = currentBucket->begin();
 				}
@@ -255,6 +265,10 @@ private:
 			return end();
 		}
 		return ConstIterator(it, &bucket, buckets.end());
+	}
+
+	auto insert(const KeyValuePair& pair) -> void {
+		insert(pair.key, pair.value);
 	}
 
 	auto insert(const Key& key, const Value& value) -> void {

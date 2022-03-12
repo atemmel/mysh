@@ -20,14 +20,20 @@ struct Value {
 	Kind kind;
 	size_t ownerIndex = OwnerLess;
 
+	auto toString() const -> StringView;
 	auto free(SymTable& owner) -> void;
 };
+
+auto fprintType(FILE* desc, const Value& value) -> void;
 
 struct SymTable {
 	friend struct Value;
 
 	auto putVariable(StringView identifier, StringView value) -> void;
+	auto putVariable(StringView identifier, bool value) -> void;
 	auto getVariable(StringView identifier) -> Value*;
+
+	auto dump() const -> void;
 private:
 	auto createString(StringView string) -> size_t;
 	auto freeString(const Value* variable) -> void;

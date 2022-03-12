@@ -27,6 +27,11 @@ struct StringLiteralNode : public AstNode {
 	auto accept(AstVisitor& visitor) -> void;
 };
 
+struct BoolLiteralNode : public AstNode {
+	BoolLiteralNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+};
+
 struct DeclarationNode : public AstNode {
 	DeclarationNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
@@ -58,6 +63,7 @@ struct AstVisitor {
 	virtual ~AstVisitor() = default;
 	virtual auto visit(IdentifierNode& node) -> void = 0;
 	virtual auto visit(StringLiteralNode& node) -> void = 0;
+	virtual auto visit(BoolLiteralNode& node) -> void = 0;
 	virtual auto visit(DeclarationNode& node) -> void = 0;
 	virtual auto visit(VariableNode& node) -> void = 0;
 	virtual auto visit(AssignmentNode& node) -> void = 0;
@@ -74,6 +80,7 @@ private:
 	auto parseIdentifier() -> Child;
 	auto parseVariable() -> Child;
 	auto parseStringLiteral() -> Child;
+	auto parseBoolLiteral() -> Child;
 
 	auto eot() const -> bool;
 	auto getIf(Token::Kind kind) -> const Token*;

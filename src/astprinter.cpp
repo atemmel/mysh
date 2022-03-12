@@ -12,6 +12,11 @@ auto AstPrinter::visit(StringLiteralNode& node) -> void {
 	println("StringLiteralNode:", node.token->value);
 }
 
+auto AstPrinter::visit(BoolLiteralNode& node) -> void {
+	pad();
+	println("BoolLiteralNode:", node.token->kind == Token::Kind::True);
+}
+
 auto AstPrinter::visit(DeclarationNode& node) -> void {
 	pad();
 	println("DeclarationNode:", node.token->value);

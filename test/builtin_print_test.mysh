@@ -1,0 +1,6 @@
+#!../build/mysh
+var str = "String"
+var boolean = true
+print Hello world!
+print "Hello" "world!"
+print $str $boolean

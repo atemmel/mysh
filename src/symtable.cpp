@@ -1,5 +1,23 @@
 #include "symtable.hpp"
 
+auto Value::toString() const -> StringView {
+	switch(kind) {
+		case Kind::String:
+			return string;
+		case Kind::Bool:
+			return boolean ?
+				"true" : "false";
+		case Kind::Null:
+			break;
+	}
+	assert(false);
+	return "";
+}
+
+auto fprintType(FILE* desc, const Value& value) -> void {
+	fprintType(desc, value.toString());
+}
+
 auto Value::free(SymTable& owner) -> void {
 	// if has owner
 	if(ownerIndex != Value::OwnerLess) {
@@ -28,8 +46,29 @@ auto SymTable::putVariable(StringView identifier, StringView value) -> void {
 	});
 }
 
+auto SymTable::putVariable(StringView identifier, bool value) -> void {
+	variables.put(identifier, Value{
+		.boolean = value,
+		.kind = Value::Kind::Bool,
+		.ownerIndex = Value::OwnerLess,
+	});
+}
+
 auto SymTable::getVariable(StringView identifier) -> Value* {
 	return variables.get(identifier);
+}
+
+auto SymTable::dump() const -> void {
+	if(variables.empty()) {
+		println("Empty symtable");
+	} else {
+		println("Symtable was not empty:");
+	}
+
+	for(auto it = variables.begin();
+		it != variables.end(); it++) {
+		println(it->key, "=", it->value);
+	}
 }
 
 auto SymTable::createString(StringView string) -> size_t {

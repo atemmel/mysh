@@ -5,6 +5,7 @@
 struct AstPrinter : public AstVisitor {
 	auto visit(IdentifierNode& node) -> void override;
 	auto visit(StringLiteralNode& node) -> void override;
+	auto visit(BoolLiteralNode& node) -> void override;
 	auto visit(DeclarationNode& node) -> void override;
 	auto visit(VariableNode& node) -> void override;
 	auto visit(AssignmentNode& node) -> void override;

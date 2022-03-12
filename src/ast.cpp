@@ -29,6 +29,14 @@ auto StringLiteralNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
+BoolLiteralNode::BoolLiteralNode(const Token* token)
+	: AstNode(token) {
+
+}
+auto BoolLiteralNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
 DeclarationNode::DeclarationNode(const Token* token) 
 	: AstNode(token) {
 
@@ -171,6 +179,10 @@ auto AstParser::parseExpr() -> Child {
 		stringLiteral != nullptr) {
 		return stringLiteral;
 	}
+	if(auto boolLiteral = parseBoolLiteral();
+		boolLiteral != nullptr) {
+		return boolLiteral;
+	}
 	return nullptr;
 }
 
@@ -196,6 +208,16 @@ auto AstParser::parseStringLiteral() -> Child {
 		return nullptr;
 	}
 	return OwnPtr<StringLiteralNode>::create(token);
+}
+
+auto AstParser::parseBoolLiteral() -> Child {
+	if(auto fals = getIf(Token::Kind::False); fals != nullptr) {
+		return OwnPtr<BoolLiteralNode>::create(fals);
+	}
+	if(auto tru = getIf(Token::Kind::True); tru != nullptr) {
+		return OwnPtr<BoolLiteralNode>::create(tru);
+	}
+	return nullptr;
 }
 
 auto AstParser::eot() const -> bool {

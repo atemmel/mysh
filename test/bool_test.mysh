@@ -1,10 +1,15 @@
 #!../build/mysh
 
-# create variable
-var flag = "-l"
+# create variables
+var a = false
+var b = true
 
-# print variable
-print $flag
+# print variables
+print $a $b
 
-# use variable with external command
-ls $flag
+# reassign variables
+#a = true
+#b = false
+
+# print variables
+print $a $b
