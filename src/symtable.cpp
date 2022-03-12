@@ -1,5 +1,7 @@
 #include "symtable.hpp"
 
+#include "core/print.hpp"
+
 auto Value::toString() const -> StringView {
 	switch(kind) {
 		case Kind::String:
@@ -36,22 +38,48 @@ auto Value::free(SymTable& owner) -> void {
 	kind = Kind::Null;
 }
 
-auto SymTable::putVariable(StringView identifier, StringView value) -> void {
-	auto index = createString(value);
+auto SymTable::putVariable(StringView identifier, const Value& value) -> void {
 
-	variables.put(identifier, Value{
+	auto newValue = createValue(value);
+
+	// remove prior value (if applicable)
+	auto prev = getVariable(identifier);
+	if(prev != nullptr) {
+		prev->free(*this);
+	}
+
+	variables.put(identifier, newValue);
+}
+
+auto SymTable::createValue(const Value& value) -> Value {
+	switch(value.kind) {
+		case Value::Kind::String:
+			return createValue(value.string);
+		case Value::Kind::Bool:
+			return createValue(value.boolean);
+		case Value::Kind::Null:
+			assert(false);
+			break;
+	}
+	assert(false);
+	return {};
+}
+
+auto SymTable::createValue(StringView value) -> Value {
+	auto index = createString(value);
+	return Value{
 		.string = strings[index],
 		.kind = Value::Kind::String,
 		.ownerIndex = index,
-	});
+	};
 }
 
-auto SymTable::putVariable(StringView identifier, bool value) -> void {
-	variables.put(identifier, Value{
+auto SymTable::createValue(bool value) -> Value {
+	return Value{
 		.boolean = value,
 		.kind = Value::Kind::Bool,
 		.ownerIndex = Value::OwnerLess,
-	});
+	};
 }
 
 auto SymTable::getVariable(StringView identifier) -> Value* {

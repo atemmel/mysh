@@ -4,7 +4,6 @@
 #include "core/hash.hpp"
 #include "core/initializerlist.hpp"
 #include "core/list.hpp"
-#include "core/print.hpp"
 
 template<typename Key, typename Value>
 struct HashTable {
@@ -30,7 +29,6 @@ struct HashTable {
 	auto get(const Key& key) -> Value* {
 		auto it = lookup(key);
 		if(it == end()) {
-			println("Did not find :(");
 			return nullptr;
 		}
 		return &it->value;

@@ -20,5 +20,6 @@ private:
 		const Array<Value>& args) -> void;
 
 	Array<Value> collectedValues;
+	const VariableNode* lastVisitedVariable;
 	SymTable symTable;
 };

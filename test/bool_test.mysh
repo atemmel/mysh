@@ -8,8 +8,8 @@ var b = true
 print $a $b
 
 # reassign variables
-#a = true
-#b = false
+$a = true
+$b = false
 
 # print variables
 print $a $b

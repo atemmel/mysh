@@ -33,6 +33,13 @@ auto AstPrinter::visit(VariableNode& node) -> void {
 }
 
 auto AstPrinter::visit(AssignmentNode& node) -> void {
+	pad();
+	println("AssignmentNode:");
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	--depth;
 }
 
 auto AstPrinter::visit(FunctionCallNode& node) -> void {

@@ -79,6 +79,7 @@ private:
 	auto parseExpr() -> Child;
 	auto parseIdentifier() -> Child;
 	auto parseVariable() -> Child;
+	auto parseAssignment() -> Child;
 	auto parseStringLiteral() -> Child;
 	auto parseBoolLiteral() -> Child;
 

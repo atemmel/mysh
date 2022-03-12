@@ -1,5 +1,6 @@
 #include "interpreter.hpp"
 
+#include "core/print.hpp"
 #include "spawn.hpp"
 
 using Builtin = void(*)(const Array<Value>&);
@@ -58,11 +59,11 @@ auto Interpreter::visit(DeclarationNode& node) -> void {
 	auto& value = collectedValues[0];
 	switch(value.kind) {
 		case Value::Kind::String:
-			symTable.putVariable(identifier, collectedValues[0].string);
+			symTable.putVariable(identifier, collectedValues[0]);
 			break;
 			//TODO: this
 		case Value::Kind::Bool:
-			symTable.putVariable(identifier, collectedValues[0].boolean);
+			symTable.putVariable(identifier, collectedValues[0]);
 			break;
 		case Value::Kind::Null:
 			assert(false);
@@ -78,11 +79,24 @@ auto Interpreter::visit(VariableNode& node) -> void {
 	//TODO: check for usage of undeclared variables
 	assert(variable != nullptr);
 
+	lastVisitedVariable = &node;
 	collectedValues.append(*variable);
 }
 
 auto Interpreter::visit(AssignmentNode& node) -> void {
+	assert(node.children.size() == 2);
 
+	// find target
+	node.children[0]->accept(*this);
+	auto identifier = lastVisitedVariable->token->value;
+	collectedValues.clear();
+
+	// find value
+	node.children[1]->accept(*this);
+	assert(collectedValues.size() == 1);
+	symTable.putVariable(identifier, collectedValues[0]);
+	// reset
+	collectedValues.clear();
 }
 
 auto Interpreter::visit(FunctionCallNode& node) -> void {

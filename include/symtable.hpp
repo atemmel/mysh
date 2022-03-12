@@ -29,12 +29,15 @@ auto fprintType(FILE* desc, const Value& value) -> void;
 struct SymTable {
 	friend struct Value;
 
-	auto putVariable(StringView identifier, StringView value) -> void;
-	auto putVariable(StringView identifier, bool value) -> void;
+	auto putVariable(StringView identifier, const Value& value) -> void;
 	auto getVariable(StringView identifier) -> Value*;
 
 	auto dump() const -> void;
 private:
+	auto createValue(const Value& value) -> Value;
+	auto createValue(StringView value) -> Value;
+	auto createValue(bool value) -> Value;
+
 	auto createString(StringView string) -> size_t;
 	auto freeString(const Value* variable) -> void;
 

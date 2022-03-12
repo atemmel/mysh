@@ -98,6 +98,12 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 			continue;
 		}
 
+		if(auto child = parseAssignment();
+			child != nullptr) {
+			root->addChild(child);
+			continue;
+		}
+
 		println("");
 		println("");
 		println(tokens[current]);
@@ -110,6 +116,7 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 }
 
 auto AstParser::parseFunctionCall() -> Child {
+	auto checkpoint = current;
 	auto token = getIf(Token::Kind::Identifier);
 	if(token == nullptr) {
 		return nullptr;
@@ -200,6 +207,41 @@ auto AstParser::parseVariable() -> Child {
 		return nullptr;
 	}
 	return OwnPtr<VariableNode>::create(token);
+}
+
+auto AstParser::parseAssignment() -> Child {
+	auto checkpoint = current;
+	auto variable = parseVariable();
+	if(variable == nullptr) {
+		return nullptr;
+	}
+
+
+	auto equals = getIf(Token::Kind::Equals);
+	if(equals == nullptr) {
+		current = checkpoint;
+		return nullptr;
+	}
+
+	auto expr = parseExpr();
+	if(expr == nullptr) {
+		//TODO: expected expression
+		assert(false);
+		return nullptr;
+	}
+
+	auto newline = getIf(Token::Kind::Newline);
+	if(newline == nullptr) {
+		//TODO: expected newline
+		assert(false);
+		return nullptr;
+	}
+
+	auto assign = OwnPtr<AssignmentNode>::create(equals);
+	assign->children.reserve(2);
+	assign->addChild(variable);
+	assign->addChild(expr);
+	return assign;
 }
 
 auto AstParser::parseStringLiteral() -> Child {
