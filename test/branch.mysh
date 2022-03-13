@@ -7,6 +7,12 @@ if true {
 	print This should never print
 }
 
+if false {
+	print This should never print
+} else {
+	print This should print
+}
+
 # test variable
 var a = true
 if false {

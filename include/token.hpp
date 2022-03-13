@@ -9,6 +9,8 @@ struct Token {
 		VarKeyword,		// var
 		False,			// false
 		True,			// true
+		If,				// if
+		Else,			// else
 		Equals,			// =
 		LeftBrace,		// {
 		RightBrace,		// }
@@ -23,6 +25,8 @@ struct Token {
 		"VarKeyword",
 		"False",
 		"True",
+		"If",
+		"Else",
 		"Equals",
 		"LeftBrace",
 		"RightBrace",
@@ -36,6 +40,8 @@ struct Token {
 		"var",
 		"false",
 		"true",
+		"if",
+		"else",
 		"=",
 		"{",
 		"}",
@@ -45,10 +51,10 @@ struct Token {
 	};
 
 	static constexpr size_t KeywordBegin = 1;
-	static constexpr size_t KeywordEnd = 4;
+	static constexpr size_t KeywordEnd = 6;
 
-	static constexpr size_t OperatorBegin = 4;
-	static constexpr size_t OperatorEnd = 7;
+	static constexpr size_t OperatorBegin = 6;
+	static constexpr size_t OperatorEnd = 9;
 
 	static auto isOperator(StringView view) -> bool;
 

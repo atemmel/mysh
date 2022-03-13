@@ -74,6 +74,35 @@ auto Interpreter::visit(VariableNode& node) -> void {
 	collectedValues.append(*variable);
 }
 
+auto Interpreter::visit(BranchNode& node) -> void {
+	// if no expression
+	if(node.expression == nullptr) {
+		// eval statement and be done
+		node.statement->accept(*this);
+		return;
+	}
+
+	node.expression->accept(*this);
+	assert(collectedValues.size() == 1);
+
+	auto value = collectedValues[0];
+	collectedValues.clear();
+
+	//TODO: check for non-boolean exprs in condition
+	assert(value.kind == Value::Kind::Bool);
+
+	// if this is the chosen branch
+	if(value.boolean) {
+		node.statement->accept(*this);
+		return;
+	}
+
+	// otherwise, look into the next branches
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+}
+
 auto Interpreter::visit(ScopeNode& node) -> void {
 	symTable.addScope();
 	for(auto& child : node.children) {

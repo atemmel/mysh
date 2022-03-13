@@ -47,6 +47,13 @@ struct ScopeNode : public AstNode {
 	auto accept(AstVisitor& visitor) -> void;
 };
 
+struct BranchNode : public AstNode {
+	BranchNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+	Child expression;
+	Child statement;
+};
+
 struct AssignmentNode : public AstNode {
 	AssignmentNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
@@ -71,6 +78,7 @@ struct AstVisitor {
 	virtual auto visit(BoolLiteralNode& node) -> void = 0;
 	virtual auto visit(DeclarationNode& node) -> void = 0;
 	virtual auto visit(VariableNode& node) -> void = 0;
+	virtual auto visit(BranchNode& node) -> void = 0;
 	virtual auto visit(ScopeNode& node) -> void = 0;
 	virtual auto visit(AssignmentNode& node) -> void = 0;
 	virtual auto visit(FunctionCallNode& node) -> void = 0;
@@ -86,7 +94,8 @@ private:
 	auto parseExpr() -> Child;
 	auto parseIdentifier() -> Child;
 	auto parseVariable() -> Child;
-	auto parseScope() -> Child;
+	auto parseBranch() -> Child;
+	auto parseScope(bool endsWithNewline = true) -> Child;
 	auto parseAssignment() -> Child;
 	auto parseStringLiteral() -> Child;
 	auto parseBoolLiteral() -> Child;

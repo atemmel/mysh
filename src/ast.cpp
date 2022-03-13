@@ -63,6 +63,15 @@ auto ScopeNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
+BranchNode::BranchNode(const Token* token) 
+	: AstNode(token) {
+
+}
+
+auto BranchNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
 AssignmentNode::AssignmentNode(const Token* token) 
 	: AstNode(token) {
 
@@ -128,6 +137,11 @@ auto AstParser::parseStatement() -> Child {
 	}
 
 	if(auto child = parseScope();
+		child != nullptr) {
+		return child;
+	}
+
+	if(auto child = parseBranch();
 		child != nullptr) {
 		return child;
 	}
@@ -229,7 +243,52 @@ auto AstParser::parseVariable() -> Child {
 	return OwnPtr<VariableNode>::create(token);
 }
 
-auto AstParser::parseScope() -> Child {
+auto AstParser::parseBranch() -> Child {
+	auto branchBegin = getIf(Token::Kind::If);
+	if(branchBegin == nullptr) {
+		return nullptr;
+	}
+
+	auto expr = parseExpr();
+	if(expr == nullptr){
+		assert(false);
+	}
+
+	auto branch = OwnPtr<BranchNode>::create(branchBegin);
+	branch->expression = move(expr);
+
+	auto scope = parseScope(false);
+	if(scope == nullptr) {
+		assert(false);
+	}
+
+	branch->statement = move(scope);
+
+	// single if
+	if(getIf(Token::Kind::Newline) != nullptr) {
+		return branch;
+	}
+
+	// else could mean:
+	if(getIf(Token::Kind::Else) != nullptr) {
+		// if else check
+		if(auto child = parseBranch();
+			child != nullptr) {
+			branch->addChild(child);
+			return branch;
+		// solo else check
+		} else if(auto child = parseScope();
+			child != nullptr) {
+			branch->addChild(child);
+			return branch;
+		}
+	}
+	
+	assert(false);
+	return nullptr;
+}
+
+auto AstParser::parseScope(bool endsWithNewline) -> Child {
 	auto checkpoint = current;
 	auto lbrace = getIf(Token::Kind::LeftBrace);
 	if(lbrace == nullptr) {
@@ -260,8 +319,10 @@ auto AstParser::parseScope() -> Child {
 		return nullptr;
 	}
 
-	if(!eot()) {
-		assert(getIf(Token::Kind::Newline) != nullptr);
+	if(endsWithNewline) {
+		if(!eot()) {
+			assert(getIf(Token::Kind::Newline) != nullptr);
+		}
 	}
 
 	return scope;
