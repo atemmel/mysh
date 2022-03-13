@@ -11,7 +11,6 @@ struct Value {
 	enum struct Kind {
 		String,
 		Bool,
-		Null,
 	};
 	union {
 		StringView string;

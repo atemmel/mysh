@@ -9,8 +9,6 @@ auto Value::toString() const -> StringView {
 		case Kind::Bool:
 			return boolean ?
 				"true" : "false";
-		case Kind::Null:
-			break;
 	}
 	assert(false);
 	return "";
@@ -30,12 +28,11 @@ auto Value::free(SymTable& owner) -> void {
 				break;
 			// no peculiar freeing policy
 			case Kind::Bool:
-			case Kind::Null:
 				break;
 		}
 	}
 	// reset
-	kind = Kind::Null;
+	ownerIndex = Value::OwnerLess;
 }
 
 auto SymTable::putVariable(StringView identifier, const Value& value) -> void {
@@ -57,9 +54,6 @@ auto SymTable::createValue(const Value& value) -> Value {
 			return createValue(value.string);
 		case Value::Kind::Bool:
 			return createValue(value.boolean);
-		case Value::Kind::Null:
-			assert(false);
-			break;
 	}
 	assert(false);
 	return {};

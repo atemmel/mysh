@@ -56,19 +56,7 @@ auto Interpreter::visit(DeclarationNode& node) -> void {
 	}
 	assert(collectedValues.size() == 1);
 	//TODO: check for redeclaration
-	auto& value = collectedValues[0];
-	switch(value.kind) {
-		case Value::Kind::String:
-			symTable.putVariable(identifier, collectedValues[0]);
-			break;
-			//TODO: this
-		case Value::Kind::Bool:
-			symTable.putVariable(identifier, collectedValues[0]);
-			break;
-		case Value::Kind::Null:
-			assert(false);
-			break;
-	}
+	symTable.putVariable(identifier, collectedValues[0]);
 	collectedValues.clear();
 }
 
