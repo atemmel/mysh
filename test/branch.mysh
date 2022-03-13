@@ -1,0 +1,27 @@
+#!../build/mysh
+
+# test literal
+if true {
+	print This should print
+} else {
+	print This should never print
+}
+
+# test variable
+var a = true
+if false {
+	print This should never print
+} else if $a {
+	print This should print
+} else {
+	print This should never print
+}
+
+# test scope
+if true {
+	var b = "James"
+}
+
+var b = "Jarvis"
+
+print $b

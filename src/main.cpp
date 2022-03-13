@@ -2,7 +2,6 @@
 #include "core/file.hpp"
 #include "core/print.hpp"
 
-
 #include "ast.hpp"
 #include "astprinter.hpp"
 #include "globals.hpp"
