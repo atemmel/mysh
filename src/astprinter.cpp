@@ -32,6 +32,16 @@ auto AstPrinter::visit(VariableNode& node) -> void {
 	println("VariableNode:", node.token->value);
 }
 
+auto AstPrinter::visit(ScopeNode& node) -> void {
+	pad();
+	println("ScopeNode:");
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	--depth;
+}
+
 auto AstPrinter::visit(AssignmentNode& node) -> void {
 	pad();
 	println("AssignmentNode:");

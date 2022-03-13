@@ -10,6 +10,8 @@ struct Token {
 		False,			// false
 		True,			// true
 		Equals,			// =
+		LeftBrace,		// {
+		RightBrace,		// }
 		Variable,		// $hello
 		StringLiteral,	// "hello"
 		Identifier,		// hello
@@ -22,6 +24,8 @@ struct Token {
 		"False",
 		"True",
 		"Equals",
+		"LeftBrace",
+		"RightBrace",
 		"Variable",
 		"StringLiteral",
 		"Identifier",
@@ -33,6 +37,8 @@ struct Token {
 		"false",
 		"true",
 		"=",
+		"{",
+		"}",
 		"",
 		"",
 		"",
@@ -42,7 +48,7 @@ struct Token {
 	static constexpr size_t KeywordEnd = 4;
 
 	static constexpr size_t OperatorBegin = 4;
-	static constexpr size_t OperatorEnd = 5;
+	static constexpr size_t OperatorEnd = 7;
 
 	static auto isOperator(StringView view) -> bool;
 

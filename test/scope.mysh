@@ -4,7 +4,7 @@ var a = "hello"
 
 {
 	# this should not work, as a would shadow a
-	# var a = "world?"
+	#var a = "world?"
 
 	# inner declaration
 	var b = "world?"

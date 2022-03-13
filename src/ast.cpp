@@ -55,6 +55,14 @@ auto VariableNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
+ScopeNode::ScopeNode(const Token* token) 
+	: AstNode(token) {
+
+}
+auto ScopeNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
 AssignmentNode::AssignmentNode(const Token* token) 
 	: AstNode(token) {
 
@@ -86,19 +94,7 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 
 	auto root = OwnPtr<RootNode>::create();
 	while(!eot()) {
-		if(auto child = parseFunctionCall();
-			child != nullptr) {
-			root->addChild(child);
-			continue;
-		}
-
-		if(auto child = parseDeclaration(); 
-			child != nullptr) {
-			root->addChild(child);
-			continue;
-		}
-
-		if(auto child = parseAssignment();
+		if(auto child = parseStatement();
 			child != nullptr) {
 			root->addChild(child);
 			continue;
@@ -113,6 +109,30 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 	}
 
 	return root;
+}
+
+auto AstParser::parseStatement() -> Child {
+	if(auto child = parseFunctionCall();
+		child != nullptr) {
+		return child;
+	}
+
+	if(auto child = parseDeclaration(); 
+		child != nullptr) {
+		return child;
+	}
+
+	if(auto child = parseAssignment();
+		child != nullptr) {
+		return child;
+	}
+
+	if(auto child = parseScope();
+		child != nullptr) {
+		return child;
+	}
+
+	return nullptr;
 }
 
 auto AstParser::parseFunctionCall() -> Child {
@@ -207,6 +227,44 @@ auto AstParser::parseVariable() -> Child {
 		return nullptr;
 	}
 	return OwnPtr<VariableNode>::create(token);
+}
+
+auto AstParser::parseScope() -> Child {
+	auto checkpoint = current;
+	auto lbrace = getIf(Token::Kind::LeftBrace);
+	if(lbrace == nullptr) {
+		return nullptr;
+	}
+
+	if(getIf(Token::Kind::Newline) == nullptr) {
+		current = checkpoint;
+		return nullptr;
+	}
+
+	auto scope = OwnPtr<ScopeNode>::create(lbrace);
+
+	while(true) {
+		if(auto stmnt = parseStatement();
+			stmnt != nullptr) {
+			scope->addChild(stmnt);
+			continue;
+		}
+
+		if(auto rbrace = getIf(Token::Kind::RightBrace);
+			rbrace != nullptr) {
+			break;
+		}
+
+		//TODO: poor candidate for statement
+		assert(false);
+		return nullptr;
+	}
+
+	if(!eot()) {
+		assert(getIf(Token::Kind::Newline) != nullptr);
+	}
+
+	return scope;
 }
 
 auto AstParser::parseAssignment() -> Child {

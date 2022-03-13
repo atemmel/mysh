@@ -58,6 +58,7 @@ auto Interpreter::visit(DeclarationNode& node) -> void {
 	}
 	assert(collectedValues.size() == 1);
 	//TODO: check for redeclaration
+	assert(symTable.getVariable(identifier) == nullptr);
 	symTable.putVariable(identifier, collectedValues[0]);
 	collectedValues.clear();
 }
@@ -71,6 +72,14 @@ auto Interpreter::visit(VariableNode& node) -> void {
 
 	lastVisitedVariable = &node;
 	collectedValues.append(*variable);
+}
+
+auto Interpreter::visit(ScopeNode& node) -> void {
+	symTable.addScope();
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	symTable.dropScope();
 }
 
 auto Interpreter::visit(AssignmentNode& node) -> void {
