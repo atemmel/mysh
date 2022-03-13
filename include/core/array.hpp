@@ -21,7 +21,8 @@ struct Array {
 	}
 
 	auto operator=(Array&& other) -> void {
-		swap(other, *this);
+		swap(currentSize, other.currentSize);
+		buffer.swap(other.buffer);
 	}
 
 	auto resize(size_t newSize) -> void {

@@ -35,6 +35,20 @@ auto Value::free(SymTable& owner) -> void {
 	ownerIndex = Value::OwnerLess;
 }
 
+auto SymTable::addScope() -> void {
+	scopes.append({});
+}
+
+auto SymTable::dropScope() -> void {
+	assert(!scopes.empty());
+	auto& lastScope = scopes[scopes.size() - 1];
+	for(auto it = lastScope.begin(); it != lastScope.end(); ++it) {
+		it->value.free(*this);
+	}
+	lastScope.clear();
+	scopes.pop();
+}
+
 auto SymTable::putVariable(StringView identifier, const Value& value) -> void {
 
 	auto newValue = createValue(value);
@@ -45,7 +59,8 @@ auto SymTable::putVariable(StringView identifier, const Value& value) -> void {
 		prev->free(*this);
 	}
 
-	variables.put(identifier, newValue);
+	auto& scope = scopes[scopes.size() - 1];
+	scope.put(identifier, newValue);
 }
 
 auto SymTable::createValue(const Value& value) -> Value {
@@ -77,19 +92,21 @@ auto SymTable::createValue(bool value) -> Value {
 }
 
 auto SymTable::getVariable(StringView identifier) -> Value* {
-	return variables.get(identifier);
+	for(auto& scope : scopes) {
+		auto var = scope.get(identifier);
+		if(var != nullptr) {
+			return var;
+		}
+	}
+	return nullptr;
 }
 
 auto SymTable::dump() const -> void {
-	if(variables.empty()) {
-		println("Empty symtable");
-	} else {
-		println("Symtable was not empty:");
-	}
-
-	for(auto it = variables.begin();
-		it != variables.end(); it++) {
-		println(it->key, "=", it->value);
+	for(const auto& scope : scopes) {
+		for(auto it = scope.begin();
+			it != scope.end(); it++) {
+			println(it->key, "=", it->value);
+		}
 	}
 }
 

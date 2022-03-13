@@ -28,6 +28,9 @@ auto fprintType(FILE* desc, const Value& value) -> void;
 struct SymTable {
 	friend struct Value;
 
+	auto addScope() -> void;
+	auto dropScope() -> void;
+
 	auto putVariable(StringView identifier, const Value& value) -> void;
 	auto getVariable(StringView identifier) -> Value*;
 
@@ -40,7 +43,10 @@ private:
 	auto createString(StringView string) -> size_t;
 	auto freeString(const Value* variable) -> void;
 
+	using Variables = HashTable<StringView, Value>;
+	using Scopes = Array<Variables>;
+
 	Array<String> strings;
 	Array<size_t> freeStrings;
-	HashTable<StringView, Value> variables;
+	Scopes scopes;
 };

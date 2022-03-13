@@ -18,7 +18,9 @@ HashTable<StringView, Builtin> builtins = {
 };
 
 auto Interpreter::interpret(RootNode& root) -> bool {
+	symTable.addScope();
 	root.accept(*this);
+	symTable.dropScope();
 	return true;
 }
 

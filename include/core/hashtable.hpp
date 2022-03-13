@@ -75,7 +75,9 @@ struct HashTable {
 		return elements;
 	}
 
-	auto clear() -> void;
+	auto clear() -> void {
+		*this = {};
+	}
 
 	auto begin() -> Iterator {
 		auto firstBucket = buckets.begin();
