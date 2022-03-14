@@ -28,8 +28,10 @@
   * ~~variable assignment~~
   * ~~code block~~
   * ~~branch~~
+  * binary operators ~~add~~ ~~subtract~~
   * proper error messages
   * function call as expression
+  
 
 * interpreter
   * ~~regular shell command~~
@@ -37,10 +39,12 @@
   * ~~function call (exec)~~
   * ~~function call (builtin)~~
   * ~~variable assignment~~
+  * binary operators ~~add~~ ~~subtract~~
   * type system
     * ~~string~~
     * ~~bool~~
-    * int/float/number(?)
+    * ~~int~~
+    * float
     * list/array
     * table/dict
     * null/nil/none-esque(?)
