@@ -2,6 +2,7 @@
 
 #include "ast.hpp"
 #include "core/array.hpp"
+#include "core/optional.hpp"
 #include "symtable.hpp"
 
 struct Interpreter : public AstVisitor {
@@ -19,7 +20,7 @@ struct Interpreter : public AstVisitor {
 private:
 
 	auto executeFunction(StringView identifier,
-		const Array<Value>& args) -> void;
+		const Array<Value>& args) -> Optional<Value>;
 
 	Array<Value> collectedValues;
 	const VariableNode* lastVisitedVariable;

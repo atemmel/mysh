@@ -4,3 +4,6 @@ var boolean = true
 print Hello world!
 print "Hello" "world!"
 print $str $boolean
+
+echo "Hello" "world!"
+echo $str $boolean

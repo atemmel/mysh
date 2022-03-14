@@ -3,14 +3,15 @@
 #include "core/print.hpp"
 #include "spawn.hpp"
 
-using Builtin = void(*)(const Array<Value>&);
+using Builtin = Optional<Value>(*)(const Array<Value>&);
 
-static auto builtinPrint(const Array<Value>& args) -> void {
+static auto builtinPrint(const Array<Value>& args) -> Optional<Value> {
 	for(const auto& arg : args) {
 		fprint(stdout, arg);
 		fprint(stdout, " ");
 	}
 	fprint(stdout, "\n");
+	return {};
 }
 
 HashTable<StringView, Builtin> builtins = {
@@ -106,6 +107,7 @@ auto Interpreter::visit(BranchNode& node) -> void {
 auto Interpreter::visit(ScopeNode& node) -> void {
 	symTable.addScope();
 	for(auto& child : node.children) {
+		collectedValues.clear();
 		child->accept(*this);
 	}
 	symTable.dropScope();
@@ -139,23 +141,26 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 	auto args = move(collectedValues);
 
 	// execute
-	executeFunction(func, args);
+	auto result = executeFunction(func, args);
+	if(result.hasValue()) {
+		collectedValues.append(result.value());
+	}
 }
 
 auto Interpreter::visit(RootNode& node) -> void {
 	for(auto& child : node.children) {
+		collectedValues.clear();
 		child->accept(*this);
 	}
 }
 
 auto Interpreter::executeFunction(StringView identifier,
-	const Array<Value>& args) -> void {
+	const Array<Value>& args) -> Optional<Value> {
 
 	// try to find builtin
 	auto builtin = builtins.get(identifier);
 	if(builtin != nullptr) {
-		(*builtin)(args);
-		return;
+		return (*builtin)(args);
 	}
 
 	// if no builtin is found
@@ -168,4 +173,5 @@ auto Interpreter::executeFunction(StringView identifier,
 		strings.append(arg.toString());
 	}
 	spawn(strings);
+	return {};
 }
