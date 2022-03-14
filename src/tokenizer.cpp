@@ -255,18 +255,6 @@ auto Tokenizer::isIntegerLiteral(Token& token) -> bool {
 	col = currentColumn;
 	row = currentRow;
 	return false;
-	/*
-	for(size_t i = 1; i < token.value.size(); ++i) {
-		char c = token.value[i];
-		if(!isdigit(c)) {
-			return false;
-		}
-	}
-
-	token.kind = Token::Kind::IntegerLiteral;
-	
-	return true;
-	*/
 }
 
 auto Tokenizer::isOperator(Token& token) -> bool {
