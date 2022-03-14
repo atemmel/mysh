@@ -37,17 +37,28 @@ auto Interpreter::visit(StringLiteralNode& node) -> void {
 	collectedValues.append(Value{
 		.string = node.token->value,
 		.kind = Value::Kind::String,
-		.ownerIndex = static_cast<size_t>(-1),
+		.ownerIndex = Value::OwnerLess,
 	});
 }
 
 auto Interpreter::visit(BoolLiteralNode& node) -> void {
 	auto value = Value{
 		.kind = Value::Kind::Bool,
-		.ownerIndex = static_cast<size_t>(-1),
+		.ownerIndex = Value::OwnerLess,
 	};
 
 	value.boolean = node.token->kind == Token::Kind::True;
+
+	collectedValues.append(value);
+}
+
+auto Interpreter::visit(IntegerLiteralNode& node) -> void {
+	auto value = Value{
+		.kind = Value::Kind::Integer,
+		.ownerIndex = Value::OwnerLess,
+	};
+
+	value.integer = node.value;
 
 	collectedValues.append(value);
 }
@@ -129,6 +140,35 @@ auto Interpreter::visit(AssignmentNode& node) -> void {
 	collectedValues.clear();
 }
 
+auto Interpreter::visit(BinaryOperatorNode& node) -> void {
+	assert(node.children.size() == 2);
+
+	// collect args
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+
+	assert(collectedValues.size() == 2);
+
+	auto lhs = collectedValues[0];
+	auto rhs = collectedValues[1];
+
+	Value result;
+	switch(node.token->kind) {
+		case Token::Kind::Add:
+			result = addValues(lhs, rhs);
+			break;
+		case Token::Kind::Subtract:
+			result = subtractValues(lhs, rhs);
+			break;
+		default:
+			assert(false);
+	}
+
+	collectedValues.clear();
+	collectedValues.append(result);
+}
+
 auto Interpreter::visit(FunctionCallNode& node) -> void {
 	// get function name
 	const auto func = node.token->value;
@@ -152,6 +192,30 @@ auto Interpreter::visit(RootNode& node) -> void {
 		collectedValues.clear();
 		child->accept(*this);
 	}
+}
+
+auto Interpreter::addValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == Value::Kind::Integer);
+	assert(rhs.kind == Value::Kind::Integer);
+	auto left = lhs.integer;
+	auto right = rhs.integer;
+	return Value{
+		.integer = left + right,
+		.kind = Value::Kind::Integer,
+		.ownerIndex = Value::OwnerLess,
+	};
+}
+
+auto Interpreter::subtractValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == Value::Kind::Integer);
+	assert(rhs.kind == Value::Kind::Integer);
+	auto left = lhs.integer;
+	auto right = rhs.integer;
+	return Value{
+		.integer = left - right,
+		.kind = Value::Kind::Integer,
+		.ownerIndex = Value::OwnerLess,
+	};
 }
 
 auto Interpreter::executeFunction(StringView identifier,

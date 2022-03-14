@@ -11,15 +11,17 @@ struct Value {
 	enum struct Kind {
 		String,
 		Bool,
+		Integer,
 	};
 	union {
 		StringView string;
 		bool boolean;
+		int64_t integer;
 	};
 	Kind kind;
 	size_t ownerIndex = OwnerLess;
 
-	auto toString() const -> StringView;
+	auto toString() const -> String;
 	auto free(SymTable& owner) -> void;
 };
 
@@ -39,6 +41,7 @@ private:
 	auto createValue(const Value& value) -> Value;
 	auto createValue(StringView value) -> Value;
 	auto createValue(bool value) -> Value;
+	auto createValue(int64_t value) -> Value;
 
 	auto createString(StringView string) -> size_t;
 	auto freeString(const Value* variable) -> void;

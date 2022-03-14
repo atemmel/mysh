@@ -2,13 +2,20 @@
 
 #include "core/print.hpp"
 
-auto Value::toString() const -> StringView {
+#include <stdlib.h>
+
+auto Value::toString() const -> String {
 	switch(kind) {
 		case Kind::String:
 			return string;
 		case Kind::Bool:
 			return boolean ?
 				"true" : "false";
+		case Kind::Integer:
+			String buffer(21, '\0');
+			//TODO: Look for the appropriate function
+			sprintf(buffer.data(), "%ld", integer);
+			return buffer;
 	}
 	assert(false);
 	return "";
@@ -28,6 +35,7 @@ auto Value::free(SymTable& owner) -> void {
 				break;
 			// no peculiar freeing policy
 			case Kind::Bool:
+			case Kind::Integer:
 				break;
 		}
 	}
@@ -69,6 +77,8 @@ auto SymTable::createValue(const Value& value) -> Value {
 			return createValue(value.string);
 		case Value::Kind::Bool:
 			return createValue(value.boolean);
+		case Value::Kind::Integer:
+			return createValue(value.integer);
 	}
 	assert(false);
 	return {};
@@ -87,6 +97,14 @@ auto SymTable::createValue(bool value) -> Value {
 	return Value{
 		.boolean = value,
 		.kind = Value::Kind::Bool,
+		.ownerIndex = Value::OwnerLess,
+	};
+}
+
+auto SymTable::createValue(int64_t value) -> Value {
+	return Value{
+		.integer = value,
+		.kind = Value::Kind::Integer,
 		.ownerIndex = Value::OwnerLess,
 	};
 }

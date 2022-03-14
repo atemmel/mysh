@@ -32,6 +32,12 @@ struct BoolLiteralNode : public AstNode {
 	auto accept(AstVisitor& visitor) -> void;
 };
 
+struct IntegerLiteralNode : public AstNode {
+	IntegerLiteralNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+	int64_t value = 0;
+};
+
 struct DeclarationNode : public AstNode {
 	DeclarationNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
@@ -59,6 +65,11 @@ struct AssignmentNode : public AstNode {
 	auto accept(AstVisitor& visitor) -> void;
 };
 
+struct BinaryOperatorNode : public AstNode {
+	BinaryOperatorNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+};
+
 struct FunctionCallNode : public AstNode {
 	FunctionCallNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
@@ -76,11 +87,13 @@ struct AstVisitor {
 	virtual auto visit(IdentifierNode& node) -> void = 0;
 	virtual auto visit(StringLiteralNode& node) -> void = 0;
 	virtual auto visit(BoolLiteralNode& node) -> void = 0;
+	virtual auto visit(IntegerLiteralNode& node) -> void = 0;
 	virtual auto visit(DeclarationNode& node) -> void = 0;
 	virtual auto visit(VariableNode& node) -> void = 0;
 	virtual auto visit(BranchNode& node) -> void = 0;
 	virtual auto visit(ScopeNode& node) -> void = 0;
 	virtual auto visit(AssignmentNode& node) -> void = 0;
+	virtual auto visit(BinaryOperatorNode& node) -> void = 0;
 	virtual auto visit(FunctionCallNode& node) -> void = 0;
 	virtual auto visit(RootNode& node) -> void = 0;
 };
@@ -92,13 +105,17 @@ private:
 	auto parseFunctionCall() -> Child;
 	auto parseDeclaration() -> Child;
 	auto parseExpr() -> Child;
+	auto parsePrimaryExpr() -> Child;
 	auto parseIdentifier() -> Child;
 	auto parseVariable() -> Child;
 	auto parseBranch() -> Child;
 	auto parseScope(bool endsWithNewline = true) -> Child;
 	auto parseAssignment() -> Child;
+	auto parseBinaryExpression() -> Child;
+	auto parseBinaryOperator() -> Child;
 	auto parseStringLiteral() -> Child;
 	auto parseBoolLiteral() -> Child;
+	auto parseIntegerLiteral() -> Child;
 
 	auto eot() const -> bool;
 	auto getIf(Token::Kind kind) -> const Token*;

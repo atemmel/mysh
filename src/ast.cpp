@@ -37,6 +37,14 @@ auto BoolLiteralNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
+IntegerLiteralNode::IntegerLiteralNode(const Token* token) 
+	: AstNode(token) {
+
+}
+auto IntegerLiteralNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
 DeclarationNode::DeclarationNode(const Token* token) 
 	: AstNode(token) {
 
@@ -78,6 +86,15 @@ AssignmentNode::AssignmentNode(const Token* token)
 }
 
 auto AssignmentNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
+BinaryOperatorNode::BinaryOperatorNode(const Token* token)
+	: AstNode(token) {
+
+}
+
+auto BinaryOperatorNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
@@ -208,6 +225,18 @@ auto AstParser::parseDeclaration() -> Child {
 }
 
 auto AstParser::parseExpr() -> Child {
+	if(auto bin = parseBinaryExpression();
+		bin != nullptr) {
+		return bin;
+	}
+	if(auto expr = parsePrimaryExpr();
+		expr != nullptr) {
+		return expr;
+	}
+	return nullptr;
+}
+
+auto AstParser::parsePrimaryExpr() -> Child {
 	if(auto identifier = parseIdentifier(); 
 		identifier != nullptr) {
 		return identifier;
@@ -219,6 +248,10 @@ auto AstParser::parseExpr() -> Child {
 	if(auto stringLiteral = parseStringLiteral();
 		stringLiteral != nullptr) {
 		return stringLiteral;
+	}
+	if(auto integerLiteral = parseIntegerLiteral();
+		integerLiteral != nullptr) {
+		return integerLiteral;
 	}
 	if(auto boolLiteral = parseBoolLiteral();
 		boolLiteral != nullptr) {
@@ -363,6 +396,51 @@ auto AstParser::parseAssignment() -> Child {
 	return assign;
 }
 
+auto AstParser::parseBinaryExpression() -> Child {
+	auto checkpoint = current;
+	auto lhs = parsePrimaryExpr();
+	if(lhs == nullptr) {
+		return nullptr;
+	}
+
+	auto op = parseBinaryOperator();
+	if(op == nullptr) {
+		current = checkpoint;
+		return nullptr;
+	}
+
+	auto rhs = parseExpr();
+	if(rhs == nullptr) {
+		//TODO: more error handling
+		assert(false);
+		return nullptr;
+	}
+
+	op->addChild(lhs);
+	op->addChild(rhs);
+
+	return op;
+};
+
+auto AstParser::parseBinaryOperator() -> Child {
+	if(eot()) {
+		return nullptr;
+	}
+	switch((*tokens)[current].kind) {
+		case Token::Kind::Add:
+		case Token::Kind::Subtract:
+			break;
+		default:
+			return nullptr;
+	}
+
+	auto token = &(*tokens)[current];
+	auto op = OwnPtr<BinaryOperatorNode>::create(token);
+	++current;
+
+	return op;
+}
+
 auto AstParser::parseStringLiteral() -> Child {
 	auto token = getIf(Token::Kind::StringLiteral);
 	if(token == nullptr) {
@@ -379,6 +457,20 @@ auto AstParser::parseBoolLiteral() -> Child {
 		return OwnPtr<BoolLiteralNode>::create(tru);
 	}
 	return nullptr;
+}
+
+auto AstParser::parseIntegerLiteral() -> Child {
+	auto token = getIf(Token::Kind::IntegerLiteral);
+	if(token == nullptr) {
+		return nullptr;
+	}
+
+	auto integer = OwnPtr<IntegerLiteralNode>::create(token);
+	//TODO: replace builtin
+	//TODO: handle error
+	auto value = strtol(token->value.data(), nullptr, 10);
+	integer->value = value;
+	return integer;
 }
 
 auto AstParser::eot() const -> bool {

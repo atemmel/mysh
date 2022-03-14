@@ -28,6 +28,10 @@ auto fprintType(FILE* desc, int value) -> void {
 	fprintf(desc, "%d", value);
 }
 
+auto fprintType(FILE* desc, int64_t value) -> void {
+	fprintf(desc, "%ld", value);
+}
+
 auto fprintType(FILE* desc, size_t value) -> void {
 	fprintf(desc, "%lu", value);
 }

@@ -17,6 +17,11 @@ auto AstPrinter::visit(BoolLiteralNode& node) -> void {
 	println("BoolLiteralNode:", node.token->kind == Token::Kind::True);
 }
 
+auto AstPrinter::visit(IntegerLiteralNode& node) -> void {
+	pad();
+	println("IntegerLiteralNode:", node.value);
+}
+
 auto AstPrinter::visit(DeclarationNode& node) -> void {
 	pad();
 	println("DeclarationNode:", node.token->value);
@@ -59,6 +64,16 @@ auto AstPrinter::visit(ScopeNode& node) -> void {
 auto AstPrinter::visit(AssignmentNode& node) -> void {
 	pad();
 	println("AssignmentNode:");
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	--depth;
+}
+
+auto AstPrinter::visit(BinaryOperatorNode& node) -> void {
+	pad();
+	println("BinaryOperatorNode:", node.token->value);
 	++depth;
 	for(auto& child : node.children) {
 		child->accept(*this);

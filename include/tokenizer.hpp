@@ -18,6 +18,7 @@ private:
 	auto isVariable(Token& token) -> bool;
 	auto isIdentifier(Token& token) -> bool;
 	auto isStringLiteral(Token& token) -> bool;
+	auto isIntegerLiteral(Token& token) -> bool;
 	auto isOperator(Token& token) -> bool;
 
 	Array<Token>* tokens;

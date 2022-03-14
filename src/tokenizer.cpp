@@ -98,6 +98,17 @@ auto Tokenizer::readToken(Token& token) -> bool {
 	token.column = currentColumn;
 	token.row = currentRow;
 
+	if(peek() == '"') {
+		isStringLiteral(token);
+		return true;
+	}
+
+	if(isdigit(peek()) || peek() == '-') {
+		if(isIntegerLiteral(token)) {
+			return true;
+		}
+	}
+
 	while(!eof() && !isspace(peek())) {
 		auto view = source.view(current, current + 1);
 		if(prevCurrent < current && Token::isOperator(view)) {
@@ -124,10 +135,6 @@ auto Tokenizer::readToken(Token& token) -> bool {
 	}
 
 	if(isOperator(token)) {
-		return true;
-	}
-
-	if(isStringLiteral(token)) {
 		return true;
 	}
 
@@ -174,6 +181,24 @@ auto Tokenizer::isIdentifier(Token& token) -> bool {
 }
 
 auto Tokenizer::isStringLiteral(Token& token) -> bool {
+	auto start = current;
+
+	token.kind = Token::Kind::StringLiteral;
+	next();
+	while(!eof() && peek() != '"') {
+		next();
+	}
+
+	//TODO: error handling
+	assert(peek() == '"');
+	auto stop = current;
+
+	token.value = StringView(source.begin() + start + 1,
+			source.begin() + stop);
+	next();
+	return true;
+
+	/*
 	auto firstChar = token.value[0];
 	auto lastChar = token.value[token.value.size() - 1];
 
@@ -186,6 +211,62 @@ auto Tokenizer::isStringLiteral(Token& token) -> bool {
 	token.kind = Token::Kind::StringLiteral;
 
 	return true;
+	*/
+}
+
+auto Tokenizer::isIntegerLiteral(Token& token) -> bool {
+	// leading negation (-)
+	// -1
+	// first char
+	// - 0 1 2 3 4 5 6 7 8 9
+	if(peek() == '-' && current + 1 < source.size() 
+		&& !isdigit(source[current + 1])) {
+		return false;
+	}
+	auto start = current;
+	auto col = currentColumn;
+	auto row = currentRow;
+
+	next();
+
+	// all the others
+	// 0 1 2 3 4 5 6 7 8 9
+	while(!eof() && isdigit(peek())) {
+		next();
+	}
+
+	token.value = source.view(start, current);
+	token.kind = Token::Kind::IntegerLiteral;
+
+	if(eof()) {
+		return true;
+	}
+
+	if(isspace(peek())) {
+		return true;
+	}
+
+	auto upcoming = source.view(current, current + 1);
+	if(Token::isOperator(upcoming)) {
+		return true;
+	}
+
+	current = start;
+	col = currentColumn;
+	row = currentRow;
+	return false;
+	/*
+	for(size_t i = 1; i < token.value.size(); ++i) {
+		char c = token.value[i];
+		if(!isdigit(c)) {
+			return false;
+		}
+	}
+
+	token.kind = Token::Kind::IntegerLiteral;
+	
+	return true;
+	*/
 }
 
 auto Tokenizer::isOperator(Token& token) -> bool {

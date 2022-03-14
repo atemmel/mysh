@@ -12,11 +12,14 @@ struct Token {
 		If,				// if
 		Else,			// else
 		Equals,			// =
+		Add,			// +
+		Subtract,		// -
 		LeftBrace,		// {
 		RightBrace,		// }
 		Variable,		// $hello
 		StringLiteral,	// "hello"
 		Identifier,		// hello
+		IntegerLiteral,	// 123678
 		NTokens,		// keep this last
 	};
 
@@ -28,11 +31,14 @@ struct Token {
 		"If",
 		"Else",
 		"Equals",
+		"Add",
+		"Subtract",
 		"LeftBrace",
 		"RightBrace",
 		"Variable",
 		"StringLiteral",
 		"Identifier",
+		"IntegerLiteral",
 	};
 
 	static constexpr StaticArray<StringView, (size_t)Kind::NTokens> Strings = {
@@ -43,8 +49,11 @@ struct Token {
 		"if",
 		"else",
 		"=",
+		"+",
+		"-",
 		"{",
 		"}",
+		"",
 		"",
 		"",
 		"",
@@ -54,7 +63,7 @@ struct Token {
 	static constexpr size_t KeywordEnd = 6;
 
 	static constexpr size_t OperatorBegin = 6;
-	static constexpr size_t OperatorEnd = 9;
+	static constexpr size_t OperatorEnd = 11;
 
 	static auto isOperator(StringView view) -> bool;
 
