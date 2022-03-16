@@ -144,14 +144,12 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 	assert(node.children.size() == 2);
 
 	// collect args
-	for(auto& child : node.children) {
-		child->accept(*this);
-	}
-
-	assert(collectedValues.size() == 2);
-
+	node.children[0]->accept(*this);
 	auto lhs = collectedValues[0];
-	auto rhs = collectedValues[1];
+	collectedValues.clear();
+	node.children[1]->accept(*this);
+	auto rhs = collectedValues[0];
+	collectedValues.clear();
 
 	Value result;
 	switch(node.token->kind) {
@@ -171,7 +169,6 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 			assert(false);
 	}
 
-	collectedValues.clear();
 	collectedValues.append(result);
 }
 

@@ -10,3 +10,6 @@ var a = 3 + 2
 
 print This should print "5"
 print $a
+
+print This should print "4"
+print - 1 - - - 5
