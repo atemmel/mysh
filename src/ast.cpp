@@ -239,10 +239,7 @@ auto AstParser::parseExpr() -> Child {
 		bin != nullptr) {
 		return bin;
 	}
-	if(auto un = parseUnaryExpression();
-		un != nullptr) {
-		return un;
-	}
+
 	if(auto expr = parsePrimaryExpr();
 		expr != nullptr) {
 		return expr;
@@ -251,6 +248,10 @@ auto AstParser::parseExpr() -> Child {
 }
 
 auto AstParser::parsePrimaryExpr() -> Child {
+	if(auto un = parseUnaryExpression();
+		un != nullptr) {
+		return un;
+	}
 	if(auto identifier = parseIdentifier(); 
 		identifier != nullptr) {
 		return identifier;
@@ -464,7 +465,7 @@ auto AstParser::parseUnaryExpression() -> Child {
 		return nullptr;
 	}
 
-	auto expr = parseExpr();
+	auto expr = parsePrimaryExpr();
 
 	if(expr == nullptr) {
 		//TODO: expect expression here
