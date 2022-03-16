@@ -1,0 +1,15 @@
+#!../build/mysh
+
+if 1 < 2 {
+	echo This should print
+} else {
+	echo This should not print
+}
+
+if 2 < 1 {
+	echo This should not print
+} else if 2 > 1 {
+	echo This should print
+} else {
+	echo This should not print
+}

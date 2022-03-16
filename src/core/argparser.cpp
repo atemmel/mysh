@@ -56,7 +56,7 @@ auto ArgParser::handleFlag(const char* arg,
 }
 
 auto ArgParser::checkHelp(int argc, char** argv) const -> void {
-	StaticArray<StringView, 3> helps = {
+	StaticArray<StringView, 4> helps = {
 		"--help",
 		"-help",
 		"help",

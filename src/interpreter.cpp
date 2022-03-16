@@ -161,6 +161,12 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 		case Token::Kind::Subtract:
 			result = subtractValues(lhs, rhs);
 			break;
+		case Token::Kind::Less:
+			result = lessValues(lhs, rhs);
+			break;
+		case Token::Kind::Greater:
+			result = greaterValues(lhs, rhs);
+			break;
 		default:
 			assert(false);
 	}
@@ -217,6 +223,71 @@ auto Interpreter::subtractValues(const Value& lhs, const Value& rhs) -> Value {
 		.ownerIndex = Value::OwnerLess,
 	};
 }
+
+auto Interpreter::lessValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == rhs.kind)
+	assert(lhs.kind == Value::Kind::Integer || lhs.kind == Value::Kind::String);
+	assert(rhs.kind == Value::Kind::Integer || rhs.kind == Value::Kind::String);
+
+	if(lhs.kind == Value::Kind::Integer && rhs.kind == Value::Kind::Integer) {
+		auto left = lhs.integer;
+		auto right = rhs.integer;
+		return Value{
+			.boolean = left < right,
+			.kind = Value::Kind::Bool,
+			.ownerIndex = Value::OwnerLess,
+		};
+	} 
+
+	//TODO: this
+	/*
+	else if(lhs.kind == Value::Kind::String && rhs.kind == Value::Kind::String) {
+		auto left = lhs.string;
+		auto right = rhs.string;
+		return Value{
+			.boolean = left < right,
+			.kind = Value::Kind::Bool,
+			.ownerIndex = Value::OwnerLess,
+		};
+	}
+	*/
+
+	assert(false);
+	return {};
+}
+
+auto Interpreter::greaterValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == rhs.kind)
+	assert(lhs.kind == Value::Kind::Integer || lhs.kind == Value::Kind::String);
+	assert(rhs.kind == Value::Kind::Integer || rhs.kind == Value::Kind::String);
+
+	if(lhs.kind == Value::Kind::Integer && rhs.kind == Value::Kind::Integer) {
+		auto left = lhs.integer;
+		auto right = rhs.integer;
+		return Value{
+			.boolean = left > right,
+			.kind = Value::Kind::Bool,
+			.ownerIndex = Value::OwnerLess,
+		};
+	} 
+
+	//TODO: this
+	/*
+	else if(lhs.kind == Value::Kind::String && rhs.kind == Value::Kind::String) {
+		auto left = lhs.string;
+		auto right = rhs.string;
+		return Value{
+			.boolean = left < right,
+			.kind = Value::Kind::Bool,
+			.ownerIndex = Value::OwnerLess,
+		};
+	}
+	*/
+
+	assert(false);
+	return {};
+}
+
 
 auto Interpreter::executeFunction(StringView identifier,
 	const Array<Value>& args) -> Optional<Value> {

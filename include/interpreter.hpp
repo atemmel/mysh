@@ -21,8 +21,14 @@ struct Interpreter : public AstVisitor {
 	auto visit(RootNode& node) -> void override;
 private:
 
+	// arithmetic operators
 	auto addValues(const Value& lhs, const Value& rhs) -> Value;
 	auto subtractValues(const Value& lhs, const Value& rhs) -> Value;
+
+	// logical operators
+	auto lessValues(const Value& lhs, const Value& rhs) -> Value;
+	auto greaterValues(const Value& lhs, const Value& rhs) -> Value;
+
 	auto executeFunction(StringView identifier,
 		const Array<Value>& args) -> Optional<Value>;
 

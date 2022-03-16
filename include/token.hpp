@@ -14,6 +14,9 @@ struct Token {
 		Equals,			// =
 		Add,			// +
 		Subtract,		// -
+		Less,			// <
+		Greater,		// >
+		Bang,			// !
 		LeftBrace,		// {
 		RightBrace,		// }
 		Variable,		// $hello
@@ -33,6 +36,9 @@ struct Token {
 		"Equals",
 		"Add",
 		"Subtract",
+		"Less",
+		"Greater",
+		"Bang",
 		"LeftBrace",
 		"RightBrace",
 		"Variable",
@@ -51,6 +57,9 @@ struct Token {
 		"=",
 		"+",
 		"-",
+		"<",
+		">",
+		"!",
 		"{",
 		"}",
 		"",
@@ -63,7 +72,7 @@ struct Token {
 	static constexpr size_t KeywordEnd = 6;
 
 	static constexpr size_t OperatorBegin = 6;
-	static constexpr size_t OperatorEnd = 11;
+	static constexpr size_t OperatorEnd = 14;
 
 	static auto isOperator(StringView view) -> bool;
 

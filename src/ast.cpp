@@ -429,6 +429,8 @@ auto AstParser::parseBinaryOperator() -> Child {
 	switch((*tokens)[current].kind) {
 		case Token::Kind::Add:
 		case Token::Kind::Subtract:
+		case Token::Kind::Less:
+		case Token::Kind::Greater:
 			break;
 		default:
 			return nullptr;
