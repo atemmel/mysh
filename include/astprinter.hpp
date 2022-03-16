@@ -13,6 +13,7 @@ struct AstPrinter : public AstVisitor {
 	auto visit(ScopeNode& node) -> void override;
 	auto visit(AssignmentNode& node) -> void override;
 	auto visit(BinaryOperatorNode& node) -> void override;
+	auto visit(UnaryOperatorNode& node) -> void override;
 	auto visit(FunctionCallNode& node) -> void override;
 	auto visit(RootNode& node) -> void override;
 private:

@@ -13,3 +13,17 @@ if 2 < 1 {
 } else {
 	echo This should not print
 }
+
+if !false {
+	echo This should print
+}
+
+var good = true
+
+if !true {
+	echo This should not print
+} else if !!$good {
+	echo This should print
+} else {
+	echo This should not print
+}

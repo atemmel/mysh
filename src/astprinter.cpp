@@ -81,6 +81,16 @@ auto AstPrinter::visit(BinaryOperatorNode& node) -> void {
 	--depth;
 }
 
+auto AstPrinter::visit(UnaryOperatorNode& node) -> void {
+	pad();
+	println("UnaryOperatorNode:", node.token->value);
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	--depth;
+}
+
 auto AstPrinter::visit(FunctionCallNode& node) -> void {
 	pad();
 	println("FunctionCallNode:", node.token->value);

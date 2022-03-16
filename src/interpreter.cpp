@@ -175,6 +175,34 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 	collectedValues.append(result);
 }
 
+auto Interpreter::visit(UnaryOperatorNode& node) -> void {
+	assert(node.children.size() == 1);
+
+	// collect args
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+
+	assert(collectedValues.size() == 1);
+
+	auto operand = collectedValues[0];
+
+	Value result;
+	switch(node.token->kind) {
+		case Token::Kind::Subtract:
+			result = negateValue(operand);
+			break;
+		case Token::Kind::Bang:
+			result = inverseValue(operand);
+			break;
+		default:
+			assert(false);
+	}
+
+	collectedValues.clear();
+	collectedValues.append(result);
+}
+
 auto Interpreter::visit(FunctionCallNode& node) -> void {
 	// get function name
 	const auto func = node.token->value;
@@ -219,6 +247,16 @@ auto Interpreter::subtractValues(const Value& lhs, const Value& rhs) -> Value {
 	auto right = rhs.integer;
 	return Value{
 		.integer = left - right,
+		.kind = Value::Kind::Integer,
+		.ownerIndex = Value::OwnerLess,
+	};
+}
+
+auto Interpreter::negateValue(const Value& operand) -> Value {
+	assert(operand.kind == Value::Kind::Integer);
+	auto integer = operand.integer;
+	return Value{
+		.integer = -integer,
 		.kind = Value::Kind::Integer,
 		.ownerIndex = Value::OwnerLess,
 	};
@@ -286,6 +324,16 @@ auto Interpreter::greaterValues(const Value& lhs, const Value& rhs) -> Value {
 
 	assert(false);
 	return {};
+}
+
+auto Interpreter::inverseValue(const Value& operand) -> Value {
+	assert(operand.kind == Value::Kind::Bool);
+	auto boolean = operand.boolean;
+	return Value{
+		.boolean = !boolean,
+		.kind = Value::Kind::Bool,
+		.ownerIndex = Value::OwnerLess,
+	};
 }
 
 

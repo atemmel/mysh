@@ -70,6 +70,11 @@ struct BinaryOperatorNode : public AstNode {
 	auto accept(AstVisitor& visitor) -> void;
 };
 
+struct UnaryOperatorNode : public AstNode {
+	UnaryOperatorNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+};
+
 struct FunctionCallNode : public AstNode {
 	FunctionCallNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
@@ -94,6 +99,7 @@ struct AstVisitor {
 	virtual auto visit(ScopeNode& node) -> void = 0;
 	virtual auto visit(AssignmentNode& node) -> void = 0;
 	virtual auto visit(BinaryOperatorNode& node) -> void = 0;
+	virtual auto visit(UnaryOperatorNode& node) -> void = 0;
 	virtual auto visit(FunctionCallNode& node) -> void = 0;
 	virtual auto visit(RootNode& node) -> void = 0;
 };
@@ -113,6 +119,8 @@ private:
 	auto parseAssignment() -> Child;
 	auto parseBinaryExpression() -> Child;
 	auto parseBinaryOperator() -> Child;
+	auto parseUnaryExpression() -> Child;
+	auto parseUnaryOperator() -> Child;
 	auto parseStringLiteral() -> Child;
 	auto parseBoolLiteral() -> Child;
 	auto parseIntegerLiteral() -> Child;

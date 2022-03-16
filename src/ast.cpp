@@ -98,6 +98,16 @@ auto BinaryOperatorNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
+UnaryOperatorNode::UnaryOperatorNode(const Token* token) 
+	: AstNode(token) {
+
+}
+
+auto UnaryOperatorNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
+
 FunctionCallNode::FunctionCallNode(const Token* token) 
 	: AstNode(token) {
 
@@ -229,6 +239,10 @@ auto AstParser::parseExpr() -> Child {
 		bin != nullptr) {
 		return bin;
 	}
+	if(auto un = parseUnaryExpression();
+		un != nullptr) {
+		return un;
+	}
 	if(auto expr = parsePrimaryExpr();
 		expr != nullptr) {
 		return expr;
@@ -298,7 +312,7 @@ auto AstParser::parseBranch() -> Child {
 	branch->statement = move(scope);
 
 	// single if
-	if(getIf(Token::Kind::Newline) != nullptr) {
+	if(eot() || getIf(Token::Kind::Newline) != nullptr) {
 		return branch;
 	}
 
@@ -438,6 +452,44 @@ auto AstParser::parseBinaryOperator() -> Child {
 
 	auto token = &(*tokens)[current];
 	auto op = OwnPtr<BinaryOperatorNode>::create(token);
+	++current;
+
+	return op;
+}
+
+auto AstParser::parseUnaryExpression() -> Child {
+	auto checkpoint = current;
+	auto unary = parseUnaryOperator();
+	if(unary == nullptr) {
+		return nullptr;
+	}
+
+	auto expr = parseExpr();
+
+	if(expr == nullptr) {
+		//TODO: expect expression here
+		current = checkpoint;
+		return nullptr;
+	}
+
+	unary->addChild(expr);
+	return unary;
+}
+
+auto AstParser::parseUnaryOperator() -> Child {
+	if(eot()) {
+		return nullptr;
+	}
+	switch((*tokens)[current].kind) {
+		case Token::Kind::Subtract:
+		case Token::Kind::Bang:
+			break;
+		default:
+			return nullptr;
+	}
+
+	auto token = &(*tokens)[current];
+	auto op = OwnPtr<UnaryOperatorNode>::create(token);
 	++current;
 
 	return op;
