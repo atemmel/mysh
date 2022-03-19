@@ -22,6 +22,7 @@ struct Token {
 		Variable,		// $hello
 		StringLiteral,	// "hello"
 		Identifier,		// hello
+		//Bareword,		// --help
 		IntegerLiteral,	// 123678
 		NTokens,		// keep this last
 	};
@@ -44,6 +45,7 @@ struct Token {
 		"Variable",
 		"StringLiteral",
 		"Identifier",
+		//"Bareword",
 		"IntegerLiteral",
 	};
 
@@ -65,6 +67,7 @@ struct Token {
 		"",
 		"",
 		"",
+		//"",
 		"",
 	};
 

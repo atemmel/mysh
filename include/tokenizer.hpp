@@ -10,8 +10,11 @@ private:
 	auto next() -> void;
 	auto peek() -> char;
 	auto eof() -> bool;
+	auto readNewline() -> bool;
 	auto skipWhitespace() -> void;
 	auto skipComments() -> void;
+	auto readIdentifier() -> bool;
+	auto readBareword() -> bool;
 	auto readToken(Token& token) -> bool;
 
 	auto isKeyword(Token& token) -> bool;

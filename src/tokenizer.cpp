@@ -14,22 +14,7 @@ auto Tokenizer::tokenize(StringView source) -> Array<Token> {
 	while(!eof()) {
 		char c = peek();
 
-		if(c == '\n') {
-			if(tokens.empty()) {
-				next();
-				continue;
-			}
-			if(tokens[tokens.size() - 1].kind == Token::Kind::Newline) {
-				next();
-				continue;
-			}
-			tokens.append(Token{
-				.kind = Token::Kind::Newline,
-				.value = source.view(current, current + 1),
-				.column = currentColumn,
-				.row = currentRow,
-			});
-			next();
+		if(readNewline()) {
 			continue;
 		}
 
@@ -54,11 +39,6 @@ auto Tokenizer::tokenize(StringView source) -> Array<Token> {
 	return tokens;
 }
 
-auto Tokenizer::peek() -> char {
-	assert(current < end);
-	return source[current];
-}
-
 auto Tokenizer::next() -> void {
 	assert(current < end);
 	if(source[current] == '\n') {
@@ -69,8 +49,36 @@ auto Tokenizer::next() -> void {
 	++currentColumn;
 }
 
+auto Tokenizer::peek() -> char {
+	assert(current < end);
+	return source[current];
+}
+
 auto Tokenizer::eof() -> bool {
 	return current >= end;
+}
+
+auto Tokenizer::readNewline() -> bool {
+	char c = peek();
+	if(c != '\n') {
+		return false;
+	}
+	if(tokens->empty()) {
+		next();
+		return true;
+	}
+	if((*tokens)[tokens->size() - 1].kind == Token::Kind::Newline) {
+		next();
+		return true;
+	}
+	tokens->append(Token{
+		.kind = Token::Kind::Newline,
+		.value = source.view(current, current + 1),
+		.column = currentColumn,
+		.row = currentRow,
+	});
+	next();
+	return true;
 }
 
 auto Tokenizer::skipWhitespace() -> void {
@@ -91,6 +99,59 @@ auto Tokenizer::skipComments() -> void {
 	if(!eof()) {
 		next();
 	}
+}
+
+auto Tokenizer::readIdentifier() -> bool {
+	auto oldCurrent = current;
+	auto oldCol = currentColumn;
+	auto oldRow = currentRow;
+
+	auto c = peek();
+	// must begin with a letter
+	if(!isalpha(c)) {
+		return false;
+	}
+	
+	next();
+
+	for(;; next()) {
+		c = peek();
+		if(!isalnum(c) && c != '_') {
+			break;
+		}
+	}
+
+	// bad identifier :(
+	if(c == '-' || c == '+' || c == '/' || c == '*') {
+		current = oldCurrent;
+		currentColumn = oldCol;
+		currentRow = oldRow;
+		return false;
+	}
+
+	// good identifier :)
+	tokens->append(Token{
+		.kind = Token::Kind::Identifier,
+		.value = source.view(oldCurrent, current),
+		.column = currentColumn,
+		.row = currentRow,
+	});
+	return true;
+}
+
+auto Tokenizer::readBareword() -> bool {
+	auto oldCurrent = current;
+	auto c = peek();
+	for(auto c = peek(); !isblank(c); next()) {
+		//TODO: handle forward slashes
+	}
+	tokens->append(Token{
+		.kind = Token::Kind::Identifier,
+		.value = source.view(oldCurrent, current),
+		.column = currentColumn,
+		.row = currentRow,
+	});
+	return true;
 }
 
 auto Tokenizer::readToken(Token& token) -> bool {
