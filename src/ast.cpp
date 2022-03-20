@@ -3,8 +3,6 @@
 #include "core/meta.hpp"
 #include "core/print.hpp"
 
-#include <memory>
-
 AstNode::AstNode(const Token* token) : token(token) {
 
 }

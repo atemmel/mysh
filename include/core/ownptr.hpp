@@ -4,8 +4,6 @@
 #include "core/meta.hpp"
 #include "core/mem.hpp"
 
-#include <memory>
-
 template<typename Value>
 struct OwnPtr {
 	OwnPtr() : ptr(nullptr) {};
