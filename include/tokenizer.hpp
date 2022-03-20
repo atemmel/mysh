@@ -13,8 +13,13 @@ private:
 	auto readNewline() -> bool;
 	auto skipWhitespace() -> void;
 	auto skipComments() -> void;
+	auto readVariable() -> bool;
 	auto readIdentifier() -> bool;
 	auto readBareword() -> bool;
+	auto readStringLiteral() -> bool;
+	auto readIntegerLiteral() -> bool;
+	auto readSymbol() -> bool;
+
 	auto readToken(Token& token) -> bool;
 
 	auto isKeyword(Token& token) -> bool;

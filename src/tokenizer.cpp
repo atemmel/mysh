@@ -101,6 +101,37 @@ auto Tokenizer::skipComments() -> void {
 	}
 }
 
+auto Tokenizer::readVariable() -> bool {
+	auto oldCurrent = current;
+	auto oldCol = currentColumn;
+	auto oldRow = currentRow;
+	if(peek() != '$') {
+		return false;
+	}
+	next();
+
+	auto c = peek();
+	// must begin with a letter
+	if(!isalpha(c)) {
+		return false;
+	}
+
+	for(;; next()) {
+		c = peek();
+		if(!isalnum(c) && c != '_') {
+			break;
+		}
+	}
+
+	tokens->append(Token{
+		.kind = Token::Kind::Variable,
+		.value = source.view(oldCurrent, current),
+		.column = oldCol,
+		.row = oldRow,
+	});
+	return true;
+}
+
 auto Tokenizer::readIdentifier() -> bool {
 	auto oldCurrent = current;
 	auto oldCol = currentColumn;
@@ -133,23 +164,141 @@ auto Tokenizer::readIdentifier() -> bool {
 	tokens->append(Token{
 		.kind = Token::Kind::Identifier,
 		.value = source.view(oldCurrent, current),
-		.column = currentColumn,
-		.row = currentRow,
+		.column = oldCol,
+		.row = oldRow,
 	});
 	return true;
 }
 
 auto Tokenizer::readBareword() -> bool {
 	auto oldCurrent = current;
+	auto oldCol = currentColumn;
+	auto oldRow = currentRow;
 	auto c = peek();
 	for(auto c = peek(); !isblank(c); next()) {
 		//TODO: handle forward slashes
+		// \n, \t, etc...
 	}
 	tokens->append(Token{
 		.kind = Token::Kind::Identifier,
 		.value = source.view(oldCurrent, current),
-		.column = currentColumn,
-		.row = currentRow,
+		.column = oldCol,
+		.row = oldRow,
+	});
+	return true;
+}
+
+auto Tokenizer::readStringLiteral() -> bool {
+	auto oldCurrent = current;
+	auto oldCol = currentColumn;
+	auto oldRow = currentRow;
+
+	if(peek() != '"') {
+		return false;
+	}
+
+	next();
+
+	while(!eof() && peek() != '"') {
+		if(peek() == '\\') {
+			next();
+			if(!eof()) {
+				next();
+				continue;
+			}
+		}
+		next();
+	}
+
+	if(eof()) {
+		//TODO: handle unterminated string literal
+		assert(false);
+	}
+
+	tokens->append(Token{
+		.kind = Token::Kind::StringLiteral,
+		.value = source.view(oldCurrent + 1, current),
+		.column = oldCol,
+		.row = oldRow,
+	});
+	next();
+	return true;
+}
+
+auto Tokenizer::readIntegerLiteral() -> bool {
+	// leading negation (-)
+	// -1
+	// first char
+	// - 0 1 2 3 4 5 6 7 8 9
+	if(peek() == '-' && current + 1 < source.size() 
+		&& !isdigit(source[current + 1])) {
+		return false;
+	}
+	auto oldCurrent = current;
+	auto oldCol = currentColumn;
+	auto oldRow = currentRow;
+
+	next();
+
+	// all the others
+	// 0 1 2 3 4 5 6 7 8 9
+	while(!eof() && isdigit(peek())) {
+		next();
+	}
+
+	tokens->append(Token{
+		.kind = Token::Kind::IntegerLiteral,
+		.value = source.view(oldCurrent, current),
+		.column = oldCol,
+		.row = oldRow,
+	});
+
+	if(eof()) {
+		return true;
+	}
+
+	if(isspace(peek())) {
+		return true;
+	}
+
+	auto upcoming = source.view(current, current + 1);
+	if(Token::isOperator(upcoming)) {
+		return true;
+	}
+
+	current = oldCurrent;
+	currentColumn = oldCol;
+	currentRow = oldRow;
+	return false;
+}
+
+auto Tokenizer::readSymbol() -> bool {
+	auto oldCurrent = current;
+	auto oldCol = currentColumn;
+	auto oldRow = currentRow;
+
+	auto upcoming = source.view(current, current + 1);
+	size_t index = Token::OperatorBegin;
+	for(; index < Token::OperatorEnd; ++index) {
+		if(upcoming == Token::Strings[index]) {
+			break;
+		}
+	}
+
+	if(index == Token::OperatorEnd) {
+		return false;
+	}
+
+	//TODO: handle special cases
+	// ==, <=, >=, !=, etc...
+
+	next();
+
+	tokens->append(Token{
+		.kind = (Token::Kind)index,
+		.value = source.view(oldCurrent, current),
+		.column = oldCol,
+		.row = oldRow,
 	});
 	return true;
 }
@@ -258,21 +407,6 @@ auto Tokenizer::isStringLiteral(Token& token) -> bool {
 			source.begin() + stop);
 	next();
 	return true;
-
-	/*
-	auto firstChar = token.value[0];
-	auto lastChar = token.value[token.value.size() - 1];
-
-	if(firstChar != '"' || lastChar != '"') {
-		return false;
-	}
-
-	auto v = token.value;
-	token.value = StringView(v.begin() + 1, v.end() - 1);
-	token.kind = Token::Kind::StringLiteral;
-
-	return true;
-	*/
 }
 
 auto Tokenizer::isIntegerLiteral(Token& token) -> bool {
