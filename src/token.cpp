@@ -27,6 +27,10 @@ auto fprintType(FILE* desc, const Token& token) -> void {
 	fprintType(desc, Token::PrintableStrings[(size_t)token.kind]);
 	if(!token.value.empty()) {
 		fprintf(desc, ", Value: ");
-		fprintType(desc, token.value);
+		if(token.kind == Token::Kind::Newline) {
+			fprintType(desc, "\\n");
+		} else {
+			fprintType(desc, token.value);
+		}
 	}
 }

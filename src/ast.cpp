@@ -168,10 +168,10 @@ auto AstParser::dumpError() -> void {
 	print(", found:", whatWeGot->kind);
 	switch(whatWeGot->kind) {
 		case Token::Kind::Newline:
-			println();
+			println(" ( \\n )");
 			break;
 		default:
-			println("(", whatWeGot->value, ")");
+			println(" (", whatWeGot->value, ")");
 			break;
 	}
 }
