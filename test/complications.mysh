@@ -1,16 +1,19 @@
 #!../build/mysh
 
-echo "ls attempt"
-ls -l /tmp/
-
-echo "division attempt"
-echo "this should print 2"
+echo tjena/moss
 echo 4/2
 
-echo "this should print lost+found"
-echo lost+found
+#echo "ls attempt"
+#ls -l /tmp/
 
-echo "this should print lost"
-echo "found"
+#echo "division attempt"
+#echo "this should print 2"
+#echo 4/2
 
-echo "lost\nfound"
+#echo "this should print lost+found"
+#echo lost+found
+
+#echo "this should print lost"
+#echo "found"
+
+#echo "lost\nfound"

@@ -221,14 +221,17 @@ auto Tokenizer::readBareword() -> bool {
 	auto oldCurrent = current;
 	auto oldCol = currentColumn;
 	auto oldRow = currentRow;
-	for(auto c = peek(); !eof() && !isspace(c); next()) {
+	for(auto c = peek();; next()) {
 		c = peek();
+		if(eof() || isspace(c)) {
+			break;
+		}
 		//TODO: handle forward slashes
 		// \n, \t, etc...
 	}
 	tokens->append(Token{
 		.kind = Token::Kind::Bareword,
-		.value = source.view(oldCurrent, current - 1),
+		.value = source.view(oldCurrent, current),
 		.column = oldCol,
 		.row = oldRow,
 	});

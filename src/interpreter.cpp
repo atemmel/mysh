@@ -234,8 +234,8 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 
 auto Interpreter::visit(RootNode& node) -> void {
 	for(auto& child : node.children) {
-		collectedValues.clear();
 		child->accept(*this);
+		collectedValues.clear();
 	}
 }
 
