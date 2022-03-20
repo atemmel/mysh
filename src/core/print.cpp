@@ -47,3 +47,7 @@ auto fprintType(FILE* desc, double value) -> void {
 auto fprintType(FILE* desc, bool value) -> void {
 	fprintf(desc, value ? "true" : "false");
 }
+
+auto println() -> void {
+	fprintf(stdout, "\n");
+}

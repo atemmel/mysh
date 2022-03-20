@@ -14,6 +14,10 @@ auto Token::isOperator(StringView view) -> bool {
 	return false;
 }
 
+auto fprintType(FILE* desc, Token::Kind kind) -> void {
+	fprintType(desc, Token::PrintableStrings[(size_t)kind]);
+}
+
 auto fprintType(FILE* desc, const Token& token) -> void {
 	fprintf(desc, "Row: ");
 	fprintType(desc, token.row);

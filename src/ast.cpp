@@ -136,15 +136,38 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 			continue;
 		}
 
-		println("");
-		println("");
-		println(tokens[current]);
-		println("");
-		println("");
-		assert(false);
+		assert(error());
+		return nullptr;
 	}
 
 	return root;
+}
+
+auto AstParser::dumpError() -> void {
+	if(whatWeGot == nullptr) {
+		return;
+	}
+
+	println("Error when parsing file");
+	print("row:", whatWeGot->row, "column:", whatWeGot->column, "");
+
+	// if not using whatWeWanted
+	if(whatWeWanted == Token::Kind::NTokens) {
+		// use whatWeWanted2
+		print("expected:", ExpectableStrings[(size_t)whatWeWanted2]);
+	} else {
+		print("expected:", whatWeWanted);
+	}
+
+	print(", found:", whatWeGot->kind);
+	switch(whatWeGot->kind) {
+		case Token::Kind::Newline:
+			println();
+			break;
+		default:
+			println("(", whatWeGot->value, ")");
+			break;
+	}
 }
 
 auto AstParser::parseStatement() -> Child {
@@ -192,7 +215,9 @@ auto AstParser::parseFunctionCall() -> Child {
 	}
 
 	if(!eot()) {
-		assert(getIf(Token::Kind::Newline) != nullptr);
+		if(getIf(Token::Kind::Newline) == nullptr) {
+			return expected(Token::Kind::Newline);
+		}
 	}
 
 	return node;
@@ -206,26 +231,22 @@ auto AstParser::parseDeclaration() -> Child {
 
 	auto identifier = getIf(Token::Kind::Identifier);
 	if(identifier == nullptr) {
-		//TODO: Print error message
-		println("failure 1");
-		return nullptr;
+		return expected(Token::Kind::Identifier);
 	}
 
 	if(getIf(Token::Kind::Equals) == nullptr) {
-		//TODO: Print error message
-		println("failure 2");
-		return nullptr;
+		return expected(Token::Kind::Equals);
 	}
 
 	auto expr = parseExpr();
 	if(expr == nullptr) {
-		//TODO: Print error message
-		println("failure 3");
-		return nullptr;
+		return expected(ExpectableThings::Expression);
 	}
 
 	if(!eot()) {
-		assert(getIf(Token::Kind::Newline) != nullptr);
+		if(getIf(Token::Kind::Newline) == nullptr) {
+			return expected(Token::Kind::Newline);
+		}
 	}
 
 	Child decl = OwnPtr<DeclarationNode>::create(identifier);
@@ -299,7 +320,7 @@ auto AstParser::parseBranch() -> Child {
 
 	auto expr = parseExpr();
 	if(expr == nullptr){
-		assert(false);
+		return expected(ExpectableThings::Expression);
 	}
 
 	auto branch = OwnPtr<BranchNode>::create(branchBegin);
@@ -307,7 +328,7 @@ auto AstParser::parseBranch() -> Child {
 
 	auto scope = parseScope(false);
 	if(scope == nullptr) {
-		assert(false);
+		return expected(ExpectableThings::Scope);
 	}
 
 	branch->statement = move(scope);
@@ -332,8 +353,7 @@ auto AstParser::parseBranch() -> Child {
 		}
 	}
 	
-	assert(false);
-	return nullptr;
+	return expected(Token::Kind::Else);
 }
 
 auto AstParser::parseScope(bool endsWithNewline) -> Child {
@@ -362,14 +382,14 @@ auto AstParser::parseScope(bool endsWithNewline) -> Child {
 			break;
 		}
 
-		//TODO: poor candidate for statement
-		assert(false);
-		return nullptr;
+		return expected(Token::Kind::RightBrace);
 	}
 
 	if(endsWithNewline) {
 		if(!eot()) {
-			assert(getIf(Token::Kind::Newline) != nullptr);
+			if(getIf(Token::Kind::Newline) == nullptr) {
+				return expected(Token::Kind::Newline);
+			}
 		}
 	}
 
@@ -383,7 +403,6 @@ auto AstParser::parseAssignment() -> Child {
 		return nullptr;
 	}
 
-
 	auto equals = getIf(Token::Kind::Equals);
 	if(equals == nullptr) {
 		current = checkpoint;
@@ -392,16 +411,12 @@ auto AstParser::parseAssignment() -> Child {
 
 	auto expr = parseExpr();
 	if(expr == nullptr) {
-		//TODO: expected expression
-		assert(false);
-		return nullptr;
+		return expected(ExpectableThings::Expression);
 	}
 
 	auto newline = getIf(Token::Kind::Newline);
 	if(newline == nullptr) {
-		//TODO: expected newline
-		assert(false);
-		return nullptr;
+		return expected(Token::Kind::Newline);
 	}
 
 	auto assign = OwnPtr<AssignmentNode>::create(equals);
@@ -426,9 +441,7 @@ auto AstParser::parseBinaryExpression() -> Child {
 
 	auto rhs = parseExpr();
 	if(rhs == nullptr) {
-		//TODO: more error handling
-		assert(false);
-		return nullptr;
+		return expected(ExpectableThings::Expression);
 	}
 
 	op->addChild(lhs);
@@ -468,9 +481,7 @@ auto AstParser::parseUnaryExpression() -> Child {
 	auto expr = parsePrimaryExpr();
 
 	if(expr == nullptr) {
-		//TODO: expect expression here
-		current = checkpoint;
-		return nullptr;
+		return expected(ExpectableThings::Expression);
 	}
 
 	unary->addChild(expr);
@@ -528,6 +539,10 @@ auto AstParser::parseIntegerLiteral() -> Child {
 	return integer;
 }
 
+auto AstParser::error() const -> bool {
+	return whatWeGot != nullptr;
+}
+
 auto AstParser::eot() const -> bool {
 	return current >= tokens->size();
 }
@@ -538,5 +553,17 @@ auto AstParser::getIf(Token::Kind kind) -> const Token* {
 		++current;
 		return ptr;
 	}
+	return nullptr;
+}
+
+auto AstParser::expected(Token::Kind kind) -> Child {
+	whatWeWanted = kind;
+	whatWeGot = &(*tokens)[current];
+	return nullptr;
+}
+
+auto AstParser::expected(ExpectableThings expectable) -> Child {
+	whatWeWanted2 = expectable;
+	whatWeGot = &(*tokens)[current];
 	return nullptr;
 }

@@ -39,10 +39,17 @@ auto fprint(FILE* desc, const Param& param, Params... params) -> void {
 }
 
 template<typename Param, typename ...Params>
+auto print(const Param& param, Params... params) -> void {
+	fprint(stdout, param, forward<Params>(params)...);
+}
+
+template<typename Param, typename ...Params>
 auto println(const Param& param, Params... params) -> void {
 	fprint(stdout, param, forward<Params>(params)...);
 	fprintf(stdout, "\n");
 }
+
+auto println() -> void;
 
 template<typename Param, typename ...Params>
 auto errprintln(const Param& param, Params... params) -> void {

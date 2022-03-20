@@ -85,4 +85,5 @@ struct Token {
 	size_t row;
 };
 
+auto fprintType(FILE* desc, Token::Kind kind) -> void;
 auto fprintType(FILE* desc, const Token& token) -> void;

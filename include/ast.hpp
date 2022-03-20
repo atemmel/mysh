@@ -106,7 +106,20 @@ struct AstVisitor {
 
 struct AstParser {
 	auto parse(const Array<Token>& tokens) -> AstRoot;
+
+	auto dumpError() -> void;
 private:
+	enum struct ExpectableThings {
+		Expression,
+		Scope,
+		NExpectableThings,
+	};
+
+	constexpr static StaticArray<StringView, (size_t)ExpectableThings::NExpectableThings> ExpectableStrings = {
+		"Expression",
+		"Scope",
+	};
+
 	auto parseStatement() -> Child;
 	auto parseFunctionCall() -> Child;
 	auto parseDeclaration() -> Child;
@@ -125,9 +138,15 @@ private:
 	auto parseBoolLiteral() -> Child;
 	auto parseIntegerLiteral() -> Child;
 
+	auto error() const -> bool;
 	auto eot() const -> bool;
 	auto getIf(Token::Kind kind) -> const Token*;
+	auto expected(Token::Kind kind) -> Child;
+	auto expected(ExpectableThings expectable) -> Child;
 
+	Token::Kind whatWeWanted = Token::Kind::NTokens;
+	ExpectableThings whatWeWanted2 = ExpectableThings::NExpectableThings;
+	const Token* whatWeGot = nullptr;
 	const Array<Token>* tokens = nullptr;
 	size_t current = 0;
 };

@@ -27,7 +27,8 @@ auto doEverything(StringView path) {
 	auto root = parser.parse(tokens);
 	if(root == nullptr) {
 		println("main: No root :(");
-		return;
+		parser.dumpError();
+		exit(EXIT_FAILURE);
 	}
 
 	if(globals::verbose) {
