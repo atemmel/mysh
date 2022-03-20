@@ -27,13 +27,26 @@ auto Tokenizer::tokenize(StringView source) -> Array<Token> {
 			continue;
 		}
 
+		if(readVariable()
+			|| readKeyword()
+			|| readIdentifier()
+			|| readSymbol()
+			|| readStringLiteral()
+			|| readIntegerLiteral()
+			|| readBareword()) {
+			continue;
+		}
 
+		assert(false);
+
+		/*
 		Token token;
 		auto success = readToken(token);
 		if(!success) {
 			break;
 		}
 		tokens.append(token);
+		*/
 	}
 
 	return tokens;
@@ -101,6 +114,47 @@ auto Tokenizer::skipComments() -> void {
 	}
 }
 
+auto Tokenizer::readKeyword() -> bool {
+	auto oldCurrent = current;
+	auto oldCol = currentColumn;
+	auto oldRow = currentRow;
+
+	for(auto c = peek(); !eof() ; next()) {
+		c = peek();
+		if(!isalpha(c)) {
+			break;
+		}
+	}
+
+	if(oldCurrent == current) {
+		return false;
+	}
+
+	auto view = source.view(oldCurrent, current);
+
+	size_t keywordIndex = Token::KeywordBegin;
+	for(; keywordIndex < Token::KeywordEnd; ++keywordIndex) {
+		if(view == Token::Strings[keywordIndex]) {
+			break;
+		}
+	}
+
+	if(keywordIndex == Token::KeywordEnd) {
+		current = oldCurrent;
+		currentColumn = oldCol;
+		currentRow = oldRow;
+		return false;
+	}
+
+	tokens->append(Token{
+		.kind = (Token::Kind)keywordIndex,
+		.value = view,
+		.column = oldCol,
+		.row = oldRow,
+	});
+	return true;
+}
+
 auto Tokenizer::readVariable() -> bool {
 	auto oldCurrent = current;
 	auto oldCol = currentColumn;
@@ -116,7 +170,7 @@ auto Tokenizer::readVariable() -> bool {
 		return false;
 	}
 
-	for(;; next()) {
+	for(; !eof() ; next()) {
 		c = peek();
 		if(!isalnum(c) && c != '_') {
 			break;
@@ -125,7 +179,7 @@ auto Tokenizer::readVariable() -> bool {
 
 	tokens->append(Token{
 		.kind = Token::Kind::Variable,
-		.value = source.view(oldCurrent, current),
+		.value = source.view(oldCurrent + 1, current),
 		.column = oldCol,
 		.row = oldRow,
 	});
@@ -175,7 +229,7 @@ auto Tokenizer::readBareword() -> bool {
 	auto oldCol = currentColumn;
 	auto oldRow = currentRow;
 	auto c = peek();
-	for(auto c = peek(); !isblank(c); next()) {
+	for(auto c = peek(); !eof() && !isblank(c); next()) {
 		//TODO: handle forward slashes
 		// \n, \t, etc...
 	}
@@ -278,7 +332,7 @@ auto Tokenizer::readSymbol() -> bool {
 	auto oldRow = currentRow;
 
 	auto upcoming = source.view(current, current + 1);
-	size_t index = Token::OperatorBegin;
+	auto index = Token::OperatorBegin;
 	for(; index < Token::OperatorEnd; ++index) {
 		if(upcoming == Token::Strings[index]) {
 			break;
@@ -301,164 +355,4 @@ auto Tokenizer::readSymbol() -> bool {
 		.row = oldRow,
 	});
 	return true;
-}
-
-auto Tokenizer::readToken(Token& token) -> bool {
-	size_t prevCurrent = current;
-	token.column = currentColumn;
-	token.row = currentRow;
-
-	if(peek() == '"') {
-		isStringLiteral(token);
-		return true;
-	}
-
-	if(isdigit(peek()) || peek() == '-') {
-		if(isIntegerLiteral(token)) {
-			return true;
-		}
-	}
-
-	while(!eof() && !isspace(peek())) {
-		auto view = source.view(current, current + 1);
-		if(prevCurrent < current && Token::isOperator(view)) {
-			break;
-		}
-		next();
-
-		view = source.view(prevCurrent, current);
-		if(Token::isOperator(view)) {
-			break;
-		}
-	}
-
-	// if we could not create a token
-	if(prevCurrent == current) {
-		return false;
-	}
-
-	token.kind = Token::Kind::Variable;
-	token.value = source.view(prevCurrent, current);
-
-	if(isKeyword(token)) {
-		return true;
-	}
-
-	if(isOperator(token)) {
-		return true;
-	}
-
-	if(isVariable(token)) {
-		return true;
-	}
-
-	if(isIdentifier(token)) {
-		return true;
-	}
-
-	// otherwise, the token is unrecognized
-	return false;
-}
-
-auto Tokenizer::isKeyword(Token& token) -> bool {
-	size_t keywordIndex = Token::KeywordBegin;
-	for(; keywordIndex < Token::KeywordEnd; ++keywordIndex) {
-		if(token.value == Token::Strings[keywordIndex]) {
-			token.kind = (Token::Kind)keywordIndex;
-			return true;
-		} 
-	}
-	return false;
-}
-
-auto Tokenizer::isVariable(Token& token) -> bool {
-	auto firstChar = token.value[0];
-
-	if(firstChar != '$') {
-		return false;
-	}
-
-	auto v = token.value;
-	token.value = StringView(v.begin() + 1, v.end());
-	token.kind = Token::Kind::Variable;
-
-	return true;
-}
-
-auto Tokenizer::isIdentifier(Token& token) -> bool {
-	token.kind = Token::Kind::Identifier;
-	return true;
-}
-
-auto Tokenizer::isStringLiteral(Token& token) -> bool {
-	auto start = current;
-
-	token.kind = Token::Kind::StringLiteral;
-	next();
-	while(!eof() && peek() != '"') {
-		next();
-	}
-
-	//TODO: error handling
-	assert(peek() == '"');
-	auto stop = current;
-
-	token.value = StringView(source.begin() + start + 1,
-			source.begin() + stop);
-	next();
-	return true;
-}
-
-auto Tokenizer::isIntegerLiteral(Token& token) -> bool {
-	// leading negation (-)
-	// -1
-	// first char
-	// - 0 1 2 3 4 5 6 7 8 9
-	if(peek() == '-' && current + 1 < source.size() 
-		&& !isdigit(source[current + 1])) {
-		return false;
-	}
-	auto start = current;
-	auto col = currentColumn;
-	auto row = currentRow;
-
-	next();
-
-	// all the others
-	// 0 1 2 3 4 5 6 7 8 9
-	while(!eof() && isdigit(peek())) {
-		next();
-	}
-
-	token.value = source.view(start, current);
-	token.kind = Token::Kind::IntegerLiteral;
-
-	if(eof()) {
-		return true;
-	}
-
-	if(isspace(peek())) {
-		return true;
-	}
-
-	auto upcoming = source.view(current, current + 1);
-	if(Token::isOperator(upcoming)) {
-		return true;
-	}
-
-	current = start;
-	col = currentColumn;
-	row = currentRow;
-	return false;
-}
-
-auto Tokenizer::isOperator(Token& token) -> bool {
-	size_t operatorIndex = Token::OperatorBegin;
-	for(; operatorIndex < Token::OperatorEnd; ++operatorIndex) {
-		if(token.value == Token::Strings[operatorIndex]) {
-			token.kind = (Token::Kind)operatorIndex;
-			return true;
-		}
-	}
-	return false;
 }

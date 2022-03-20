@@ -13,21 +13,13 @@ private:
 	auto readNewline() -> bool;
 	auto skipWhitespace() -> void;
 	auto skipComments() -> void;
+	auto readKeyword() -> bool;
 	auto readVariable() -> bool;
 	auto readIdentifier() -> bool;
 	auto readBareword() -> bool;
 	auto readStringLiteral() -> bool;
 	auto readIntegerLiteral() -> bool;
 	auto readSymbol() -> bool;
-
-	auto readToken(Token& token) -> bool;
-
-	auto isKeyword(Token& token) -> bool;
-	auto isVariable(Token& token) -> bool;
-	auto isIdentifier(Token& token) -> bool;
-	auto isStringLiteral(Token& token) -> bool;
-	auto isIntegerLiteral(Token& token) -> bool;
-	auto isOperator(Token& token) -> bool;
 
 	Array<Token>* tokens;
 	StringView source;
