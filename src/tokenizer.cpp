@@ -2,6 +2,8 @@
 
 #include <ctype.h>
 
+#include "core/print.hpp"
+
 auto Tokenizer::tokenize(StringView source) -> Array<Token> {
 	Array<Token> tokens;
 	this->tokens = &tokens;
@@ -38,15 +40,6 @@ auto Tokenizer::tokenize(StringView source) -> Array<Token> {
 		}
 
 		assert(false);
-
-		/*
-		Token token;
-		auto success = readToken(token);
-		if(!success) {
-			break;
-		}
-		tokens.append(token);
-		*/
 	}
 
 	return tokens;
@@ -199,7 +192,7 @@ auto Tokenizer::readIdentifier() -> bool {
 	
 	next();
 
-	for(;; next()) {
+	for(; !eof() ; next()) {
 		c = peek();
 		if(!isalnum(c) && c != '_') {
 			break;
@@ -228,14 +221,14 @@ auto Tokenizer::readBareword() -> bool {
 	auto oldCurrent = current;
 	auto oldCol = currentColumn;
 	auto oldRow = currentRow;
-	auto c = peek();
-	for(auto c = peek(); !eof() && !isblank(c); next()) {
+	for(auto c = peek(); !eof() && !isspace(c); next()) {
+		c = peek();
 		//TODO: handle forward slashes
 		// \n, \t, etc...
 	}
 	tokens->append(Token{
-		.kind = Token::Kind::Identifier,
-		.value = source.view(oldCurrent, current),
+		.kind = Token::Kind::Bareword,
+		.value = source.view(oldCurrent, current - 1),
 		.column = oldCol,
 		.row = oldRow,
 	});
@@ -284,10 +277,17 @@ auto Tokenizer::readIntegerLiteral() -> bool {
 	// -1
 	// first char
 	// - 0 1 2 3 4 5 6 7 8 9
+	// if leading negation + not digit
 	if(peek() == '-' && current + 1 < source.size() 
 		&& !isdigit(source[current + 1])) {
 		return false;
 	}
+
+	// if not leading negation + not digit
+	if(peek() != '-' && !isdigit(peek())) {
+		return false;
+	}
+	
 	auto oldCurrent = current;
 	auto oldCol = currentColumn;
 	auto oldRow = currentRow;
@@ -343,10 +343,23 @@ auto Tokenizer::readSymbol() -> bool {
 		return false;
 	}
 
+	next();
+
 	//TODO: handle special cases
 	// ==, <=, >=, !=, etc...
-
-	next();
+	switch((Token::Kind)index) {
+		case Token::Kind::Subtract:
+		case Token::Kind::Add:
+			if(isalpha(peek())) {
+				current = oldCurrent;
+				currentColumn = oldCol;
+				currentRow = oldRow;
+				return false;
+			}
+			break;
+		default:
+			break;
+	}
 
 	tokens->append(Token{
 		.kind = (Token::Kind)index,

@@ -33,6 +33,14 @@ auto Interpreter::visit(IdentifierNode& node) -> void {
 	});
 }
 
+auto Interpreter::visit(BarewordNode& node) -> void {
+	collectedValues.append(Value{
+		.string = node.token->value,
+		.kind = Value::Kind::String,
+		.ownerIndex = static_cast<size_t>(-1),
+	});
+}
+
 auto Interpreter::visit(StringLiteralNode& node) -> void {
 	collectedValues.append(Value{
 		.string = node.token->value,

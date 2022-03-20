@@ -7,6 +7,11 @@ auto AstPrinter::visit(IdentifierNode& node) -> void {
 	println("IdentifierNode:", node.token->value);
 }
 
+auto AstPrinter::visit(BarewordNode& node) -> void {
+	pad();
+	println("BarewordNode:", node.token->value);
+}
+
 auto AstPrinter::visit(StringLiteralNode& node) -> void {
 	pad();
 	println("StringLiteralNode:", node.token->value);

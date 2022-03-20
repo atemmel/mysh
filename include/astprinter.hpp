@@ -4,6 +4,7 @@
 
 struct AstPrinter : public AstVisitor {
 	auto visit(IdentifierNode& node) -> void override;
+	auto visit(BarewordNode& node) -> void override;
 	auto visit(StringLiteralNode& node) -> void override;
 	auto visit(BoolLiteralNode& node) -> void override;
 	auto visit(IntegerLiteralNode& node) -> void override;

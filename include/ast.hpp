@@ -22,6 +22,11 @@ struct IdentifierNode : public AstNode {
 	auto accept(AstVisitor& visitor) -> void;
 };
 
+struct BarewordNode : public AstNode {
+	BarewordNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+};
+
 struct StringLiteralNode : public AstNode {
 	StringLiteralNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
@@ -90,6 +95,7 @@ using AstRoot = OwnPtr<RootNode>;
 struct AstVisitor {
 	virtual ~AstVisitor() = default;
 	virtual auto visit(IdentifierNode& node) -> void = 0;
+	virtual auto visit(BarewordNode& node) -> void = 0;
 	virtual auto visit(StringLiteralNode& node) -> void = 0;
 	virtual auto visit(BoolLiteralNode& node) -> void = 0;
 	virtual auto visit(IntegerLiteralNode& node) -> void = 0;
@@ -126,6 +132,7 @@ private:
 	auto parseExpr() -> Child;
 	auto parsePrimaryExpr() -> Child;
 	auto parseIdentifier() -> Child;
+	auto parseBareword() -> Child;
 	auto parseVariable() -> Child;
 	auto parseBranch() -> Child;
 	auto parseScope(bool endsWithNewline = true) -> Child;

@@ -19,6 +19,14 @@ auto IdentifierNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
+BarewordNode::BarewordNode(const Token* token)
+	: AstNode(token) {
+	
+}
+auto BarewordNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
 StringLiteralNode::StringLiteralNode(const Token* token)
 	: AstNode(token) {
 
@@ -275,6 +283,10 @@ auto AstParser::parsePrimaryExpr() -> Child {
 		identifier != nullptr) {
 		return identifier;
 	}
+	if(auto bareword = parseBareword();
+		bareword != nullptr) {
+		return bareword;
+	}
 	if(auto variable = parseVariable(); 
 		variable != nullptr) {
 		return variable;
@@ -300,6 +312,14 @@ auto AstParser::parseIdentifier() -> Child {
 		return nullptr;
 	}
 	return OwnPtr<IdentifierNode>::create(token);
+}
+
+auto AstParser::parseBareword() -> Child {
+	auto token = getIf(Token::Kind::Bareword);
+	if(token == nullptr) {
+		return nullptr;
+	}
+	return OwnPtr<BarewordNode>::create(token);
 }
 
 auto AstParser::parseVariable() -> Child {
