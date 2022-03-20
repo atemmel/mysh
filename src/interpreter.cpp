@@ -167,6 +167,12 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 		case Token::Kind::Subtract:
 			result = subtractValues(lhs, rhs);
 			break;
+		case Token::Kind::Multiply:
+			result = multiplyValues(lhs, rhs);
+			break;
+		case Token::Kind::Divide:
+			result = divideValues(lhs, rhs);
+			break;
 		case Token::Kind::Less:
 			result = lessValues(lhs, rhs);
 			break;
@@ -262,6 +268,30 @@ auto Interpreter::negateValue(const Value& operand) -> Value {
 	auto integer = operand.integer;
 	return Value{
 		.integer = -integer,
+		.kind = Value::Kind::Integer,
+		.ownerIndex = Value::OwnerLess,
+	};
+}
+
+auto Interpreter::multiplyValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == Value::Kind::Integer);
+	assert(rhs.kind == Value::Kind::Integer);
+	auto left = lhs.integer;
+	auto right = rhs.integer;
+	return Value{
+		.integer = left * right,
+		.kind = Value::Kind::Integer,
+		.ownerIndex = Value::OwnerLess,
+	};
+}
+
+auto Interpreter::divideValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == Value::Kind::Integer);
+	assert(rhs.kind == Value::Kind::Integer);
+	auto left = lhs.integer;
+	auto right = rhs.integer;
+	return Value{
+		.integer = left / right,
 		.kind = Value::Kind::Integer,
 		.ownerIndex = Value::OwnerLess,
 	};

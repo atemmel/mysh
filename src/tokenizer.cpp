@@ -320,6 +320,7 @@ auto Tokenizer::readIntegerLiteral() -> bool {
 		return true;
 	}
 
+	tokens->pop();
 	current = oldCurrent;
 	currentColumn = oldCol;
 	currentRow = oldRow;
@@ -350,6 +351,8 @@ auto Tokenizer::readSymbol() -> bool {
 	switch((Token::Kind)index) {
 		case Token::Kind::Subtract:
 		case Token::Kind::Add:
+		case Token::Kind::Multiply:
+		case Token::Kind::Divide:
 			if(isalpha(peek())) {
 				current = oldCurrent;
 				currentColumn = oldCol;

@@ -27,6 +27,8 @@ private:
 	auto addValues(const Value& lhs, const Value& rhs) -> Value;
 	auto subtractValues(const Value& lhs, const Value& rhs) -> Value;
 	auto negateValue(const Value& operand) -> Value;
+	auto multiplyValues(const Value& lhs, const Value& rhs) -> Value;
+	auto divideValues(const Value& lhs, const Value& rhs) -> Value;
 
 	// logical operators
 	auto lessValues(const Value& lhs, const Value& rhs) -> Value;
