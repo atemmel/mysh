@@ -30,7 +30,7 @@ template<typename SrcIterator, typename DestIterator>
 constexpr auto moveRange(SrcIterator begin, SrcIterator end, DestIterator dest) -> void {
 	for(; begin != end; ++begin) {
 		*dest = move(*begin);
-		dest++;
+		++dest;
 	}
 }
 

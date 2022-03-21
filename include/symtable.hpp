@@ -36,6 +36,8 @@ struct SymTable {
 	auto putVariable(StringView identifier, const Value& value) -> void;
 	auto getVariable(StringView identifier) -> Value*;
 
+	auto create(const String& string) -> Value;
+
 	auto dump() const -> void;
 private:
 	auto createValue(const Value& value) -> Value;

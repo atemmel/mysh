@@ -35,6 +35,9 @@ private:
 	auto greaterValues(const Value& lhs, const Value& rhs) -> Value;
 	auto inverseValue(const Value& operand) -> Value;
 
+	// string operators
+	auto escape(const Value& original) -> Value;
+
 	auto executeFunction(StringView identifier,
 		const Array<Value>& args) -> Optional<Value>;
 

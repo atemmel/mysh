@@ -47,7 +47,7 @@ struct StringView {
 		return size() == 0;
 	}
 
-	constexpr auto operator[](size_t index) -> char {
+	constexpr auto operator[](size_t index) const -> char {
 		assert(index < size());
 		return beginPtr[index];
 	}

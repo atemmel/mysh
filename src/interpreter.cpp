@@ -42,11 +42,18 @@ auto Interpreter::visit(BarewordNode& node) -> void {
 }
 
 auto Interpreter::visit(StringLiteralNode& node) -> void {
+	/*
 	collectedValues.append(Value{
 		.string = node.token->value,
 		.kind = Value::Kind::String,
 		.ownerIndex = Value::OwnerLess,
 	});
+	*/
+	collectedValues.append(escape(Value{
+		.string = node.token->value,
+		.kind = Value::Kind::String,
+		.ownerIndex = Value::OwnerLess,
+	}));
 }
 
 auto Interpreter::visit(BoolLiteralNode& node) -> void {
@@ -145,6 +152,7 @@ auto Interpreter::visit(AssignmentNode& node) -> void {
 	assert(collectedValues.size() == 1);
 	symTable.putVariable(identifier, collectedValues[0]);
 	// reset
+	collectedValues[0].free(symTable);
 	collectedValues.clear();
 }
 
@@ -183,6 +191,8 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 			assert(false);
 	}
 
+	lhs.free(symTable);
+	rhs.free(symTable);
 	collectedValues.append(result);
 }
 
@@ -210,7 +220,8 @@ auto Interpreter::visit(UnaryOperatorNode& node) -> void {
 			assert(false);
 	}
 
-	collectedValues.clear();
+	operand.free(symTable);
+	collectedValues.pop();
 	collectedValues.append(result);
 }
 
@@ -227,6 +238,9 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 
 	// execute
 	auto result = executeFunction(func, args);
+	for(auto& arg : args) {
+		arg.free(symTable);
+	}
 	if(result.hasValue()) {
 		collectedValues.append(result.value());
 	}
@@ -371,6 +385,55 @@ auto Interpreter::inverseValue(const Value& operand) -> Value {
 	};
 }
 
+//TODO: the complexity of this algorithm can be improved
+//		by removing usage of mem::copy and doing things
+//		iteratively
+auto Interpreter::escape(const Value& original) -> Value {
+	size_t index = original.string.find('\\');
+	if(index == -1) {
+		return original;
+	}
+
+	auto view = original.string.view(0, original.string.size());
+	String string(original.string.size(), '\0');
+
+	mem::copy(view.view(0, index), string);
+	auto toIndex = index;
+
+	while(index != -1) {
+		++index;
+		switch(view[index]) {
+			case '\\':
+				string[toIndex] = '\\';
+				break;
+			case 'n':
+				string[toIndex] = '\n';
+				break;
+			case 't':
+				string[toIndex] = '\t';
+				break;
+			default:
+				assert(false);
+				break;
+		}
+
+		++toIndex;
+
+		auto fromBegin = view.begin() + index + 1;
+		auto fromEnd = view.end();
+		auto toBegin = string.begin() + toIndex;
+		mem::copy(fromBegin, fromEnd, toBegin);
+
+		view = view.view(index + 1, view.size());
+		index = view.find('\\');
+		if(index == -1) {
+			string[toIndex + view.size()] = '\0';
+		}
+		toIndex += index;
+	}
+
+	return symTable.create(string);
+}
 
 auto Interpreter::executeFunction(StringView identifier,
 	const Array<Value>& args) -> Optional<Value> {

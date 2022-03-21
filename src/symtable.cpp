@@ -119,6 +119,10 @@ auto SymTable::getVariable(StringView identifier) -> Value* {
 	return nullptr;
 }
 
+auto SymTable::create(const String& string) -> Value {
+	return createValue(string);
+}
+
 auto SymTable::dump() const -> void {
 	for(const auto& scope : scopes) {
 		for(auto it = scope.begin();
