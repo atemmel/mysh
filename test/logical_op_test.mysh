@@ -27,3 +27,27 @@ if !true {
 } else {
 	echo This should not print
 }
+
+if 2 <= 2 {
+	echo boom
+} else {
+	echo This is bad
+}
+
+if 3 >= 3 {
+	echo boom
+} else {
+	echo This is bad
+}
+
+if 4 == 4 {
+	echo boom
+} else {
+	echo This is bad
+}
+
+if 5 != 6 {
+	echo boom
+} else {
+	echo This is bad
+}

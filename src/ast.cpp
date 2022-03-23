@@ -240,8 +240,8 @@ auto AstParser::parseDeclaration() -> Child {
 		return expected(Token::Kind::Identifier);
 	}
 
-	if(getIf(Token::Kind::Equals) == nullptr) {
-		return expected(Token::Kind::Equals);
+	if(getIf(Token::Kind::Assign) == nullptr) {
+		return expected(Token::Kind::Assign);
 	}
 
 	auto expr = parseExpr();
@@ -421,7 +421,7 @@ auto AstParser::parseAssignment() -> Child {
 		return nullptr;
 	}
 
-	auto equals = getIf(Token::Kind::Equals);
+	auto equals = getIf(Token::Kind::Assign);
 	if(equals == nullptr) {
 		current = checkpoint;
 		return nullptr;
@@ -479,6 +479,10 @@ auto AstParser::parseBinaryOperator() -> Child {
 		case Token::Kind::Divide:
 		case Token::Kind::Less:
 		case Token::Kind::Greater:
+		case Token::Kind::Equals:
+		case Token::Kind::NotEquals:
+		case Token::Kind::GreaterEquals:
+		case Token::Kind::LessEquals:
 			break;
 		default:
 			return nullptr;

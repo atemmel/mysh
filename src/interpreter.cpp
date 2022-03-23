@@ -187,6 +187,18 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 		case Token::Kind::Greater:
 			result = greaterValues(lhs, rhs);
 			break;
+		case Token::Kind::Equals:
+			result = equalsValues(lhs, rhs);
+			break;
+		case Token::Kind::NotEquals:
+			result = notEqualsValues(lhs, rhs);
+			break;
+		case Token::Kind::LessEquals:
+			result = lessEqualsValues(lhs, rhs);
+			break;
+		case Token::Kind::GreaterEquals:
+			result = greaterEqualsValues(lhs, rhs);
+			break;
 		default:
 			assert(false);
 	}
@@ -214,7 +226,7 @@ auto Interpreter::visit(UnaryOperatorNode& node) -> void {
 			result = negateValue(operand);
 			break;
 		case Token::Kind::Bang:
-			result = inverseValue(operand);
+			result = notValue(operand);
 			break;
 		default:
 			assert(false);
@@ -375,7 +387,7 @@ auto Interpreter::greaterValues(const Value& lhs, const Value& rhs) -> Value {
 	return {};
 }
 
-auto Interpreter::inverseValue(const Value& operand) -> Value {
+auto Interpreter::notValue(const Value& operand) -> Value {
 	assert(operand.kind == Value::Kind::Bool);
 	auto boolean = operand.boolean;
 	return Value{
@@ -384,6 +396,94 @@ auto Interpreter::inverseValue(const Value& operand) -> Value {
 		.ownerIndex = Value::OwnerLess,
 	};
 }
+
+
+auto Interpreter::equalsValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == rhs.kind);
+	switch(lhs.kind) {
+		case Value::Kind::Bool:
+			return Value{
+				.boolean = lhs.boolean == rhs.boolean,
+				.kind = Value::Kind::Bool,
+				.ownerIndex = Value::OwnerLess,
+			};
+		case Value::Kind::Integer:
+			return Value{
+				.boolean = lhs.integer == rhs.integer,
+				.kind = Value::Kind::Bool,
+				.ownerIndex = Value::OwnerLess,
+			};
+		default:
+			assert(false);
+			break;
+	}
+
+	assert(false);
+	return {};
+}
+
+auto Interpreter::notEqualsValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == rhs.kind);
+	switch(lhs.kind) {
+		case Value::Kind::Bool:
+			return Value{
+				.boolean = lhs.boolean != rhs.boolean,
+				.kind = Value::Kind::Bool,
+				.ownerIndex = Value::OwnerLess,
+			};
+		case Value::Kind::Integer:
+			return Value{
+				.boolean = lhs.integer != rhs.integer,
+				.kind = Value::Kind::Bool,
+				.ownerIndex = Value::OwnerLess,
+			};
+		default:
+			assert(false);
+			break;
+	}
+
+	assert(false);
+	return {};
+}
+
+auto Interpreter::lessEqualsValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == rhs.kind);
+	assert(lhs.kind == Value::Kind::Integer);
+	switch(lhs.kind) {
+		case Value::Kind::Integer:
+			return Value{
+				.boolean = lhs.integer <= rhs.integer,
+				.kind = Value::Kind::Bool,
+				.ownerIndex = Value::OwnerLess,
+			};
+		default:
+			assert(false);
+			break;
+	}
+
+	assert(false);
+	return {};
+}
+
+auto Interpreter::greaterEqualsValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == rhs.kind);
+	assert(lhs.kind == Value::Kind::Integer);
+	switch(lhs.kind) {
+		case Value::Kind::Integer:
+			return Value{
+				.boolean = lhs.integer >= rhs.integer,
+				.kind = Value::Kind::Bool,
+				.ownerIndex = Value::OwnerLess,
+			};
+		default:
+			assert(false);
+			break;
+	}
+
+	assert(false);
+	return {};
+}
+
 
 //TODO: the complexity of this algorithm can be improved
 //		by removing usage of mem::copy and doing things

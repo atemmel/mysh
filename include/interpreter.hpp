@@ -33,7 +33,12 @@ private:
 	// logical operators
 	auto lessValues(const Value& lhs, const Value& rhs) -> Value;
 	auto greaterValues(const Value& lhs, const Value& rhs) -> Value;
-	auto inverseValue(const Value& operand) -> Value;
+	auto notValue(const Value& operand) -> Value;
+	auto equalsValues(const Value& lhs, const Value& rhs) -> Value;
+	auto notEqualsValues(const Value& lhs, const Value& rhs) -> Value;
+	auto lessEqualsValues(const Value& lhs, const Value& rhs) -> Value;
+	auto greaterEqualsValues(const Value& lhs, const Value& rhs) -> Value;
+
 
 	// string operators
 	auto escape(const Value& original) -> Value;

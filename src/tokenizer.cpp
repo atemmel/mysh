@@ -363,6 +363,29 @@ auto Tokenizer::readSymbol() -> bool {
 				return false;
 			}
 			break;
+		case Token::Kind::Assign:
+		case Token::Kind::Bang:
+		case Token::Kind::Less:
+		case Token::Kind::Greater:
+			if(peek() == '=') {
+				switch((Token::Kind)index) {
+					case Token::Kind::Assign:
+						index = (size_t)Token::Kind::Equals;
+						break;
+					case Token::Kind::Bang:
+						index = (size_t)Token::Kind::NotEquals;
+						break;
+					case Token::Kind::Less:
+						index = (size_t)Token::Kind::LessEquals;
+						break;
+					case Token::Kind::Greater:
+						index = (size_t)Token::Kind::GreaterEquals;
+						break;
+					default:
+						assert(false);
+				}
+				next();
+			}
 		default:
 			break;
 	}
