@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 struct StringView;
+struct StringBuilder;
 
 struct String {
 	String();
@@ -12,6 +13,7 @@ struct String {
 	String(const char* other, size_t amount);
 	String(size_t amount, char toFill);
 	String(StringView other);
+	String(StringBuilder&& other);
 
 	auto size() const -> size_t;
 	auto empty() const -> bool;

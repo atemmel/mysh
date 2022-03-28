@@ -1,5 +1,6 @@
 #include "core/string.hpp"
 
+#include "core/stringbuilder.hpp"
 #include "core/stringview.hpp"
 
 String::String() : buffer(0) {
@@ -20,6 +21,11 @@ String::String(size_t amount, char toFill) : buffer(amount) {
 
 String::String(StringView other) : String(other.data(), other.size()) {
 	*end() = '\0';
+}
+
+String::String(StringBuilder&& other) : buffer(other.buffer) {
+	buffer.crop(other.used);
+	other.used = 0;
 }
 
 auto String::size() const -> size_t {

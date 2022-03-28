@@ -100,6 +100,10 @@ struct Buffer {
 		return beginPtr == endPtr;
 	}
 
+	auto crop(size_t len) -> void {
+		endPtr = beginPtr + len;
+	}
+
 private:
 	Value* beginPtr = nullptr;
 	Value* endPtr = nullptr;
