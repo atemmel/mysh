@@ -1,0 +1,12 @@
+#!../build/mysh
+
+var name = "James"
+var surname = "Bond"
+
+var fullname = "$name $surname"
+
+print $fullname
+
+var escapeTest = "That'll be 5\$, thanks"
+
+print $escapeTest

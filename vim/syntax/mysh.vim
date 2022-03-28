@@ -12,6 +12,6 @@ syn keyword Keyword true false
 
 syn region String start='"' end='"'
 
-syn region Identifier start='\$' end='\S'
+syn region Identifier start='\$' end='\s'
 
 syn region Comment start="#" end="$"

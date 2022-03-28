@@ -1,5 +1,7 @@
 #include "interpreter.hpp"
 
+#include <ctype.h>
+
 #include "core/print.hpp"
 #include "spawn.hpp"
 
@@ -42,18 +44,11 @@ auto Interpreter::visit(BarewordNode& node) -> void {
 }
 
 auto Interpreter::visit(StringLiteralNode& node) -> void {
-	/*
-	collectedValues.append(Value{
+	collectedValues.append(escape(interpolate(Value{
 		.string = node.token->value,
 		.kind = Value::Kind::String,
 		.ownerIndex = Value::OwnerLess,
-	});
-	*/
-	collectedValues.append(escape(Value{
-		.string = node.token->value,
-		.kind = Value::Kind::String,
-		.ownerIndex = Value::OwnerLess,
-	}));
+	})));
 }
 
 auto Interpreter::visit(BoolLiteralNode& node) -> void {
@@ -489,6 +484,7 @@ auto Interpreter::greaterEqualsValues(const Value& lhs, const Value& rhs) -> Val
 //		by removing usage of mem::copy and doing things
 //		iteratively
 auto Interpreter::escape(const Value& original) -> Value {
+	assert(original.kind == Value::Kind::String);
 	size_t index = original.string.find('\\');
 	if(index == -1) {
 		return original;
@@ -512,6 +508,9 @@ auto Interpreter::escape(const Value& original) -> Value {
 			case 't':
 				string[toIndex] = '\t';
 				break;
+			case '$':
+				string[toIndex] = '$';
+				break;
 			default:
 				assert(false);
 				break;
@@ -533,6 +532,43 @@ auto Interpreter::escape(const Value& original) -> Value {
 	}
 
 	return symTable.create(string);
+}
+
+auto Interpreter::interpolate(const Value& original) -> Value {
+	assert(original.kind == Value::Kind::String);
+	size_t index = original.string.find('$');
+
+	// if no dollar or escaped dollar
+	if(index == -1 || index > 0 && original.string[index - 1] == '\\') {
+		// no interpolation
+		return original;
+	}
+
+	while(index != -1) {
+		auto start = original.string.begin() + index;
+		++index;
+		char c = original.string[index];
+		while((isalnum(c) || c == '_') && index < original.string.size()) {
+			++index;
+			c = original.string[index];
+		}
+		auto len = index;
+		auto name = StringView(start, len);
+		auto var = symTable.getVariable(name);
+
+		//TODO: this should be an error
+		assert(var != nullptr);
+
+		switch(var->kind) {
+			case Value::Kind::String:
+				break;
+			default:
+				break;
+		}
+	}
+
+	assert(false);
+	return {};
 }
 
 auto Interpreter::executeFunction(StringView identifier,

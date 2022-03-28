@@ -42,6 +42,7 @@ private:
 
 	// string operators
 	auto escape(const Value& original) -> Value;
+	auto interpolate(const Value& original) -> Value;
 
 	auto executeFunction(StringView identifier,
 		const Array<Value>& args) -> Optional<Value>;
