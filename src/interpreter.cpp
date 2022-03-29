@@ -573,10 +573,9 @@ auto Interpreter::interpolate(const Value& original) -> Value {
 		for(;(isalnum(c) || c == '_') && index < original.string.size(); ++index, ++len) {
 			c = original.string[index];
 		}
-		--len;
 
-		if(index == original.string.size()) {
-			++len;
+		if(index != original.string.size()) {
+			--len;
 		}
 		auto name = StringView(start, len);
 		auto var = symTable.getVariable(name);
@@ -596,7 +595,7 @@ auto Interpreter::interpolate(const Value& original) -> Value {
 				break;
 		}
 		prev = index;
-		index = original.string.find('$', prev);
+		index = original.string.find('$', prev - 1);
 	}
 
 	auto end = original.string.view(prev, original.string.size());
