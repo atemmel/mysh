@@ -3,6 +3,7 @@
 #include <ctype.h>
 
 #include "core/print.hpp"
+#include "core/stringbuilder.hpp"
 #include "spawn.hpp"
 
 using Builtin = Optional<Value>(*)(const Array<Value>&);
@@ -538,21 +539,45 @@ auto Interpreter::interpolate(const Value& original) -> Value {
 	assert(original.kind == Value::Kind::String);
 	size_t index = original.string.find('$');
 
-	// if no dollar or escaped dollar
-	if(index == -1 || index > 0 && original.string[index - 1] == '\\') {
+	// skip escaped vars
+	while(index != -1 && index > 0 && original.string[index - 1] == '\\') {
+		index = original.string.find('$', index + 1);
+	}
+
+	// if no var
+	if(index == -1) {
 		// no interpolation
 		return original;
 	}
 
+	StringBuilder builder;
+	size_t prev = 0;
+
+	// while there are vars in string
 	while(index != -1) {
-		auto start = original.string.begin() + index;
+		while(index > 0 && original.string[index - 1] == '\\') {
+			index = original.string.find('$', index + 1);
+		}
+		if(index == -1) {
+			break;
+		}
+		if(prev > 0) {
+			--prev;
+		}
+		auto between = original.string.view(prev, index);
+		builder.append(between);
 		++index;
+		auto start = original.string.begin() + index;
 		char c = original.string[index];
-		while((isalnum(c) || c == '_') && index < original.string.size()) {
-			++index;
+		auto len = 0;
+		for(;(isalnum(c) || c == '_') && index < original.string.size(); ++index, ++len) {
 			c = original.string[index];
 		}
-		auto len = index;
+		--len;
+
+		if(index == original.string.size()) {
+			++len;
+		}
 		auto name = StringView(start, len);
 		auto var = symTable.getVariable(name);
 
@@ -561,14 +586,22 @@ auto Interpreter::interpolate(const Value& original) -> Value {
 
 		switch(var->kind) {
 			case Value::Kind::String:
+				builder.append(var->string);
 				break;
-			default:
+			case Value::Kind::Bool:
+				builder.append(var->boolean);
+				break;
+			case Value::Kind::Integer:
+				builder.append(var->integer);
 				break;
 		}
+		prev = index;
+		index = original.string.find('$', prev);
 	}
 
-	assert(false);
-	return {};
+	auto end = original.string.view(prev, original.string.size());
+	builder.append(end);
+	return symTable.create(move(builder));
 }
 
 auto Interpreter::executeFunction(StringView identifier,

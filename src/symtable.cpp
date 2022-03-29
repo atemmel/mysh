@@ -123,6 +123,15 @@ auto SymTable::create(const String& string) -> Value {
 	return createValue(string);
 }
 
+auto SymTable::create(String&& string) -> Value {
+	auto index = createString(move(string));
+	return Value{
+		.string = strings[index].view(),
+		.kind = Value::Kind::String,
+		.ownerIndex = index,
+	};
+}
+
 auto SymTable::dump() const -> void {
 	for(const auto& scope : scopes) {
 		for(auto it = scope.begin();
@@ -133,6 +142,18 @@ auto SymTable::dump() const -> void {
 }
 
 auto SymTable::createString(StringView string) -> size_t {
+	if(freeStrings.empty()) {
+		strings.append(string);
+		return strings.size() - 1;
+	}
+
+	auto index = freeStrings[0];
+	freeStrings.remove(0);
+	strings[index] = string;
+	return index;
+}
+
+auto SymTable::createString(String&& string) -> size_t {
 	if(freeStrings.empty()) {
 		strings.append(string);
 		return strings.size() - 1;

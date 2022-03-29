@@ -8,6 +8,8 @@
 struct StringBuilder {
 	friend struct String;
 
+	StringBuilder();
+
 	auto reserve(size_t thisMuch) -> void;
 
 	auto append(StringView value) -> StringBuilder&;

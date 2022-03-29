@@ -5,6 +5,12 @@
 constexpr StringView falseStr = "false";
 constexpr StringView trueStr = "false";
 
+thread_local StaticArray<char, 16> StringBuilder::miniBuffer;
+
+StringBuilder::StringBuilder() : buffer(0) {
+
+}
+
 auto StringBuilder::reserve(size_t thisMuch) -> void {
 	if(buffer.size() >= thisMuch) {
 		return;
@@ -67,7 +73,8 @@ auto StringBuilder::copy() const -> String {
 }
 
 auto StringBuilder::growIfLessThan(size_t that) -> void {
-	if(buffer.size() <= that) {
+	++that;
+	if(buffer.size() >= that) {
 		return;
 	}
 
@@ -78,6 +85,9 @@ auto StringBuilder::growIfLessThan(size_t that) -> void {
 }
 
 auto StringBuilder::appendBytes(const char* data, size_t len) -> void {
+	if(len == 0) {
+		return;
+	}
 	growIfLessThan(used + len);
 	auto insert = used;
 	for(size_t i = 0; i < len; ++i) {

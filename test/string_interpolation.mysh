@@ -7,6 +7,12 @@ var fullname = "$name $surname"
 
 print $fullname
 
+var a = "tic"
+var b = "tac"
+var c = "toe"
+
+print "$a$b$c"
+
 var escapeTest = "That'll be 5\$, thanks"
 
 print $escapeTest

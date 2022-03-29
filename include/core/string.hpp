@@ -30,6 +30,7 @@ struct String {
 	auto begin() const -> const char*;
 	auto end() const -> const char*;
 
+	auto view() const -> StringView;
 	auto view(size_t first, size_t last) const -> StringView;
 
 private:

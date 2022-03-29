@@ -80,6 +80,10 @@ auto String::end() const -> const char* {
 	return buffer.end() - 1;
 }
 
+auto String::view() const -> StringView {
+	return StringView(buffer.begin(), buffer.end());
+}
+
 auto String::view(size_t first, size_t last) const -> StringView {
 	assert(first < size());
 	assert(last <= size());

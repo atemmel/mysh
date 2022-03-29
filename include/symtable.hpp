@@ -37,6 +37,7 @@ struct SymTable {
 	auto getVariable(StringView identifier) -> Value*;
 
 	auto create(const String& string) -> Value;
+	auto create(String&& string) -> Value;
 
 	auto dump() const -> void;
 private:
@@ -46,6 +47,7 @@ private:
 	auto createValue(int64_t value) -> Value;
 
 	auto createString(StringView string) -> size_t;
+	auto createString(String&& string) -> size_t;
 	auto freeString(const Value* variable) -> void;
 
 	using Variables = HashTable<StringView, Value>;

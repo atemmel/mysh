@@ -29,8 +29,8 @@ struct StringView {
 		return mem::equal(other, *this);
 	}
 
-	constexpr auto find(char delimeter) const -> size_t {
-		size_t index = 0;
+	constexpr auto find(char delimeter, size_t origin = 0) const -> size_t {
+		size_t index = origin;
 		for(; index < size(); index++) {
 			if(beginPtr[index] == delimeter) {
 				return index;
@@ -65,7 +65,7 @@ struct StringView {
 	}
 
 	auto view(size_t first, size_t last) const -> StringView {
-		assert(first < size());
+		assert(first <= size());
 		assert(last <= size());
 		return StringView(data() + first, data() + last);
 	}
