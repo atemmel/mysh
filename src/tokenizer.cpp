@@ -386,6 +386,18 @@ auto Tokenizer::readSymbol() -> bool {
 				}
 				next();
 			}
+		case Token::Kind::And:
+			if(peek() == '&') {
+				index = (size_t)Token::Kind::LogicalAnd;
+				next();
+			}
+			break;
+		case Token::Kind::Or:
+			if(peek() == '|') {
+				index = (size_t)Token::Kind::LogicalOr;
+				next();
+			}
+			break;
 		default:
 			break;
 	}

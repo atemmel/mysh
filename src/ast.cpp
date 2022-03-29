@@ -483,6 +483,8 @@ auto AstParser::parseBinaryOperator() -> Child {
 		case Token::Kind::NotEquals:
 		case Token::Kind::GreaterEquals:
 		case Token::Kind::LessEquals:
+		case Token::Kind::LogicalAnd:
+		case Token::Kind::LogicalOr:
 			break;
 		default:
 			return nullptr;

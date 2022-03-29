@@ -51,3 +51,15 @@ if 5 != 6 {
 } else {
 	echo This is bad
 }
+
+if true ||false {
+	echo boom
+} else {
+	echo this is bad
+}
+
+if true && true {
+	echo boom
+} else {
+	echo this is bad
+}

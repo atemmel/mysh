@@ -195,6 +195,12 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 		case Token::Kind::GreaterEquals:
 			result = greaterEqualsValues(lhs, rhs);
 			break;
+		case Token::Kind::LogicalAnd:
+			result = logicalAndValues(lhs, rhs);
+			break;
+		case Token::Kind::LogicalOr:
+			result = logicalOrValues(lhs, rhs);
+			break;
 		default:
 			assert(false);
 	}
@@ -478,6 +484,34 @@ auto Interpreter::greaterEqualsValues(const Value& lhs, const Value& rhs) -> Val
 
 	assert(false);
 	return {};
+}
+
+auto Interpreter::logicalAndValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == rhs.kind);
+	assert(lhs.kind == Value::Kind::Bool);
+
+	auto l = lhs.boolean;
+	auto r = rhs.boolean;
+
+	return Value{
+		.boolean = l && r,
+		.kind = Value::Kind::Bool,
+		.ownerIndex = Value::OwnerLess,
+	};
+}
+
+auto Interpreter::logicalOrValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == rhs.kind);
+	assert(lhs.kind == Value::Kind::Bool);
+
+	auto l = lhs.boolean;
+	auto r = rhs.boolean;
+
+	return Value{
+		.boolean = l || r,
+		.kind = Value::Kind::Bool,
+		.ownerIndex = Value::OwnerLess,
+	};
 }
 
 

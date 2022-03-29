@@ -38,6 +38,8 @@ private:
 	auto notEqualsValues(const Value& lhs, const Value& rhs) -> Value;
 	auto lessEqualsValues(const Value& lhs, const Value& rhs) -> Value;
 	auto greaterEqualsValues(const Value& lhs, const Value& rhs) -> Value;
+	auto logicalAndValues(const Value& lhs, const Value& rhs) -> Value;
+	auto logicalOrValues(const Value& lhs, const Value& rhs) -> Value;
 
 
 	// string operators

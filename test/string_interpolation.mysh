@@ -13,6 +13,6 @@ var c = "toe"
 
 print "$a$b$c"
 
-#var escapeTest = "That'll be 5\$, thanks"
+var escapeTest = "That'll be 5\$, thanks"
 
-#print $escapeTest
+print $escapeTest

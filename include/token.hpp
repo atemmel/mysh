@@ -23,6 +23,10 @@ struct Token {
 		NotEquals,		// !=
 		GreaterEquals,	// >=
 		LessEquals,		// <=
+		And,			// &
+		Or,				// |
+		LogicalAnd,		// &&
+		LogicalOr,		// ||
 		LeftBrace,		// {
 		RightBrace,		// }
 		Variable,		// $hello
@@ -52,6 +56,10 @@ struct Token {
 		"NotEquals",
 		"EqualsGreater",
 		"EqualsLess",
+		"And",
+		"Or",
+		"LogicalAnd",
+		"LogicalOr",
 		"LeftBrace",
 		"RightBrace",
 		"Variable",
@@ -80,6 +88,10 @@ struct Token {
 		"!=",
 		"<=",
 		">=",
+		"&",
+		"|",
+		"&&",
+		"||",
 		"{",
 		"}",
 		"",
@@ -93,7 +105,7 @@ struct Token {
 	static constexpr size_t KeywordEnd = 6;
 
 	static constexpr size_t OperatorBegin = 6;
-	static constexpr size_t OperatorEnd = 20;
+	static constexpr size_t OperatorEnd = 24;
 
 	static auto isOperator(StringView view) -> bool;
 
