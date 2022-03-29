@@ -56,6 +56,30 @@ auto AstPrinter::visit(BranchNode& node) -> void {
 	--depth;
 }
 
+auto AstPrinter::visit(LoopNode& node) -> void {
+	pad();
+	println("Loop node:");
+	++depth;
+	if(node.init != nullptr) {
+		node.init->accept(*this);
+	} else {
+		pad();
+		println("No init");
+	}
+	node.condition->accept(*this);
+	if(node.step != nullptr) {
+	node.step->accept(*this);
+	} else {
+		pad();
+		println("No step");
+	}
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	depth -= 2;
+}
+
 auto AstPrinter::visit(ScopeNode& node) -> void {
 	pad();
 	println("ScopeNode:");

@@ -126,6 +126,37 @@ auto Interpreter::visit(BranchNode& node) -> void {
 	}
 }
 
+auto Interpreter::visit(LoopNode& node) -> void {
+	symTable.addScope();
+	if(node.init != nullptr) {
+		node.init->accept(*this);
+	}
+	collectedValues.clear();
+	node.condition->accept(*this);
+	auto value = collectedValues[0];
+	collectedValues.clear();
+
+	//TODO: this should be an error
+	assert(value.kind == Value::Kind::Bool);
+
+	while(value.boolean) {
+
+		for(auto& child : node.children) {
+			child->accept(*this);
+		}
+
+		if(node.step != nullptr) {
+			node.step->accept(*this);
+		}
+		collectedValues.clear();
+		node.condition->accept(*this);
+		value = collectedValues[0];
+		collectedValues.clear();
+	}
+
+	symTable.dropScope();
+}
+
 auto Interpreter::visit(ScopeNode& node) -> void {
 	symTable.addScope();
 	for(auto& child : node.children) {
@@ -146,6 +177,7 @@ auto Interpreter::visit(AssignmentNode& node) -> void {
 	// find value
 	node.children[1]->accept(*this);
 	assert(collectedValues.size() == 1);
+	println(collectedValues);
 	symTable.putVariable(identifier, collectedValues[0]);
 	// reset
 	collectedValues[0].free(symTable);

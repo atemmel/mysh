@@ -86,6 +86,15 @@ auto BranchNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
+LoopNode::LoopNode(const Token* token) 
+	: AstNode(token) {
+	
+}
+
+auto LoopNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
 AssignmentNode::AssignmentNode(const Token* token) 
 	: AstNode(token) {
 
@@ -198,6 +207,11 @@ auto AstParser::parseStatement() -> Child {
 	}
 
 	if(auto child = parseBranch();
+		child != nullptr) {
+		return child;
+	}
+
+	if(auto child = parseLoop();
 		child != nullptr) {
 		return child;
 	}
@@ -372,6 +386,28 @@ auto AstParser::parseBranch() -> Child {
 	}
 	
 	return expected(Token::Kind::Else);
+}
+
+auto AstParser::parseLoop() -> Child {
+	auto token = getIf(Token::Kind::While);
+	if(token == nullptr) {
+		return nullptr;
+	}
+
+	auto loop = OwnPtr<LoopNode>::create(token);
+	auto expr = parseExpr();
+	if(expr == nullptr) {
+		return expected(ExpectableThings::Expression);
+	}
+
+	loop->condition = move(expr);
+	auto scope = parseScope();
+	if(scope == nullptr) {
+		return expected(ExpectableThings::Scope);
+	}
+
+	loop->addChild(scope);
+	return loop;
 }
 
 auto AstParser::parseScope(bool endsWithNewline) -> Child {

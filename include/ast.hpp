@@ -65,6 +65,14 @@ struct BranchNode : public AstNode {
 	Child statement;
 };
 
+struct LoopNode : public AstNode {
+	LoopNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+	Child init;
+	Child condition;
+	Child step;
+};
+
 struct AssignmentNode : public AstNode {
 	AssignmentNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
@@ -102,6 +110,7 @@ struct AstVisitor {
 	virtual auto visit(DeclarationNode& node) -> void = 0;
 	virtual auto visit(VariableNode& node) -> void = 0;
 	virtual auto visit(BranchNode& node) -> void = 0;
+	virtual auto visit(LoopNode& node) -> void = 0;
 	virtual auto visit(ScopeNode& node) -> void = 0;
 	virtual auto visit(AssignmentNode& node) -> void = 0;
 	virtual auto visit(BinaryOperatorNode& node) -> void = 0;
@@ -135,6 +144,7 @@ private:
 	auto parseBareword() -> Child;
 	auto parseVariable() -> Child;
 	auto parseBranch() -> Child;
+	auto parseLoop() -> Child;
 	auto parseScope(bool endsWithNewline = true) -> Child;
 	auto parseAssignment() -> Child;
 	auto parseBinaryExpression() -> Child;

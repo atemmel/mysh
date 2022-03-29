@@ -15,6 +15,7 @@ struct Interpreter : public AstVisitor {
 	auto visit(DeclarationNode& node) -> void override;
 	auto visit(VariableNode& node) -> void override;
 	auto visit(BranchNode& node) -> void override;
+	auto visit(LoopNode& node) -> void override;
 	auto visit(ScopeNode& node) -> void override;
 	auto visit(AssignmentNode& node) -> void override;
 	auto visit(BinaryOperatorNode& node) -> void override;
