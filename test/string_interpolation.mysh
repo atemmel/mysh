@@ -1,5 +1,7 @@
 #!../build/mysh
 
+# shell-like interpolation
+
 var name = "James"
 var surname = "Bond"
 
@@ -13,6 +15,17 @@ var c = "toe"
 
 print "$a$b$c"
 
+# Fully escape shell interpolation
 var escapeTest = "That'll be 5\$, thanks"
-
 print $escapeTest
+
+# Early escape shell interpolation
+var type = "Camel"
+print "$type\ case"
+print "$type case"
+
+# Brace interpolation
+print "{type}case"
+print "{type} case"
+# Escape brace interpolation
+print "\{{type}\} case"

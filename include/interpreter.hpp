@@ -46,6 +46,8 @@ private:
 	// string operators
 	auto escape(const Value& original) -> Value;
 	auto interpolate(const Value& original) -> Value;
+	auto interpolateDollar(const Value& original) -> Value;
+	auto interpolateBraces(const Value& original) -> Value;
 
 	auto executeFunction(StringView identifier,
 		const Array<Value>& args) -> Optional<Value>;

@@ -578,6 +578,15 @@ auto Interpreter::escape(const Value& original) -> Value {
 			case '$':
 				string[toIndex] = '$';
 				break;
+			case '{':
+				string[toIndex] = '{';
+				break;
+			case '}':
+				string[toIndex] = '}';
+				break;
+			case ' ':
+				--toIndex;
+				break;
 			default:
 				assert(false);
 				break;
@@ -602,6 +611,10 @@ auto Interpreter::escape(const Value& original) -> Value {
 }
 
 auto Interpreter::interpolate(const Value& original) -> Value {
+	return interpolateBraces(interpolateDollar(original));
+}
+
+auto Interpreter::interpolateDollar(const Value& original) -> Value {
 	assert(original.kind == Value::Kind::String);
 	size_t index = original.string.find('$');
 
@@ -617,6 +630,7 @@ auto Interpreter::interpolate(const Value& original) -> Value {
 	}
 
 	StringBuilder builder;
+	builder.reserve(16);
 	size_t prev = 0;
 
 	// while there are vars in string
@@ -662,6 +676,78 @@ auto Interpreter::interpolate(const Value& original) -> Value {
 		}
 		prev = index;
 		index = original.string.find('$', prev - 1);
+	}
+
+	if(prev < original.string.size()) {
+		auto end = original.string.view(prev - 1, original.string.size());
+		builder.append(end);
+	}
+
+	return symTable.create(move(builder));
+}
+
+auto Interpreter::interpolateBraces(const Value& original) -> Value {
+	assert(original.kind == Value::Kind::String);
+	size_t index = original.string.find('{');
+
+	// skip escaped vars
+	while(index != -1 && index > 0 && original.string[index - 1] == '\\') {
+		index = original.string.find('{', index + 1);
+	}
+
+	// if no var
+	if(index == -1) {
+		// no interpolation
+		return original;
+	}
+
+	StringBuilder builder;
+	builder.reserve(16);
+	size_t prev = 0;
+
+	// while there are vars in string
+	while(index != -1) {
+		while(index > 0 && original.string[index - 1] == '\\') {
+			index = original.string.find('{', index + 1);
+		}
+		if(index == -1) {
+			break;
+		}
+		if(prev > 0) {
+			--prev;
+		}
+		auto between = original.string.view(prev, index);
+		builder.append(between);
+		++index;
+		auto start = original.string.begin() + index;
+		char c = original.string[index];
+		auto len = 0;
+		for(; c != '}' && index < original.string.size(); ++index, ++len) {
+			c = original.string[index];
+		}
+
+		if(index != original.string.size()) {
+			--len;
+		}
+		auto name = StringView(start, len);
+		auto var = symTable.getVariable(name);
+
+		//TODO: this should be an error
+		assert(var != nullptr);
+
+		switch(var->kind) {
+			case Value::Kind::String:
+				builder.append(var->string);
+				break;
+			case Value::Kind::Bool:
+				builder.append(var->boolean);
+				break;
+			case Value::Kind::Integer:
+				builder.append(var->integer);
+				break;
+		}
+		prev = index;
+		index = original.string.find('{', prev);
 	}
 
 	auto end = original.string.view(prev, original.string.size());
