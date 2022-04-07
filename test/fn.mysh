@@ -4,13 +4,14 @@ fn hello {
 	print Hello guys
 }
 
-#fn add x y {
-	#return $x + $y
-#}
-
 hello
 
-#var z = (add 1 2)
+fn add x y {
+	return $x + $y
+}
 
-#print This should print 3
-#print $z
+
+var z = (add 1 2)
+
+print This should print 3
+print $z

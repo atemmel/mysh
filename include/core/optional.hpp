@@ -26,7 +26,7 @@ struct Optional {
 	}
 
 	auto disown() -> void {
-		~theValue();
+		theValue.~Value();
 		attained = false;
 	}
 

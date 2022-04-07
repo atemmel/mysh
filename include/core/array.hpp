@@ -20,6 +20,16 @@ struct Array {
 		other.currentSize = 0;
 	}
 
+	auto operator=(const Array& other) -> void {
+		if(size() < other.size()) {
+			buffer = other.buffer;
+			currentSize = other.size();
+		} else {
+			currentSize = other.size();
+			mem::copy(other, buffer);
+		}
+	}
+
 	auto operator=(Array&& other) -> void {
 		swap(currentSize, other.currentSize);
 		buffer.swap(other.buffer);

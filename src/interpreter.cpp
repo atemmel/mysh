@@ -88,14 +88,33 @@ auto Interpreter::visit(DeclarationNode& node) -> void {
 }
 
 auto Interpreter::visit(FnDeclarationNode& node) -> void {
-	//TODO: this
+	//TODO: arg mismatch
+	assert(node.args.size() == callArgs.size());
+	symTable.addScope();
+	for(size_t i = 0; i < node.args.size(); ++i) {
+		symTable.putVariable(node.args[i]->value,
+			callArgs[i]);
+	}
 	for(auto& child : node.children) {
 		child->accept(*this);
+	}
+	symTable.dropScope();
+	if(toReturn.hasValue()) {
+		collectedValues.append(toReturn.value());
 	}
 }
 
 auto Interpreter::visit(ReturnNode& node) -> void {
 	//TODO: this
+	collectedValues.clear();
+	toReturn.disown();
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	if(!collectedValues.empty()) {
+		toReturn = collectedValues[0];
+	}
+	collectedValues.clear();
 }
 
 auto Interpreter::visit(VariableNode& node) -> void {
@@ -302,11 +321,6 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 		collectedValues.append(result.value());
 	} else {
 		//TODO: fix this
-		collectedValues.append(Value{
-			.boolean = false,
-			.kind = Value::Kind::Bool,
-			.ownerIndex = Value::OwnerLess,
-		});
 	}
 }
 
@@ -786,8 +800,7 @@ auto Interpreter::executeFunction(StringView identifier,
 	// try to find fitting function
 	auto function = root->functions.get(identifier);
 	if(function != nullptr) {
-		visit(**function);
-		return {};
+		return executeUserDefinedFunction(function->get(), args);
 	}
 
 	// try spawn external program
@@ -799,4 +812,11 @@ auto Interpreter::executeFunction(StringView identifier,
 	}
 	spawn(strings);
 	return {};
+}
+
+auto Interpreter::executeUserDefinedFunction(FnDeclarationNode* func, const Array<Value>& args) -> Optional<Value> {
+	callArgs = args;
+	visit(*func);
+	collectedValues.clear();
+	return toReturn;
 }

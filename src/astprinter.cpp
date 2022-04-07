@@ -43,15 +43,15 @@ auto AstPrinter::visit(FnDeclarationNode& node) -> void {
 	++depth;
 	pad();
 	println("Args:");
+	++depth;
 	for(auto arg : node.args) {
 		pad();
 		println(arg->value);
 	}
-	++depth;
+	--depth;
 	for(auto& child : node.children) {
 		child->accept(*this);
 	}
-	--depth;
 	--depth;
 }
 
@@ -167,6 +167,13 @@ auto AstPrinter::visit(RootNode& node) -> void {
 	pad();
 	println("RootNode");
 	++depth;
+	pad();
+	println("Functions:");
+	for(auto& child : node.functions) {
+		visit(*child.value);
+	}
+	pad();
+	println("Statements:");
 	for(auto& child : node.children) {
 		child->accept(*this);
 	}

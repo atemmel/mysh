@@ -53,9 +53,13 @@ private:
 
 	auto executeFunction(StringView identifier,
 		const Array<Value>& args) -> Optional<Value>;
+	auto executeUserDefinedFunction(FnDeclarationNode* func,
+		const Array<Value>& args) -> Optional<Value>;
 
 	RootNode* root;
 	Array<Value> collectedValues;
+	Array<Value> callArgs;
+	Optional<Value> toReturn;
 	const VariableNode* lastVisitedVariable;
 	SymTable symTable;
 };
