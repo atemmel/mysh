@@ -60,6 +60,24 @@ auto DeclarationNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
+FnDeclarationNode::FnDeclarationNode(const Token* token) 
+	: AstNode(token) {
+
+}
+
+auto FnDeclarationNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
+ReturnNode::ReturnNode(const Token* token) 
+	: AstNode(token) {
+
+}
+
+auto ReturnNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
 VariableNode::VariableNode(const Token* token) 
 	: AstNode(token) {
 
@@ -149,6 +167,10 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 			child != nullptr) {
 			root->addChild(child);
 			continue;
+		} else if(auto child = parseFnDeclaration();
+			child != nullptr) {
+			root->addChild(child);
+			continue;
 		}
 
 		assert(error());
@@ -188,6 +210,11 @@ auto AstParser::dumpError() -> void {
 auto AstParser::parseStatement() -> Child {
 	if(auto child = parseFunctionCall();
 		child != nullptr) {
+		if(!eot()) {
+			if(getIf(Token::Kind::Newline) == nullptr) {
+				return expected(Token::Kind::Newline);
+			}
+		}
 		return child;
 	}
 
@@ -220,7 +247,6 @@ auto AstParser::parseStatement() -> Child {
 }
 
 auto AstParser::parseFunctionCall() -> Child {
-	auto checkpoint = current;
 	auto token = getIf(Token::Kind::Identifier);
 	if(token == nullptr) {
 		return nullptr;
@@ -234,13 +260,28 @@ auto AstParser::parseFunctionCall() -> Child {
 		child = parseExpr();
 	}
 
-	if(!eot()) {
-		if(getIf(Token::Kind::Newline) == nullptr) {
-			return expected(Token::Kind::Newline);
-		}
+	return node;
+}
+
+auto AstParser::parseFunctionCallExpr() -> Child {
+	auto checkpoint = current;
+	auto token = getIf(Token::Kind::LeftPar);
+	if(token == nullptr) {
+		return nullptr;
 	}
 
-	return node;
+	auto call = parseFunctionCall();
+
+	if(call == nullptr) {
+		current = checkpoint;
+		return nullptr;
+	}
+
+	if(getIf(Token::Kind::RightPar) == nullptr) {
+		return expected(Token::Kind::LeftPar);
+	}
+
+	return call;
 }
 
 auto AstParser::parseDeclaration() -> Child {
@@ -275,6 +316,53 @@ auto AstParser::parseDeclaration() -> Child {
 	return decl;
 }
 
+auto AstParser::parseFnDeclaration() -> Child {
+	auto token = getIf(Token::Kind::FnKeyword);
+	if(token == nullptr) {
+		return nullptr;
+	}
+
+	auto identifier = getIf(Token::Kind::Identifier);
+	if(identifier == nullptr) {
+		return expected(Token::Kind::Identifier);
+	}
+
+	auto fn = OwnPtr<FnDeclarationNode>::create(identifier);
+
+	for(const Token* arg = getIf(Token::Kind::Identifier); arg != nullptr;
+			arg = getIf(Token::Kind::Identifier)) {
+		fn->args.append(arg);
+	}
+	
+	auto scope = parseScope(true, true);
+	if(scope == nullptr) {
+		return expected(ExpectableThings::Scope);
+	}
+
+	fn->addChild(scope);
+	return fn;
+}
+
+auto AstParser::parseReturn() -> Child {
+	auto token = getIf(Token::Kind::Return);
+	if(token == nullptr) {
+		return nullptr;
+	}
+
+	auto ret = OwnPtr<ReturnNode>::create(token);
+
+	auto expr = parseExpr();
+	if(expr != nullptr) {
+		ret->addChild(expr);
+	}
+
+	if(getIf(Token::Kind::Newline) == nullptr) {
+		return expected(Token::Kind::Newline);
+	}
+
+	return ret;
+}
+
 auto AstParser::parseExpr() -> Child {
 	if(auto bin = parseBinaryExpression();
 		bin != nullptr) {
@@ -292,6 +380,10 @@ auto AstParser::parsePrimaryExpr() -> Child {
 	if(auto un = parseUnaryExpression();
 		un != nullptr) {
 		return un;
+	}
+	if(auto call = parseFunctionCallExpr();
+		call != nullptr) {
+		return call;
 	}
 	if(auto identifier = parseIdentifier(); 
 		identifier != nullptr) {
@@ -410,7 +502,7 @@ auto AstParser::parseLoop() -> Child {
 	return loop;
 }
 
-auto AstParser::parseScope(bool endsWithNewline) -> Child {
+auto AstParser::parseScope(bool endsWithNewline, bool mayReturn) -> Child {
 	auto checkpoint = current;
 	auto lbrace = getIf(Token::Kind::LeftBrace);
 	if(lbrace == nullptr) {
@@ -429,6 +521,14 @@ auto AstParser::parseScope(bool endsWithNewline) -> Child {
 			stmnt != nullptr) {
 			scope->addChild(stmnt);
 			continue;
+		}
+
+		if(mayReturn) {
+			if(auto ret = parseReturn();
+				ret != nullptr) {
+				scope->addChild(ret);
+				continue;
+			}
 		}
 
 		if(auto rbrace = getIf(Token::Kind::RightBrace);

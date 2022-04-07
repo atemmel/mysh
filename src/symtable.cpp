@@ -49,11 +49,11 @@ auto SymTable::addScope() -> void {
 
 auto SymTable::dropScope() -> void {
 	assert(!scopes.empty());
-	auto& lastScope = scopes[scopes.size() - 1];
-	for(auto it = lastScope.begin(); it != lastScope.end(); ++it) {
+	auto& lastScopeVars = scopes[scopes.size() - 1];
+	for(auto it = lastScopeVars.begin(); it != lastScopeVars.end(); ++it) {
 		it->value.free(*this);
 	}
-	lastScope.clear();
+	lastScopeVars.clear();
 	scopes.pop();
 }
 

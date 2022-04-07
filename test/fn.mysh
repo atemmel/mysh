@@ -1,0 +1,10 @@
+#!../build/mysh
+
+fn add x y {
+	return $x + $y
+}
+
+var z = (add 1 2)
+
+print This should print 3
+print $z

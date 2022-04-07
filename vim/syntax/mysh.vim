@@ -4,11 +4,11 @@ endif
 
 let b:current_syntax = "mysh"
 
-syn keyword Keyword var
+syn keyword Keyword var fn
 
 syn keyword Conditional if else
 
-syn keyword Keyword true false
+syn keyword Keyword true false return
 
 syn region String start='"' end='"'
 

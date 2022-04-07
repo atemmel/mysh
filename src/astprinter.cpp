@@ -37,9 +37,37 @@ auto AstPrinter::visit(DeclarationNode& node) -> void {
 	--depth;
 }
 
+auto AstPrinter::visit(FnDeclarationNode& node) -> void {
+	pad();
+	println("FnDeclarationNode:", node.token->value);
+	++depth;
+	pad();
+	println("Args:");
+	for(auto arg : node.args) {
+		pad();
+		println(arg->value);
+	}
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	--depth;
+	--depth;
+}
+
+auto AstPrinter::visit(ReturnNode& node) -> void {
+	pad();
+	println("ReturnNode:");
+}
+
 auto AstPrinter::visit(VariableNode& node) -> void {
 	pad();
 	println("VariableNode:", node.token->value);
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	--depth;
 }
 
 auto AstPrinter::visit(BranchNode& node) -> void {

@@ -48,6 +48,17 @@ struct DeclarationNode : public AstNode {
 	auto accept(AstVisitor& visitor) -> void;
 };
 
+struct FnDeclarationNode : public AstNode {
+	FnDeclarationNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+	Array<const Token*> args;
+};
+
+struct ReturnNode : public AstNode {
+	ReturnNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+};
+
 struct VariableNode : public AstNode {
 	VariableNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
@@ -108,6 +119,8 @@ struct AstVisitor {
 	virtual auto visit(BoolLiteralNode& node) -> void = 0;
 	virtual auto visit(IntegerLiteralNode& node) -> void = 0;
 	virtual auto visit(DeclarationNode& node) -> void = 0;
+	virtual auto visit(FnDeclarationNode& node) -> void = 0;
+	virtual auto visit(ReturnNode& node) -> void = 0;
 	virtual auto visit(VariableNode& node) -> void = 0;
 	virtual auto visit(BranchNode& node) -> void = 0;
 	virtual auto visit(LoopNode& node) -> void = 0;
@@ -137,7 +150,10 @@ private:
 
 	auto parseStatement() -> Child;
 	auto parseFunctionCall() -> Child;
+	auto parseFunctionCallExpr() -> Child;
 	auto parseDeclaration() -> Child;
+	auto parseFnDeclaration() -> Child;
+	auto parseReturn() -> Child;
 	auto parseExpr() -> Child;
 	auto parsePrimaryExpr() -> Child;
 	auto parseIdentifier() -> Child;
@@ -145,7 +161,7 @@ private:
 	auto parseVariable() -> Child;
 	auto parseBranch() -> Child;
 	auto parseLoop() -> Child;
-	auto parseScope(bool endsWithNewline = true) -> Child;
+	auto parseScope(bool endsWithNewline = true, bool mayReturn = false) -> Child;
 	auto parseAssignment() -> Child;
 	auto parseBinaryExpression() -> Child;
 	auto parseBinaryOperator() -> Child;

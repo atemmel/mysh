@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/hashtable.hpp"
+#include "core/optional.hpp"
 #include "core/string.hpp"
 #include "core/stringview.hpp"
 
@@ -41,6 +42,10 @@ struct SymTable {
 
 	auto dump() const -> void;
 private:
+	using Variables = HashTable<StringView, Value>;
+	using Scope = Variables;
+	using Scopes = Array<Scope>;
+
 	struct VariableInfo {
 		Value* value;
 		size_t scope;
@@ -56,8 +61,6 @@ private:
 	auto createString(String&& string) -> size_t;
 	auto freeString(const Value* variable) -> void;
 
-	using Variables = HashTable<StringView, Value>;
-	using Scopes = Array<Variables>;
 
 	Array<String> strings;
 	Array<size_t> freeStrings;

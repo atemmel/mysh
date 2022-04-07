@@ -86,6 +86,14 @@ auto Interpreter::visit(DeclarationNode& node) -> void {
 	collectedValues.clear();
 }
 
+auto Interpreter::visit(FnDeclarationNode& node) -> void {
+	//TODO: this
+}
+
+auto Interpreter::visit(ReturnNode& node) -> void {
+	//TODO: this
+}
+
 auto Interpreter::visit(VariableNode& node) -> void {
 	auto identifier = node.token->value;
 	auto variable = symTable.getVariable(identifier);
@@ -288,6 +296,13 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 	}
 	if(result.hasValue()) {
 		collectedValues.append(result.value());
+	} else {
+		//TODO: fix this
+		collectedValues.append(Value{
+			.boolean = false,
+			.kind = Value::Kind::Bool,
+			.ownerIndex = Value::OwnerLess,
+		});
 	}
 }
 

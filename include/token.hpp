@@ -7,11 +7,13 @@ struct Token {
 	enum struct Kind {
 		Newline,		// \n
 		VarKeyword,		// var
+		FnKeyword,		// fn
 		False,			// false
 		True,			// true
 		If,				// if
 		Else,			// else
 		While,			// while
+		Return,			// return
 		Assign,			// =
 		Add,			// +
 		Subtract,		// -
@@ -30,6 +32,8 @@ struct Token {
 		LogicalOr,		// ||
 		LeftBrace,		// {
 		RightBrace,		// }
+		LeftPar,		// (
+		RightPar,		// )
 		Variable,		// $hello
 		StringLiteral,	// "hello"
 		Identifier,		// hello
@@ -41,11 +45,13 @@ struct Token {
 	static constexpr StaticArray<StringView, (size_t)Kind::NTokens> PrintableStrings = {
 		"Newline",
 		"VarKeyword",
+		"FnKeyword",
 		"False",
 		"True",
 		"If",
 		"Else",
 		"While",
+		"Return",
 		"Assign",
 		"Add",
 		"Subtract",
@@ -64,6 +70,8 @@ struct Token {
 		"LogicalOr",
 		"LeftBrace",
 		"RightBrace",
+		"LeftPar",
+		"RightPar",
 		"Variable",
 		"StringLiteral",
 		"Identifier",
@@ -74,11 +82,13 @@ struct Token {
 	static constexpr StaticArray<StringView, (size_t)Kind::NTokens> Strings = {
 		"\n",
 		"var",
+		"fn",
 		"false",
 		"true",
 		"if",
 		"else",
 		"while",
+		"return",
 		"=",
 		"+",
 		"-",
@@ -97,6 +107,8 @@ struct Token {
 		"||",
 		"{",
 		"}",
+		"(",
+		")",
 		"",
 		"",
 		"",
@@ -105,10 +117,10 @@ struct Token {
 	};
 
 	static constexpr size_t KeywordBegin = 1;
-	static constexpr size_t KeywordEnd = 7;
+	static constexpr size_t KeywordEnd = 9;
 
-	static constexpr size_t OperatorBegin = 7;
-	static constexpr size_t OperatorEnd = 25;
+	static constexpr size_t OperatorBegin = 9;
+	static constexpr size_t OperatorEnd = 29;
 
 	static auto isOperator(StringView view) -> bool;
 
