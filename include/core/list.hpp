@@ -66,6 +66,23 @@ public:
 		ptr->next = node;
 	}
 
+	auto append(Value&& value) -> void {
+		auto node = mem::alloc<Node>();
+		node->value = move(value);
+
+		if(head == nullptr) {
+			head = node;
+			return;
+		}
+
+		auto ptr = head;
+		while(ptr->next != nullptr) {
+			ptr = ptr->next;
+		}
+
+		ptr->next = node;
+	}
+
 	auto remove(ConstIterator it) -> bool {
 		auto ptr = head;
 		while(ptr != nullptr && ptr->next != it.ptr) {

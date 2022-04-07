@@ -52,6 +52,16 @@ struct HashTable {
 		}
 	}
 
+	auto put(const Key& key, Value&& value) -> void {
+		maybeRehash();
+		auto it = lookup(key);
+		if(it == end()) {
+			insert(key, move(value));
+		} else {
+			it->value = move(value);
+		}
+	}
+
 	auto has(const Key& key) const -> bool {
 		return lookup(key) != end();
 	}
@@ -281,6 +291,16 @@ private:
 		++elements;
 	}
 
+	auto insert(const Key& key, Value&& value) -> void {
+		size_t index = hash(key) % buckets.size();
+		Bucket& bucket = buckets[index];
+		bucket.append(KeyValuePair{
+			.key = key,
+			.value = move(value),
+		});
+		++elements;
+	}
+
 	auto maybeRehash() -> bool {
 		if(buckets.empty()) { // there is not table, rehash
 			buckets.resize(128);
@@ -292,10 +312,10 @@ private:
 			auto newSize = elements * 2;
 			auto oldBuckets = move(buckets);
 			buckets.resize(newSize);
-			for(const auto& bucket : oldBuckets) {
-				for(const auto& pair : bucket) {
+			for(auto& bucket : oldBuckets) {
+				for(auto& pair : bucket) {
 					//TODO: can be moved
-					insert(pair.key, pair.value);
+					insert(pair.key, move(pair.value));
 				}
 			}
 			return true;

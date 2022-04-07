@@ -54,6 +54,7 @@ private:
 	auto executeFunction(StringView identifier,
 		const Array<Value>& args) -> Optional<Value>;
 
+	RootNode* root;
 	Array<Value> collectedValues;
 	const VariableNode* lastVisitedVariable;
 	SymTable symTable;

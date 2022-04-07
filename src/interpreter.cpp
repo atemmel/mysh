@@ -22,6 +22,7 @@ HashTable<StringView, Builtin> builtins = {
 };
 
 auto Interpreter::interpret(RootNode& root) -> bool {
+	this->root = &root;
 	symTable.addScope();
 	root.accept(*this);
 	symTable.dropScope();
@@ -88,6 +89,9 @@ auto Interpreter::visit(DeclarationNode& node) -> void {
 
 auto Interpreter::visit(FnDeclarationNode& node) -> void {
 	//TODO: this
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
 }
 
 auto Interpreter::visit(ReturnNode& node) -> void {
@@ -779,6 +783,12 @@ auto Interpreter::executeFunction(StringView identifier,
 	}
 
 	// if no builtin is found
+	// try to find fitting function
+	auto function = root->functions.get(identifier);
+	if(function != nullptr) {
+		visit(**function);
+		return {};
+	}
 
 	// try spawn external program
 	Array<String> strings;

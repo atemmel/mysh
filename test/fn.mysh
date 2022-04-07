@@ -1,10 +1,16 @@
 #!../build/mysh
 
-fn add x y {
-	return $x + $y
+fn hello {
+	print Hello guys
 }
 
-var z = (add 1 2)
+#fn add x y {
+	#return $x + $y
+#}
 
-print This should print 3
-print $z
+hello
+
+#var z = (add 1 2)
+
+#print This should print 3
+#print $z

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/array.hpp"
+#include "core/hashtable.hpp"
 #include "core/ownptr.hpp"
 #include "token.hpp"
 
@@ -107,6 +108,7 @@ struct FunctionCallNode : public AstNode {
 struct RootNode : public AstNode {
 	RootNode();
 	auto accept(AstVisitor& visitor) -> void;
+	HashTable<StringView, OwnPtr<FnDeclarationNode>> functions;
 };
 
 using AstRoot = OwnPtr<RootNode>;

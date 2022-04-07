@@ -169,7 +169,10 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 			continue;
 		} else if(auto child = parseFnDeclaration();
 			child != nullptr) {
-			root->addChild(child);
+			auto ptr = static_cast<FnDeclarationNode*>(child.disown());
+			auto fn = OwnPtr<FnDeclarationNode>(ptr);
+			root->functions.put(fn->token->value, 
+				move(fn));
 			continue;
 		}
 
