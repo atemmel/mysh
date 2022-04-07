@@ -41,6 +41,12 @@ struct SymTable {
 
 	auto dump() const -> void;
 private:
+	struct VariableInfo {
+		Value* value;
+		size_t scope;
+	};
+	auto putVariable(size_t scope, StringView identifier, const Value& value) -> void;
+	auto getVariableInfo(StringView identifier) -> VariableInfo;
 	auto createValue(const Value& value) -> Value;
 	auto createValue(StringView value) -> Value;
 	auto createValue(bool value) -> Value;

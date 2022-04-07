@@ -177,7 +177,6 @@ auto Interpreter::visit(AssignmentNode& node) -> void {
 	// find value
 	node.children[1]->accept(*this);
 	assert(collectedValues.size() == 1);
-	println(collectedValues);
 	symTable.putVariable(identifier, collectedValues[0]);
 	// reset
 	collectedValues[0].free(symTable);

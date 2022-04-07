@@ -61,13 +61,17 @@ auto SymTable::putVariable(StringView identifier, const Value& value) -> void {
 
 	auto newValue = createValue(value);
 
+	size_t scopeIndex;
 	// remove prior value (if applicable)
-	auto prev = getVariable(identifier);
-	if(prev != nullptr) {
-		prev->free(*this);
+	auto prev = getVariableInfo(identifier);
+	if(prev.value != nullptr) {
+		prev.value->free(*this);
+		scopeIndex = prev.scope;
+	} else {
+		scopeIndex = scopes.size() - 1;
 	}
 
-	auto& scope = scopes[scopes.size() - 1];
+	auto& scope = scopes[scopeIndex];
 	scope.put(identifier, newValue);
 }
 
@@ -139,6 +143,35 @@ auto SymTable::dump() const -> void {
 			println(it->key, "=", it->value);
 		}
 	}
+}
+
+auto SymTable::putVariable(size_t scope, StringView identifier, const Value& value) -> void {
+	assert(scope < scopes.size());
+	auto newValue = createValue(value);
+
+	auto prev = getVariable(identifier);
+	if(prev != nullptr) {
+		prev->free(*this);
+	}
+	auto& theScope = scopes[scope];
+	theScope.put(identifier, newValue);
+}
+
+auto SymTable::getVariableInfo(StringView identifier) -> VariableInfo {
+	for(size_t i = 0; i < scopes.size(); ++i) {
+		auto& scope = scopes[i];
+		auto var = scope.get(identifier);
+		if(var != nullptr) {
+			return {
+				var,
+				i,
+			};
+		}
+	}
+	return {
+		nullptr,
+		0,
+	};
 }
 
 auto SymTable::createString(StringView string) -> size_t {
