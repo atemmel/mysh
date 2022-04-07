@@ -58,6 +58,11 @@ auto AstPrinter::visit(FnDeclarationNode& node) -> void {
 auto AstPrinter::visit(ReturnNode& node) -> void {
 	pad();
 	println("ReturnNode:");
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	--depth;
 }
 
 auto AstPrinter::visit(VariableNode& node) -> void {
