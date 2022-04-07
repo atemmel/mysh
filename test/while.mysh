@@ -2,6 +2,8 @@
 
 var x = 0
 
+#TODO: fix loop issue
+# line 8 is interpreted as var x = $x + 1
 while $x < 5 {
 	$x = $x + 1
 }
