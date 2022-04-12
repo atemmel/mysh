@@ -137,6 +137,7 @@ struct AstVisitor {
 struct AstParser {
 	auto parse(const Array<Token>& tokens) -> AstRoot;
 
+	auto error() const -> bool;
 	auto dumpError() -> void;
 private:
 	enum struct ExpectableThings {
@@ -175,7 +176,6 @@ private:
 	auto parseBoolLiteral() -> Child;
 	auto parseIntegerLiteral() -> Child;
 
-	auto error() const -> bool;
 	auto eot() const -> bool;
 	auto getIf(Token::Kind kind) -> const Token*;
 	auto expected(Token::Kind kind) -> Child;

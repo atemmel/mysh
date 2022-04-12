@@ -31,10 +31,6 @@ var result4 = 5 | add5 | add5
 # 15
 print result4 is $result4
 
-
-#TODO: this manages to parse (for some reason)
-#var r2 = (g) | 5
-
 ## ux version
 
 fn f x {

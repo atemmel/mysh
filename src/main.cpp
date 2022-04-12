@@ -25,7 +25,7 @@ auto doEverything(StringView path) {
 	// build AST
 	AstParser parser;
 	auto root = parser.parse(tokens);
-	if(root == nullptr) {
+	if(root == nullptr || parser.error()) {
 		println("main: No root :(");
 		parser.dumpError();
 		exit(EXIT_FAILURE);

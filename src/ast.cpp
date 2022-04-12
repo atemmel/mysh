@@ -271,21 +271,7 @@ auto AstParser::parseFunctionCall() -> Child {
 		child = parseExpr();
 	}
 
-	token = getIf(Token::Kind::Or);
-	if(token == nullptr) {
-		return node;
-	}
-
-	Child pipe = OwnPtr<BinaryOperatorNode>::create(token);
-	auto rhs = parseFunctionCall();
-	if(rhs == nullptr) {
-		return expected(ExpectableThings::Callable);
-	}
-
-	pipe->addChild(node);
-	pipe->addChild(rhs);
-
-	return pipe;
+	return node;
 }
 
 auto AstParser::parseFunctionCallExpr() -> Child {
@@ -398,6 +384,9 @@ auto AstParser::parseExpr(bool trailingNewline) -> Child {
 		return bin;
 	}
 
+	if(error()) {
+		return nullptr;
+	}
 	if(auto expr = parsePrimaryExpr();
 		expr != nullptr) {
 		if(trailingNewline && !eot() 
@@ -767,6 +756,9 @@ auto AstParser::getIf(Token::Kind kind) -> const Token* {
 }
 
 auto AstParser::expected(Token::Kind kind) -> Child {
+	if(error()) {
+		return nullptr;
+	}
 	whatWeWanted = kind;
 	if(!eot()) {
 		whatWeGot = &(*tokens)[current];
@@ -777,6 +769,9 @@ auto AstParser::expected(Token::Kind kind) -> Child {
 }
 
 auto AstParser::expected(ExpectableThings expectable) -> Child {
+	if(error()) {
+		return nullptr;
+	}
 	whatWeWanted2 = expectable;
 	if(!eot()) {
 		whatWeGot = &(*tokens)[current];
