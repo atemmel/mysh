@@ -217,18 +217,19 @@ auto Interpreter::visit(AssignmentNode& node) -> void {
 auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 	assert(node.children.size() == 2);
 
-	// pipe
-	if(node.token->kind == Token::Kind::Or) {
-		//lhs.free(symTable);
-		//rhs.free(symTable);
-		//collectedValues.append(result);
-		//return;
-	}
 
 	// collect args
 	node.children[0]->accept(*this);
 	auto lhs = collectedValues[0];
 	collectedValues.clear();
+
+	// pipe
+	if(node.token->kind == Token::Kind::Or) {
+		pipe(lhs, node.children[1]);
+		lhs.free(symTable);
+		return;
+	}
+
 	node.children[1]->accept(*this);
 	auto rhs = collectedValues[0];
 	collectedValues.clear();
@@ -797,6 +798,13 @@ auto Interpreter::interpolateBraces(const Value& original) -> Value {
 	auto end = original.string.view(prev, original.string.size());
 	builder.append(end);
 	return symTable.create(move(builder));
+}
+
+auto Interpreter::pipe(const Value& lhs, Child& next) -> Value {
+	collectedValues.append(lhs);
+	next->accept(*this);
+	assert(!collectedValues.empty());
+	return collectedValues[0];
 }
 
 auto Interpreter::executeFunction(StringView identifier,

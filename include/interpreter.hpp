@@ -51,6 +51,9 @@ private:
 	auto interpolateDollar(const Value& original) -> Value;
 	auto interpolateBraces(const Value& original) -> Value;
 
+	// other operators
+	auto pipe(const Value& lhs, Child& next) -> Value;
+
 	auto executeFunction(StringView identifier,
 		const Array<Value>& args) -> Optional<Value>;
 	auto executeUserDefinedFunction(FnDeclarationNode* func,

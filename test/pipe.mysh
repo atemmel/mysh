@@ -3,19 +3,30 @@
 # classic pipe
 #ls | wc -w
 
-5 + 5
+fn add5 x {
+	return $x + 5
+}
 
-#fn add5 x {
-	#return $x + 5
-#}
+var result1 = 5 | add5
 
-#var result1 = (5 | add5)
-#print $result1
+# 10
+print result1 is $result1
 
-#fn ret5 {
-	#return 5
-#}
+fn ret5 {
+	return 5
+}
 
-#var result2 = (ret5 | add5)
+var result2 = (ret5) | add5
 
-#print $result2
+# 10
+print result2 is $result2
+
+var result3 = (add5 5) | add5
+
+# 15
+print result3 is $result3
+
+var result4 = 5 | add5 | add5
+
+# 15
+print result4 is $result4

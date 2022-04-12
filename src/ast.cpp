@@ -626,6 +626,17 @@ auto AstParser::parseBinaryExpression() -> Child {
 		return nullptr;
 	}
 
+	// pipe edge case, may only be followed by callables
+	if(op->token->kind == Token::Kind::Or) {
+		auto rhs = parseFunctionCall();
+		if(rhs == nullptr) {
+			return expected(ExpectableThings::Callable);
+		}
+		op->addChild(lhs);
+		op->addChild(rhs);
+		return op;
+	}
+
 	auto rhs = parseExpr();
 	if(rhs == nullptr) {
 		return expected(ExpectableThings::Expression);
