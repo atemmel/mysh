@@ -30,3 +30,33 @@ var result4 = 5 | add5 | add5
 
 # 15
 print result4 is $result4
+
+
+#TODO: this manages to parse (for some reason)
+#var r2 = (g) | 5
+
+## ux version
+
+fn f x {
+	return $x + 5
+}
+
+var r1 = 5 | f
+
+print r1 is $r1
+
+fn g {
+	return 5
+}
+
+var r2 = (g) | f
+
+print r2 is $r2
+
+var r3 = (f 5) | f
+
+print r3 is $r3
+
+var r4 = 5 | f | f
+
+print r4 is $r4
