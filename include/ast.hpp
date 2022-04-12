@@ -142,12 +142,14 @@ private:
 	enum struct ExpectableThings {
 		Expression,
 		Scope,
+		Callable,
 		NExpectableThings,
 	};
 
 	constexpr static StaticArray<StringView, (size_t)ExpectableThings::NExpectableThings> ExpectableStrings = {
 		"Expression",
 		"Scope",
+		"Callable",
 	};
 
 	auto parseStatement() -> Child;

@@ -185,7 +185,7 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 
 auto AstParser::dumpError() -> void {
 	if(whatWeGot == nullptr) {
-		return;
+		whatWeGot = &(*tokens)[tokens->size() - 1];
 	}
 
 	println("Error when parsing file");
@@ -199,26 +199,29 @@ auto AstParser::dumpError() -> void {
 		print("expected:", whatWeWanted);
 	}
 
-	print(", found:", whatWeGot->kind);
-	switch(whatWeGot->kind) {
-		case Token::Kind::Newline:
-			println(" ( \\n )");
-			break;
-		default:
-			println(" (", whatWeGot->value, ")");
-			break;
+	if(!eot()) {
+		print(", found:", whatWeGot->kind);
+		switch(whatWeGot->kind) {
+			case Token::Kind::Newline:
+				println(" ( \\n )");
+				break;
+			default:
+				println(" (", whatWeGot->value, ")");
+				break;
+		}
+	} else {
+		println(", found: end of file");
 	}
 }
 
 auto AstParser::parseStatement() -> Child {
+	auto checkpoint = current;
 	if(auto child = parseFunctionCall();
 		child != nullptr) {
-		if(!eot()) {
-			if(getIf(Token::Kind::Newline) == nullptr) {
-				return expected(Token::Kind::Newline);
-			}
+		if((!eot() && getIf(Token::Kind::Newline) != nullptr) || eot()) {
+			return child;
 		}
-		return child;
+		current = checkpoint;
 	}
 
 	if(auto child = parseDeclaration(); 
@@ -246,6 +249,11 @@ auto AstParser::parseStatement() -> Child {
 		return child;
 	}
 
+	if(auto child = parseExpr();
+		child != nullptr) {
+		return child;
+	}
+
 	return nullptr;
 }
 
@@ -263,7 +271,21 @@ auto AstParser::parseFunctionCall() -> Child {
 		child = parseExpr();
 	}
 
-	return node;
+	token = getIf(Token::Kind::Or);
+	if(token == nullptr) {
+		return node;
+	}
+
+	Child pipe = OwnPtr<BinaryOperatorNode>::create(token);
+	auto rhs = parseFunctionCall();
+	if(rhs == nullptr) {
+		return expected(ExpectableThings::Callable);
+	}
+
+	pipe->addChild(node);
+	pipe->addChild(rhs);
+
+	return pipe;
 }
 
 auto AstParser::parseFunctionCallExpr() -> Child {
@@ -611,6 +633,7 @@ auto AstParser::parseBinaryOperator() -> Child {
 	if(eot()) {
 		return nullptr;
 	}
+
 	switch((*tokens)[current].kind) {
 		case Token::Kind::Add:
 		case Token::Kind::Subtract:
@@ -705,7 +728,9 @@ auto AstParser::parseIntegerLiteral() -> Child {
 }
 
 auto AstParser::error() const -> bool {
-	return whatWeGot != nullptr;
+	//return whatWeGot != nullptr;
+	return whatWeGot != nullptr || whatWeWanted != Token::Kind::NTokens
+		|| whatWeWanted2 != ExpectableThings::NExpectableThings;
 }
 
 auto AstParser::eot() const -> bool {
@@ -723,12 +748,20 @@ auto AstParser::getIf(Token::Kind kind) -> const Token* {
 
 auto AstParser::expected(Token::Kind kind) -> Child {
 	whatWeWanted = kind;
-	whatWeGot = &(*tokens)[current];
+	if(!eot()) {
+		whatWeGot = &(*tokens)[current];
+	} else {
+		whatWeGot = nullptr;
+	}
 	return nullptr;
 }
 
 auto AstParser::expected(ExpectableThings expectable) -> Child {
 	whatWeWanted2 = expectable;
-	whatWeGot = &(*tokens)[current];
+	if(!eot()) {
+		whatWeGot = &(*tokens)[current];
+	} else {
+		whatWeGot = nullptr;
+	}
 	return nullptr;
 }

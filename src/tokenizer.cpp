@@ -221,9 +221,9 @@ auto Tokenizer::readBareword() -> bool {
 	auto oldCurrent = current;
 	auto oldCol = currentColumn;
 	auto oldRow = currentRow;
-	for(auto c = peek();; next()) {
+	for(auto c = peek(); !eof(); next()) {
 		c = peek();
-		if(eof() || isspace(c)) {
+		if(isspace(c)) {
 			break;
 		}
 		//TODO: handle forward slashes
@@ -367,7 +367,7 @@ auto Tokenizer::readSymbol() -> bool {
 		case Token::Kind::Bang:
 		case Token::Kind::Less:
 		case Token::Kind::Greater:
-			if(peek() == '=') {
+			if(!eof() && peek() == '=') {
 				switch((Token::Kind)index) {
 					case Token::Kind::Assign:
 						index = (size_t)Token::Kind::Equals;
@@ -387,13 +387,13 @@ auto Tokenizer::readSymbol() -> bool {
 				next();
 			}
 		case Token::Kind::And:
-			if(peek() == '&') {
+			if(!eof() && peek() == '&') {
 				index = (size_t)Token::Kind::LogicalAnd;
 				next();
 			}
 			break;
 		case Token::Kind::Or:
-			if(peek() == '|') {
+			if(!eof() && peek() == '|') {
 				index = (size_t)Token::Kind::LogicalOr;
 				next();
 			}
