@@ -158,7 +158,7 @@ private:
 	auto parseDeclaration() -> Child;
 	auto parseFnDeclaration() -> Child;
 	auto parseReturn() -> Child;
-	auto parseExpr() -> Child;
+	auto parseExpr(bool trailingNewline = false) -> Child;
 	auto parsePrimaryExpr() -> Child;
 	auto parseIdentifier() -> Child;
 	auto parseBareword() -> Child;

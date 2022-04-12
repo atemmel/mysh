@@ -1,3 +1,21 @@
 #!../build/mysh
 
-ls | wc -w
+# classic pipe
+#ls | wc -w
+
+5 + 5
+
+#fn add5 x {
+	#return $x + 5
+#}
+
+#var result1 = (5 | add5)
+#print $result1
+
+#fn ret5 {
+	#return 5
+#}
+
+#var result2 = (ret5 | add5)
+
+#print $result2

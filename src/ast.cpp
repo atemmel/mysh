@@ -249,7 +249,7 @@ auto AstParser::parseStatement() -> Child {
 		return child;
 	}
 
-	if(auto child = parseExpr();
+	if(auto child = parseExpr(true);
 		child != nullptr) {
 		return child;
 	}
@@ -388,14 +388,22 @@ auto AstParser::parseReturn() -> Child {
 	return ret;
 }
 
-auto AstParser::parseExpr() -> Child {
+auto AstParser::parseExpr(bool trailingNewline) -> Child {
 	if(auto bin = parseBinaryExpression();
 		bin != nullptr) {
+		if(trailingNewline && !eot() 
+			&& getIf(Token::Kind::Newline) == nullptr) {
+			return expected(Token::Kind::Newline);
+		}
 		return bin;
 	}
 
 	if(auto expr = parsePrimaryExpr();
 		expr != nullptr) {
+		if(trailingNewline && !eot() 
+			&& getIf(Token::Kind::Newline) == nullptr) {
+			return expected(Token::Kind::Newline);
+		}
 		return expr;
 	}
 	return nullptr;
@@ -647,6 +655,7 @@ auto AstParser::parseBinaryOperator() -> Child {
 		case Token::Kind::LessEquals:
 		case Token::Kind::LogicalAnd:
 		case Token::Kind::LogicalOr:
+		case Token::Kind::Or:
 			break;
 		default:
 			return nullptr;

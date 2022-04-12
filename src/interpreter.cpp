@@ -217,6 +217,14 @@ auto Interpreter::visit(AssignmentNode& node) -> void {
 auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 	assert(node.children.size() == 2);
 
+	// pipe
+	if(node.token->kind == Token::Kind::Or) {
+		//lhs.free(symTable);
+		//rhs.free(symTable);
+		//collectedValues.append(result);
+		//return;
+	}
+
 	// collect args
 	node.children[0]->accept(*this);
 	auto lhs = collectedValues[0];
@@ -326,8 +334,12 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 
 auto Interpreter::visit(RootNode& node) -> void {
 	for(auto& child : node.children) {
-		child->accept(*this);
 		collectedValues.clear();
+		child->accept(*this);
+		if(!collectedValues.empty()) {
+			assert(collectedValues.size() == 1);
+			builtinPrint(collectedValues);
+		}
 	}
 }
 
