@@ -11,7 +11,7 @@
   * ~~string support (String + StringView)~~
   * ~~FILE* wrapper~~
   * ~~hashtable~~
-  * stringbuilder
+  * ~~stringbuilder~~
 
 * tokenization
   * ~~`var` (keywords)~~
@@ -57,4 +57,4 @@
   * ~~code block~~
   * ~~branch~~
   * proper error messages
-  * function call as expression
+  * ~~function call as expression~~
