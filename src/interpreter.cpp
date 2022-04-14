@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 
+#include "core/meta.hpp"
 #include "core/print.hpp"
 #include "core/stringbuilder.hpp"
 #include "spawn.hpp"
@@ -196,32 +197,12 @@ auto Interpreter::visit(BranchNode& node) -> void {
 
 auto Interpreter::visit(LoopNode& node) -> void {
 	symTable.addScope();
-	if(node.init != nullptr) {
-		node.init->accept(*this);
+	if(node.condition != nullptr) {
+		doRegularLoop(node);
+	} else if(node.iterable != nullptr
+		&& node.iterator != nullptr) {
+		doForInLoop(node);
 	}
-	collectedValues.clear();
-	node.condition->accept(*this);
-	auto value = collectedValues[0];
-	collectedValues.clear();
-
-	//TODO: this should be an error
-	assert(value.kind == Value::Kind::Bool);
-
-	while(value.boolean) {
-
-		for(auto& child : node.children) {
-			child->accept(*this);
-		}
-
-		if(node.step != nullptr) {
-			node.step->accept(*this);
-		}
-		collectedValues.clear();
-		node.condition->accept(*this);
-		value = collectedValues[0];
-		collectedValues.clear();
-	}
-
 	symTable.dropScope();
 }
 
@@ -384,6 +365,60 @@ auto Interpreter::visit(RootNode& node) -> void {
 			assert(collectedValues.size() == 1);
 			builtinPrint(*this, collectedValues);
 		}
+	}
+}
+
+auto Interpreter::doRegularLoop(LoopNode& node) -> void {
+	if(node.init != nullptr) {
+		node.init->accept(*this);
+	}
+	collectedValues.clear();
+	node.condition->accept(*this);
+	auto value = collectedValues[0];
+	collectedValues.clear();
+
+	//TODO: this should be an error
+	assert(value.kind == Value::Kind::Bool);
+
+	while(value.boolean) {
+
+		for(auto& child : node.children) {
+			child->accept(*this);
+		}
+
+		if(node.step != nullptr) {
+			node.step->accept(*this);
+		}
+		collectedValues.clear();
+		node.condition->accept(*this);
+		value = collectedValues[0];
+		collectedValues.clear();
+	}
+
+}
+
+auto Interpreter::doForInLoop(LoopNode& node) -> void {
+	node.iterator->accept(*this);
+	assert(collectedValues.size() == 1);
+	assert(collectedValues[0].kind == Value::Kind::String);
+	auto name = move(collectedValues[0].string);
+	collectedValues.clear();
+
+	node.iterable->accept(*this);
+	assert(collectedValues.size() == 1);
+	assert(collectedValues[0].kind == Value::Kind::Array);
+	auto iterable = move(collectedValues[0].array);
+
+	size_t i = 0;
+	while(i < iterable.size()) {
+		const auto& current = iterable[i];
+
+		symTable.putVariable(name, current);
+		for(auto& child : node.children) {
+			child->accept(*this);
+		}
+		
+		++i;
 	}
 }
 

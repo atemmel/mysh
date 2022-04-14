@@ -103,18 +103,25 @@ auto AstPrinter::visit(LoopNode& node) -> void {
 	pad();
 	println("Loop node:");
 	++depth;
-	if(node.init != nullptr) {
-		node.init->accept(*this);
-	} else {
-		pad();
-		println("No init");
-	}
-	node.condition->accept(*this);
-	if(node.step != nullptr) {
-	node.step->accept(*this);
-	} else {
-		pad();
-		println("No step");
+	if(node.condition != nullptr) {
+		if(node.init != nullptr) {
+			node.init->accept(*this);
+		} else {
+			pad();
+			println("No init");
+		}
+		node.condition->accept(*this);
+		if(node.step != nullptr) {
+		node.step->accept(*this);
+		} else {
+			pad();
+			println("No step");
+		}
+	} else if(node.iterator != nullptr) {
+		node.iterator->accept(*this);
+		if(node.iterable != nullptr) {
+			node.iterable->accept(*this);
+		}
 	}
 	++depth;
 	for(auto& child : node.children) {

@@ -17,3 +17,7 @@ fn isEven x {
 }
 
 $numbers | filter isEven
+
+for i in $numbers {
+	print i is $i
+}

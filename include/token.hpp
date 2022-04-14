@@ -14,6 +14,8 @@ struct Token {
 		Else,			// else
 		While,			// while
 		Return,			// return
+		For,			// For
+		In,				// in
 		Assign,			// =
 		Add,			// +
 		Subtract,		// -
@@ -55,6 +57,8 @@ struct Token {
 		"Else",
 		"While",
 		"Return",
+		"For",
+		"In",
 		"Assign",
 		"Add",
 		"Subtract",
@@ -95,6 +99,8 @@ struct Token {
 		"else",
 		"while",
 		"return",
+		"for",
+		"in",
 		"=",
 		"+",
 		"-",
@@ -135,6 +141,8 @@ struct Token {
 		0,
 		0,
 		0,
+		0,
+		0,
 		16,		// =
 		6,		// +
 		6,		// -
@@ -166,10 +174,10 @@ struct Token {
 	};
 
 	static constexpr size_t KeywordBegin = 1;
-	static constexpr size_t KeywordEnd = 9;
+	static constexpr size_t KeywordEnd = 11;
 
-	static constexpr size_t OperatorBegin = 9;
-	static constexpr size_t OperatorEnd = 32;
+	static constexpr size_t OperatorBegin = 11;
+	static constexpr size_t OperatorEnd = 34;
 
 	static auto isOperator(StringView view) -> bool;
 

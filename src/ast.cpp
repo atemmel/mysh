@@ -652,6 +652,20 @@ auto AstParser::parseBranch() -> Child {
 }
 
 auto AstParser::parseLoop() -> Child {
+	if(auto whileLoop = parseWhile();
+		whileLoop != nullptr) {
+		return whileLoop;
+	}
+
+	if(auto forInLoop = parseForInLoop();
+		forInLoop != nullptr) {
+		return forInLoop;
+	}
+
+	return nullptr;
+}
+
+auto AstParser::parseWhile() -> Child {
 	auto token = getIf(Token::Kind::While);
 	if(token == nullptr) {
 		return nullptr;
@@ -669,6 +683,41 @@ auto AstParser::parseLoop() -> Child {
 		return expected(ExpectableThings::Scope);
 	}
 
+	loop->addChild(scope);
+	return loop;
+}
+
+auto AstParser::parseForInLoop() -> Child {
+	auto token = getIf(Token::Kind::For);
+	if(token == nullptr) {
+		return nullptr;
+	}
+
+	auto identifier = parseIdentifier();
+	if(identifier == nullptr) {
+		return expected(Token::Kind::Identifier);
+	}
+
+	if(getIf(Token::Kind::In) == nullptr) {
+		return expected(Token::Kind::In);
+	}
+
+	auto iterable = parseVariable();
+	if(iterable == nullptr) {
+		iterable = parseArrayLiteral();
+		if(iterable == nullptr) {
+			return expected(ExpectableThings::Iterable);
+		}
+	}
+
+	auto scope = parseScope();
+	if(scope == nullptr) {
+		return expected(ExpectableThings::Scope);
+	}
+
+	auto loop = OwnPtr<LoopNode>::create(token);
+	loop->iterator = move(identifier);
+	loop->iterable = move(iterable);
 	loop->addChild(scope);
 	return loop;
 }

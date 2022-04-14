@@ -85,9 +85,15 @@ struct BranchNode : public AstNode {
 struct LoopNode : public AstNode {
 	LoopNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
+
+	// regular loop
 	Child init;
 	Child condition;
 	Child step;
+
+	// for in loop
+	Child iterator;
+	Child iterable;
 };
 
 struct AssignmentNode : public AstNode {
@@ -150,6 +156,7 @@ private:
 		Expression,
 		Scope,
 		Callable,
+		Iterable,
 		NExpectableThings,
 	};
 
@@ -157,6 +164,7 @@ private:
 		"Expression",
 		"Scope",
 		"Callable",
+		"Iterable",
 	};
 
 	auto parseStatement() -> Child;
@@ -173,6 +181,8 @@ private:
 	auto parseVariable() -> Child;
 	auto parseBranch() -> Child;
 	auto parseLoop() -> Child;
+	auto parseWhile() -> Child;
+	auto parseForInLoop() -> Child;
 	auto parseScope(bool endsWithNewline = true, bool mayReturn = false) -> Child;
 	auto parseAssignment() -> Child;
 	auto parseBinaryExpression() -> Child;

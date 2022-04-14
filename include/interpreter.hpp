@@ -29,6 +29,8 @@ struct Interpreter : public AstVisitor {
 	auto executeFunction(StringView identifier,
 		const Array<Value>& args, Optional<const Value*> inArg) -> Optional<Value>;
 private:
+	auto doRegularLoop(LoopNode& node) -> void;
+	auto doForInLoop(LoopNode& node) -> void;
 
 	// arithmetic operators
 	auto addValues(const Value& lhs, const Value& rhs) -> Value;
