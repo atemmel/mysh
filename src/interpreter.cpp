@@ -65,10 +65,28 @@ static auto builtinFilter(Interpreter& interpreter, const Array<Value>& args) ->
 	return Value(result);
 }
 
+static auto builtinLength(Interpreter& interpret, const Array<Value>& args) -> Optional<Value> {
+	assert(args.size() == 1);
+
+	switch(args[0].kind) {
+		case Value::Kind::String:
+			return Value(int64_t(args[0].string.size()));
+		case Value::Kind::Array:
+			return Value(int64_t(args[0].array.size()));
+		case Value::Kind::Bool:
+		case Value::Kind::Integer:
+			break;
+	}
+
+	assert(args[0].kind == Value::Kind::Array);
+	return {};
+}
+
 HashTable<StringView, Builtin> builtins = {
 	{ "print", builtinPrint },
 	{ "append", builtinAppend },
 	{ "filter", builtinFilter },
+	{ "len", builtinLength },
 };
 
 auto Interpreter::interpret(RootNode& root) -> bool {
