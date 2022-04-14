@@ -28,8 +28,21 @@ static auto builtinPrint(const Array<Value>& args) -> Optional<Value> {
 	return {};
 }
 
+static auto builtinAppend(const Array<Value>& args) -> Optional<Value> {
+	assert(args.size() >= 2);
+	assert(args[0].kind == Value::Kind::Array);
+
+	auto value = args[0];
+	auto& array = value.array;
+	for(size_t i = 1; i < args.size(); ++i) {
+		array.append(args[i]);
+	}
+	return value;
+}
+
 HashTable<StringView, Builtin> builtins = {
 	{ "print", builtinPrint },
+	{ "append", builtinAppend },
 };
 
 auto Interpreter::interpret(RootNode& root) -> bool {
@@ -65,7 +78,10 @@ auto Interpreter::visit(IntegerLiteralNode& node) -> void {
 }
 
 auto Interpreter::visit(ArrayLiteralNode& node) -> void {
-	assert(false);
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	collectedValues.append(Value(move(collectedValues)));
 }
 
 auto Interpreter::visit(DeclarationNode& node) -> void {

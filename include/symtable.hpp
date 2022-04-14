@@ -12,11 +12,13 @@ struct Value {
 		String,
 		Bool,
 		Integer,
+		Array,
 	};
 	union {
 		String string;
 		bool boolean;
 		int64_t integer;
+		Array<Value> array;
 	};
 	Kind kind;
 
@@ -27,6 +29,8 @@ struct Value {
 	explicit Value(String&& other);
 	explicit Value(bool other);
 	explicit Value(int64_t other);
+	explicit Value(const Array<Value>& other);
+	explicit Value(Array<Value>&& other);
 	Value(const Value& other);
 	Value(Value&& other);
 	~Value();
@@ -68,10 +72,6 @@ private:
 	};
 	auto putVariable(size_t scope, StringView identifier, const Value& value) -> void;
 	auto getVariableInfo(StringView identifier) -> VariableInfo;
-	auto createValue(const Value& value) -> Value;
-	auto createValue(StringView value) -> Value;
-	auto createValue(bool value) -> Value;
-	auto createValue(int64_t value) -> Value;
 
 	Scopes scopes;
 };

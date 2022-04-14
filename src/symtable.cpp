@@ -1,10 +1,12 @@
 #include "symtable.hpp"
 
 #include "core/print.hpp"
+#include "core/stringbuilder.hpp"
 
 #include <stdlib.h>
 
 auto Value::toString() const -> String {
+	StringBuilder bob;
 	switch(kind) {
 		case Kind::String:
 			return string;
@@ -12,10 +14,18 @@ auto Value::toString() const -> String {
 			return boolean ?
 				"true" : "false";
 		case Kind::Integer:
-			String buffer(21, '\0');
 			//TODO: Look for the appropriate function
-			sprintf(buffer.data(), "%ld", integer);
-			return buffer;
+			bob.append(integer);
+			return String(::move(bob));
+		case Kind::Array:
+			bob.reserve(4 * array.size());
+			bob.append("[ ");
+			for(const auto& val : array) {
+				bob.append(val.toString());
+				bob.append(' ');
+			}
+			bob.append(']');
+			return String(::move(bob));
 	}
 	assert(false);
 	return "";
@@ -43,6 +53,17 @@ Value::Value(int64_t other)
 	: kind(Value::Kind::Integer), integer(other) {
 
 }
+
+Value::Value(const Array<Value>& other) 
+	: kind(Value::Kind::Array) {
+	new (&array) Array(other);
+}
+
+Value::Value(Array<Value>&& other) 
+	: kind(Value::Kind::Array) {
+	new (&array) Array(::move(other));
+}
+
 
 Value::Value(const Value& other) {
 	copy(other);
@@ -82,6 +103,9 @@ auto Value::copy(const Value& other) -> void {
 		case Kind::String:
 			new (&string) String(other.string);
 			break;
+		case Kind::Array:
+			new (&array) Array(other.array);
+			break;
 	}
 }
 
@@ -97,6 +121,9 @@ auto Value::move(Value&& other) -> void {
 		case Kind::String:
 			new (&string) String(::move(other.string));
 			break;
+		case Kind::Array:
+			new (&array) Array(::move(other.array));
+			break;
 	}
 }
 
@@ -104,6 +131,9 @@ auto Value::free() -> void {
 	switch(kind) {
 		case Kind::String:
 			string.~String();
+			break;
+		case Kind::Array:
+			array.~Array();
 			break;
 		// no peculiar freeing policy
 		case Kind::Bool:
@@ -123,8 +153,9 @@ auto fprintType(FILE* desc, const Value& value) -> void {
 		case Value::Kind::Integer:
 			fprintType(desc, value.integer);
 			break;
-		default:
-			assert(false);
+		case Value::Kind::Array:
+			fprintType(desc, value.array);
+			break;
 	}
 }
 
@@ -141,7 +172,7 @@ auto SymTable::dropScope() -> void {
 
 auto SymTable::putVariable(StringView identifier, const Value& value) -> void {
 
-	auto newValue = createValue(value);
+	auto newValue = Value(value);
 
 	size_t scopeIndex;
 	// remove prior value (if applicable)
@@ -156,31 +187,6 @@ auto SymTable::putVariable(StringView identifier, const Value& value) -> void {
 	scope.put(identifier, newValue);
 }
 
-auto SymTable::createValue(const Value& value) -> Value {
-	switch(value.kind) {
-		case Value::Kind::String:
-			return createValue(value.string);
-		case Value::Kind::Bool:
-			return createValue(value.boolean);
-		case Value::Kind::Integer:
-			return createValue(value.integer);
-	}
-	assert(false);
-	return {};
-}
-
-auto SymTable::createValue(StringView value) -> Value {
-	return Value(value);
-}
-
-auto SymTable::createValue(bool value) -> Value {
-	return Value(value);
-}
-
-auto SymTable::createValue(int64_t value) -> Value {
-	return Value(value);
-}
-
 auto SymTable::getVariable(StringView identifier) -> Value* {
 	for(auto& scope : scopes) {
 		auto var = scope.get(identifier);
@@ -192,7 +198,7 @@ auto SymTable::getVariable(StringView identifier) -> Value* {
 }
 
 auto SymTable::create(const String& string) -> Value {
-	return createValue(string);
+	return Value(string);
 }
 
 auto SymTable::create(String&& string) -> Value {
@@ -231,7 +237,7 @@ auto SymTable::dump() const -> void {
 
 auto SymTable::putVariable(size_t scope, StringView identifier, const Value& value) -> void {
 	assert(scope < scopes.size());
-	auto newValue = createValue(value);
+	auto newValue = Value(value);
 	auto& theScope = scopes[scope];
 	theScope.put(identifier, newValue);
 }
