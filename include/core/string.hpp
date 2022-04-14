@@ -33,6 +33,8 @@ struct String {
 	auto view() const -> StringView;
 	auto view(size_t first, size_t last) const -> StringView;
 
+	auto cropRightWhitespace() -> void;
+
 private:
 	Buffer<char> buffer;
 };

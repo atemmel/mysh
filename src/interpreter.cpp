@@ -897,6 +897,7 @@ auto Interpreter::executeFunction(StringView identifier,
 	}
 
 	if(!spawnResult.out.empty()) {
+		spawnResult.out.cropRightWhitespace();
 		return symTable.create(spawnResult.out);
 	}
 

@@ -3,6 +3,8 @@
 #include "core/stringbuilder.hpp"
 #include "core/stringview.hpp"
 
+#include <ctype.h>
+
 String::String() : buffer(0) {
 }
 
@@ -93,6 +95,15 @@ auto String::view(size_t first, size_t last) const -> StringView {
 	assert(first < size());
 	assert(last <= size());
 	return StringView(buffer.data() + first, buffer.data() + last);
+}
+
+auto String::cropRightWhitespace() -> void {
+	while(!empty() && isspace(*(end() - 1))) {
+		buffer.crop(buffer.size() - 1);
+	}
+	if(!empty()) {
+		*(end()) = '\0';
+	}
 }
 
 auto operator==(const String& lhs, const String& rhs) -> bool {

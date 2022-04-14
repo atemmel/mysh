@@ -1,0 +1,16 @@
+#!../build/mysh
+
+fn isMyCity x {
+	return "{x} is my city!"
+}
+
+isMyCity England
+
+"England" | isMyCity
+
+pwd | isMyCity
+
+pwd | isMyCity | wc -w
+
+#TODO: error
+#England | isMyCity
