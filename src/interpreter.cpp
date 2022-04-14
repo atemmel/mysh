@@ -86,6 +86,10 @@ auto Interpreter::visit(IntegerLiteralNode& node) -> void {
 	collectedValues.append(value);
 }
 
+auto Interpreter::visit(ArrayLiteralNode& node) -> void {
+	assert(false);
+}
+
 auto Interpreter::visit(DeclarationNode& node) -> void {
 	auto identifier = node.token->value;
 	for(auto& child : node.children) {

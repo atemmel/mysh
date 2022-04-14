@@ -18,7 +18,7 @@ struct String {
 	auto size() const -> size_t;
 	auto empty() const -> bool;
 
-	auto find(char delimeter) const -> size_t;
+	auto find(char delimeter, size_t origin = 0) const -> size_t;
 
 	auto operator[](size_t index) -> char&;
 	auto operator[](size_t index) const -> const char&;

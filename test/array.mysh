@@ -1,0 +1,11 @@
+#!../build/mysh
+
+var numbers = [1 2 3 4]
+
+print numbers is $numbers
+
+#numbers = (append $numbers 5)
+
+#print numbers is $numbers
+
+#print numbers is now $numbers | append 6

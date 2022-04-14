@@ -44,6 +44,11 @@ struct IntegerLiteralNode : public AstNode {
 	int64_t value = 0;
 };
 
+struct ArrayLiteralNode : public AstNode {
+	ArrayLiteralNode(const Token* token);
+	auto accept(AstVisitor& visitor) -> void;
+};
+
 struct DeclarationNode : public AstNode {
 	DeclarationNode(const Token* token);
 	auto accept(AstVisitor& visitor) -> void;
@@ -120,6 +125,7 @@ struct AstVisitor {
 	virtual auto visit(StringLiteralNode& node) -> void = 0;
 	virtual auto visit(BoolLiteralNode& node) -> void = 0;
 	virtual auto visit(IntegerLiteralNode& node) -> void = 0;
+	virtual auto visit(ArrayLiteralNode& node) -> void = 0;
 	virtual auto visit(DeclarationNode& node) -> void = 0;
 	virtual auto visit(FnDeclarationNode& node) -> void = 0;
 	virtual auto visit(ReturnNode& node) -> void = 0;
@@ -175,6 +181,7 @@ private:
 	auto parseStringLiteral() -> Child;
 	auto parseBoolLiteral() -> Child;
 	auto parseIntegerLiteral() -> Child;
+	auto parseArrayLiteral() -> Child;
 
 	auto eot() const -> bool;
 	auto getIf(Token::Kind kind) -> const Token*;

@@ -34,6 +34,8 @@ struct Token {
 		RightBrace,		// }
 		LeftPar,		// (
 		RightPar,		// )
+		LeftBrack,		// [
+		RightBrack,		// ]
 		Variable,		// $hello
 		StringLiteral,	// "hello"
 		Identifier,		// hello
@@ -72,6 +74,8 @@ struct Token {
 		"RightBrace",
 		"LeftPar",
 		"RightPar",
+		"LeftBrack",
+		"RightBrack",
 		"Variable",
 		"StringLiteral",
 		"Identifier",
@@ -109,6 +113,8 @@ struct Token {
 		"}",
 		"(",
 		")",
+		"[",
+		"]",
 		"",
 		"",
 		"",
@@ -120,7 +126,7 @@ struct Token {
 	static constexpr size_t KeywordEnd = 9;
 
 	static constexpr size_t OperatorBegin = 9;
-	static constexpr size_t OperatorEnd = 29;
+	static constexpr size_t OperatorEnd = 31;
 
 	static auto isOperator(StringView view) -> bool;
 

@@ -12,6 +12,7 @@ struct Interpreter : public AstVisitor {
 	auto visit(StringLiteralNode& node) -> void override;
 	auto visit(BoolLiteralNode& node) -> void override;
 	auto visit(IntegerLiteralNode& node) -> void override;
+	auto visit(ArrayLiteralNode& node) -> void override;
 	auto visit(DeclarationNode& node) -> void override;
 	auto visit(FnDeclarationNode& node) -> void override;
 	auto visit(ReturnNode& node) -> void override;

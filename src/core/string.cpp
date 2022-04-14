@@ -45,8 +45,8 @@ auto String::empty() const -> bool {
 	return buffer.size() < 1;
 }
 
-auto String::find(char delimeter) const -> size_t {
-	size_t index = 0;
+auto String::find(char delimeter, size_t origin) const -> size_t {
+	size_t index = origin;
 	for(; index < size(); index++) {
 		if(buffer[index] == delimeter) {
 			return index;

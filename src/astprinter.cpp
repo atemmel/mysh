@@ -27,6 +27,16 @@ auto AstPrinter::visit(IntegerLiteralNode& node) -> void {
 	println("IntegerLiteralNode:", node.value);
 }
 
+auto AstPrinter::visit(ArrayLiteralNode& node) -> void {
+	pad();
+	println("IntegerLiteralNode []:");
+	++depth;
+	for(auto& child : node.children) {
+		child->accept(*this);
+	}
+	--depth;
+}
+
 auto AstPrinter::visit(DeclarationNode& node) -> void {
 	pad();
 	println("DeclarationNode:", node.token->value);

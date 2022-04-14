@@ -51,6 +51,15 @@ auto IntegerLiteralNode::accept(AstVisitor& visitor) -> void {
 	visitor.visit(*this);
 }
 
+ArrayLiteralNode::ArrayLiteralNode(const Token* token) 
+	: AstNode(token) {
+
+}
+
+auto ArrayLiteralNode::accept(AstVisitor& visitor) -> void {
+	visitor.visit(*this);
+}
+
 DeclarationNode::DeclarationNode(const Token* token) 
 	: AstNode(token) {
 
@@ -449,6 +458,10 @@ auto AstParser::parsePrimaryExpr() -> Child {
 		boolLiteral != nullptr) {
 		return boolLiteral;
 	}
+	if(auto arrayLiteral = parseArrayLiteral();
+		arrayLiteral != nullptr) {
+		return arrayLiteral;
+	}
 	return nullptr;
 }
 
@@ -758,6 +771,27 @@ auto AstParser::parseIntegerLiteral() -> Child {
 	auto value = strtol(token->value.data(), nullptr, 10);
 	integer->value = value;
 	return integer;
+}
+
+auto AstParser::parseArrayLiteral() -> Child {
+	auto token = getIf(Token::Kind::LeftBrack);
+	if(token == nullptr) {
+		return nullptr;
+	}
+
+	auto array = OwnPtr<ArrayLiteralNode>::create(token);
+
+	auto child = parseExpr();
+	while(child != nullptr) {
+		array->addChild(child);
+		child = parseExpr();
+	}
+
+	if(getIf(Token::Kind::RightBrack) == nullptr) {
+		return expected(Token::Kind::RightBrack);
+	}
+
+	return array;
 }
 
 auto AstParser::error() const -> bool {
