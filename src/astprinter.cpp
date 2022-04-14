@@ -146,6 +146,10 @@ auto AstPrinter::visit(AssignmentNode& node) -> void {
 auto AstPrinter::visit(BinaryOperatorNode& node) -> void {
 	pad();
 	println("BinaryOperatorNode:", node.token->value);
+	if(node.token->precedence() > 0) {
+		pad();
+		println(" Precedence:", node.token->precedence());
+	}
 	++depth;
 	for(auto& child : node.children) {
 		child->accept(*this);

@@ -31,6 +31,11 @@ auto StringBuilder::append(const String& value) -> StringBuilder& {
 	return *this;
 }
 
+auto StringBuilder::append(const char* value) -> StringBuilder& {
+	appendBytes(value, size(value));
+	return *this;
+}
+
 auto StringBuilder::append(int value) -> StringBuilder& {
 	int len = snprintf(miniBuffer.data(), miniBuffer.size(), "%d", value);
 	assert(len > 0);
@@ -70,6 +75,13 @@ auto StringBuilder::view() const -> StringView {
 
 auto StringBuilder::copy() const -> String {
 	return String(buffer.data(), used);
+}
+
+auto StringBuilder::addNull() -> StringBuilder& {
+	if(!buffer.empty() && buffer[used] != '\0') {
+		append("\0");
+	}
+	return *this;
 }
 
 auto StringBuilder::growIfLessThan(size_t that) -> void {

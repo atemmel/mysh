@@ -3,6 +3,8 @@
 #include "core/stringbuilder.hpp"
 #include "core/stringview.hpp"
 
+#include "core/print.hpp"
+
 #include <ctype.h>
 
 String::String() : buffer(0) {
@@ -32,7 +34,7 @@ String::String(size_t amount, char toFill) : buffer(amount) {
 String::String(StringView other) : String(other.data(), other.size()) {
 }
 
-String::String(StringBuilder&& other) : buffer(other.buffer) {
+String::String(StringBuilder&& other) : buffer(move(other.buffer)) {
 	buffer.crop(other.used);
 	other.used = 0;
 }
@@ -95,6 +97,15 @@ auto String::view(size_t first, size_t last) const -> StringView {
 	assert(first < size());
 	assert(last <= size());
 	return StringView(buffer.data() + first, buffer.data() + last);
+}
+
+auto String::view(size_t first) const -> StringView {
+	assert(first < size());
+	return StringView(buffer.data() + first, buffer.end());
+}
+
+auto String::cropLeftWhitespace() -> void {
+
 }
 
 auto String::cropRightWhitespace() -> void {

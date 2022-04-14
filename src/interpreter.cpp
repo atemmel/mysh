@@ -6,9 +6,9 @@
 #include "core/stringbuilder.hpp"
 #include "spawn.hpp"
 
-using Builtin = Optional<Value>(*)(const Array<Value>&);
+using Builtin = Optional<Value>(*)(Interpreter&, const Array<Value>&);
 
-static auto builtinPrint(const Array<Value>& args) -> Optional<Value> {
+static auto builtinPrint(Interpreter& interpreter, const Array<Value>& args) -> Optional<Value> {
 	for(size_t i = 0; i < args.size(); ++i) {
 		fprint(stdout, args[i]);
 		fprint(stdout, " ");
@@ -28,7 +28,7 @@ static auto builtinPrint(const Array<Value>& args) -> Optional<Value> {
 	return {};
 }
 
-static auto builtinAppend(const Array<Value>& args) -> Optional<Value> {
+static auto builtinAppend(Interpreter& interpreter, const Array<Value>& args) -> Optional<Value> {
 	assert(args.size() >= 2);
 	assert(args[0].kind == Value::Kind::Array);
 
@@ -40,9 +40,34 @@ static auto builtinAppend(const Array<Value>& args) -> Optional<Value> {
 	return value;
 }
 
+static auto builtinFilter(Interpreter& interpreter, const Array<Value>& args) -> Optional<Value> {
+	assert(args.size() == 2);
+	assert(args[0].kind == Value::Kind::Array);
+	assert(args[1].kind == Value::Kind::String);
+
+	const auto& array = args[0].array;
+
+	Array<Value> result;
+	result.reserve(array.size() / 2);
+	Array<Value> arg(1);
+	for(const auto& value : array) {
+		arg[0] = value;
+		auto boolean = interpreter.executeFunction(args[1].string, arg, {});
+		assert(boolean.hasValue());
+		assert(boolean.value().kind == Value::Kind::Bool);
+
+		if(boolean.value().boolean) {
+			result.append(value);
+		}
+	}
+
+	return Value(result);
+}
+
 HashTable<StringView, Builtin> builtins = {
 	{ "print", builtinPrint },
 	{ "append", builtinAppend },
+	{ "filter", builtinFilter },
 };
 
 auto Interpreter::interpret(RootNode& root) -> bool {
@@ -259,6 +284,9 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 		case Token::Kind::Divide:
 			result = divideValues(lhs, rhs);
 			break;
+		case Token::Kind::Modulo:
+			result = moduloValues(lhs, rhs);
+			break;
 		case Token::Kind::Less:
 			result = lessValues(lhs, rhs);
 			break;
@@ -354,7 +382,7 @@ auto Interpreter::visit(RootNode& node) -> void {
 		child->accept(*this);
 		if(!collectedValues.empty()) {
 			assert(collectedValues.size() == 1);
-			builtinPrint(collectedValues);
+			builtinPrint(*this, collectedValues);
 		}
 	}
 }
@@ -395,6 +423,14 @@ auto Interpreter::divideValues(const Value& lhs, const Value& rhs) -> Value {
 	auto left = lhs.integer;
 	auto right = rhs.integer;
 	return Value(left / right);
+}
+
+auto Interpreter::moduloValues(const Value& lhs, const Value& rhs) -> Value {
+	assert(lhs.kind == Value::Kind::Integer);
+	assert(rhs.kind == Value::Kind::Integer);
+	auto left = lhs.integer;
+	auto right = rhs.integer;
+	return Value(left % right);
 }
 
 auto Interpreter::lessValues(const Value& lhs, const Value& rhs) -> Value {
@@ -553,57 +589,57 @@ auto Interpreter::escape(const Value& original) -> Value {
 		return original;
 	}
 
+	StringBuilder builder;
+	builder.reserve(original.string.size());
+
 	auto view = original.string.view(0, original.string.size());
-	String string(original.string.size(), '\0');
+	builder.append(view.view(0, index));
 
-	mem::copy(view.view(0, index), string);
-	auto toIndex = index;
-
+	auto prev = index;
 	while(index != -1) {
 		++index;
 		switch(view[index]) {
 			case '\\':
-				string[toIndex] = '\\';
+				builder.append("\\");
 				break;
 			case 'n':
-				string[toIndex] = '\n';
+				builder.append("\n");
 				break;
 			case 't':
-				string[toIndex] = '\t';
+				builder.append("\t");
 				break;
 			case '$':
-				string[toIndex] = '$';
+				builder.append("$");
 				break;
 			case '{':
-				string[toIndex] = '{';
+				builder.append("{");
 				break;
 			case '}':
-				string[toIndex] = '}';
+				builder.append("}");
 				break;
 			case ' ':
-				--toIndex;
 				break;
 			default:
 				assert(false);
 				break;
 		}
 
-		++toIndex;
+		++index;
 
-		auto fromBegin = view.begin() + index + 1;
-		auto fromEnd = view.end();
-		auto toBegin = string.begin() + toIndex;
-		mem::copy(fromBegin, fromEnd, toBegin);
-
-		view = view.view(index + 1, view.size());
-		index = view.find('\\');
-		if(index == -1) {
-			string[toIndex + view.size()] = '\0';
+		prev = index;
+		index = view.find('\\', prev);
+		if(index != -1) {
+			builder.append(view.view(prev, index));
 		}
-		toIndex += index;
 	}
 
-	return symTable.create(string);
+	if(prev < view.size()) {
+		builder.append(original.string.view(prev));
+	}
+
+	builder.addNull();
+
+	return symTable.create(move(builder));
 }
 
 auto Interpreter::interpolate(const Value& original) -> Value {
@@ -669,6 +705,9 @@ auto Interpreter::interpolateDollar(const Value& original) -> Value {
 			case Value::Kind::Integer:
 				builder.append(var->integer);
 				break;
+			case Value::Kind::Array:
+				builder.append(var->toString());
+				break;
 		}
 		prev = index;
 		index = original.string.find('$', prev - 1);
@@ -679,6 +718,7 @@ auto Interpreter::interpolateDollar(const Value& original) -> Value {
 		builder.append(end);
 	}
 
+	builder.addNull();
 	return symTable.create(move(builder));
 }
 
@@ -741,14 +781,23 @@ auto Interpreter::interpolateBraces(const Value& original) -> Value {
 			case Value::Kind::Integer:
 				builder.append(var->integer);
 				break;
+			case Value::Kind::Array:
+				builder.append(var->toString());
+				break;
 		}
 		prev = index;
 		index = original.string.find('{', prev);
 	}
 
-	auto end = original.string.view(prev, original.string.size());
-	builder.append(end);
-	return symTable.create(move(builder));
+	if(prev < original.string.size()) {
+		//auto end = original.string.view(prev - 1, original.string.size());
+		//builder.append(end);
+		auto end = original.string.view(prev, original.string.size());
+		builder.append(end);
+	}
+	builder.addNull();
+	auto str = String(move(builder));
+	return symTable.create(move(str));
 }
 
 auto Interpreter::pipe(Child& current, Child& next) -> Optional<Value> {
@@ -779,9 +828,9 @@ auto Interpreter::executeFunction(StringView identifier,
 			auto newArgs = Array<Value>(args.size() + 1);
 			newArgs[0] = *inArg.value();
 			mem::copy(args.begin(), args.end(), newArgs.begin() + 1);
-			return (*builtin)(newArgs);
+			return (*builtin)(*this, newArgs);
 		}
-		return (*builtin)(args);
+		return (*builtin)(*this, args);
 	}
 
 	// if no builtin is found

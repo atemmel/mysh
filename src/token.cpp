@@ -14,6 +14,11 @@ auto Token::isOperator(StringView view) -> bool {
 	return false;
 }
 
+auto Token::precedence() const -> int {
+	auto prec = Token::Precedences[(size_t)kind];
+	return prec;
+}
+
 auto fprintType(FILE* desc, Token::Kind kind) -> void {
 	fprintType(desc, Token::PrintableStrings[(size_t)kind]);
 }
@@ -28,7 +33,7 @@ auto fprintType(FILE* desc, const Token& token) -> void {
 	if(!token.value.empty()) {
 		fprintf(desc, ", Value: ");
 		if(token.kind == Token::Kind::Newline) {
-			fprintType(desc, "\\n");
+			fprintf(desc, "\\n");
 		} else {
 			fprintType(desc, token.value);
 		}

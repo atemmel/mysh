@@ -186,7 +186,7 @@ auto AstParser::parse(const Array<Token>& tokens) -> AstRoot {
 		}
 
 		assert(error());
-		return nullptr;
+		return root;
 	}
 
 	return root;
@@ -263,6 +263,7 @@ auto AstParser::parseStatement() -> Child {
 		return child;
 	}
 
+	//assert(false);
 	return nullptr;
 }
 
@@ -402,27 +403,113 @@ auto AstParser::parseReturn() -> Child {
 }
 
 auto AstParser::parseExpr(bool trailingNewline) -> Child {
-	if(auto bin = parseBinaryExpression();
-		bin != nullptr) {
-		if(trailingNewline && !eot() 
-			&& getIf(Token::Kind::Newline) == nullptr) {
-			return expected(Token::Kind::Newline);
-		}
-		return bin;
-	}
 
-	if(error()) {
+	auto expr = parsePrimaryExpr();
+	if(expr == nullptr) {
 		return nullptr;
 	}
-	if(auto expr = parsePrimaryExpr();
-		expr != nullptr) {
-		if(trailingNewline && !eot() 
-			&& getIf(Token::Kind::Newline) == nullptr) {
-			return expected(Token::Kind::Newline);
-		}
+
+	auto checkpoint = current;
+	auto bin = parseBinaryOperator();
+	if(bin == nullptr) {
 		return expr;
 	}
-	return nullptr;
+
+	auto token = bin->token;
+
+	if(!mayReadPipe && token->kind == Token::Kind::Or) {
+		current = checkpoint; 
+		return expr;
+	}
+
+	Array<Child> valueStack;
+	Array<Child> operatorStack;
+
+	valueStack.append(move(expr));
+	operatorStack.append(move(bin));
+
+	if(token->kind == Token::Kind::Or) {
+		expr = parseCallableExpr();
+		if(expr == nullptr) {
+			return expected(ExpectableThings::Callable);
+		}
+	} else {
+		expr = parsePrimaryExpr();
+		if(expr == nullptr) {
+			return expected(ExpectableThings::Expression);
+		}
+	}
+
+	valueStack.append(move(expr));
+
+	checkpoint = current;
+	bin = parseBinaryOperator();
+	if(!mayReadPipe && bin != nullptr && bin->token->kind == Token::Kind::Or) {
+		current = checkpoint; 
+		bin = nullptr;
+	}
+	while(bin != nullptr) {
+		if(bin->token->precedence() 
+			>= operatorStack[operatorStack.size() - 1]->token->precedence()) {
+			
+			auto rhs = move(valueStack[valueStack.size() - 1]);
+			valueStack.pop();
+			auto lhs = move(valueStack[valueStack.size() - 1]);
+			valueStack.pop();
+			auto op = move(operatorStack[operatorStack.size() - 1]);
+			operatorStack.pop();
+
+			op->addChild(lhs);
+			op->addChild(rhs);
+			valueStack.append(move(op));
+		}
+
+		token = bin->token;
+
+		operatorStack.append(move(bin));
+
+		if(token->kind == Token::Kind::Or) {
+			expr = parseCallableExpr();
+			if(expr == nullptr) {
+				return expected(ExpectableThings::Callable);
+			}
+		} else {
+			expr = parsePrimaryExpr();
+			if(expr == nullptr) {
+				return expected(ExpectableThings::Expression);
+			}
+		}
+
+		valueStack.append(move(expr));
+		auto checkpoint = current;
+		bin = parseBinaryOperator();
+		if(!mayReadPipe && bin != nullptr && bin->token->kind == Token::Kind::Or) {
+			current = checkpoint; 
+			bin = nullptr;
+		}
+	}
+
+	
+	while(!operatorStack.empty()) {
+		auto rhs = move(valueStack[valueStack.size() - 1]);
+		valueStack.pop();
+		auto lhs = move(valueStack[valueStack.size() - 1]);
+		valueStack.pop();
+		auto op = move(operatorStack[operatorStack.size() - 1]);
+		operatorStack.pop();
+
+		op->addChild(lhs);
+		op->addChild(rhs);
+		valueStack.append(move(op));
+	}
+
+	if(trailingNewline && !eot() 
+		&& getIf(Token::Kind::Newline) == nullptr) {
+		return expected(Token::Kind::Newline);
+	}
+
+	auto result = move(valueStack[valueStack.size() - 1]);
+	return result;
 }
 
 auto AstParser::parsePrimaryExpr() -> Child {
@@ -462,15 +549,44 @@ auto AstParser::parsePrimaryExpr() -> Child {
 		arrayLiteral != nullptr) {
 		return arrayLiteral;
 	}
+	if(auto call = parseFunctionCall();
+		call != nullptr) {
+		return call;
+	}
+	return nullptr;
+}
+
+auto AstParser::parseCallableExpr() -> Child {
+	if(auto call = parseFunctionCall();
+		call != nullptr) {
+		return call;
+	}
 	return nullptr;
 }
 
 auto AstParser::parseIdentifier() -> Child {
+	auto checkpoint = current;
 	auto token = getIf(Token::Kind::Identifier);
 	if(token == nullptr) {
 		return nullptr;
 	}
 
+	if(!eot()) {
+		size_t i = (size_t)(*tokens)[current].kind;
+		if(i >= Token::OperatorBegin && i < Token::OperatorEnd) {
+			if(current < 2) {
+				current = checkpoint;
+				return nullptr;
+			}
+
+		} 
+		i = (size_t)(*tokens)[current - 2].kind;
+		if(i >= Token::OperatorBegin && i < Token::OperatorEnd) {
+			current = checkpoint;
+			return nullptr;
+		}
+		return OwnPtr<IdentifierNode>::create(token);
+	}
 	return OwnPtr<IdentifierNode>::create(token);
 }
 
@@ -625,6 +741,7 @@ auto AstParser::parseAssignment() -> Child {
 
 	auto newline = getIf(Token::Kind::Newline);
 	if(newline == nullptr) {
+		//assert(false);
 		return expected(Token::Kind::Newline);
 	}
 
@@ -684,6 +801,7 @@ auto AstParser::parseBinaryOperator() -> Child {
 		case Token::Kind::Subtract:
 		case Token::Kind::Multiply:
 		case Token::Kind::Divide:
+		case Token::Kind::Modulo:
 		case Token::Kind::Less:
 		case Token::Kind::Greater:
 		case Token::Kind::Equals:

@@ -65,8 +65,8 @@ struct StringView {
 	}
 
 	auto view(size_t first, size_t last) const -> StringView {
-		assert(first <= size());
-		assert(last <= size());
+		//assert(first <= size());
+		//assert(last <= size());
 		return StringView(data() + first, data() + last);
 	}
 

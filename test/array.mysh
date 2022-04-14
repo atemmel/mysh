@@ -12,8 +12,8 @@ $numbers = $numbers | append 6
 
 print numbers is $numbers
 
-#fn isEven x {
-#	return $x % 2 == 0
-#}
+fn isEven x {
+	return $x % 2 == 0
+}
 
-#$numbers | filter isEven
+$numbers | filter isEven

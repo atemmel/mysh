@@ -167,6 +167,7 @@ private:
 	auto parseReturn() -> Child;
 	auto parseExpr(bool trailingNewline = false) -> Child;
 	auto parsePrimaryExpr() -> Child;
+	auto parseCallableExpr() -> Child;
 	auto parseIdentifier() -> Child;
 	auto parseBareword() -> Child;
 	auto parseVariable() -> Child;

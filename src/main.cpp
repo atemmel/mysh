@@ -25,8 +25,19 @@ auto doEverything(StringView path) {
 	// build AST
 	AstParser parser;
 	auto root = parser.parse(tokens);
-	if(root == nullptr || parser.error()) {
+	if(root == nullptr) {
 		println("main: No root :(");
+		parser.dumpError();
+		exit(EXIT_FAILURE);
+	}
+
+	if(parser.error()) {
+		if(globals::verbose) {
+			AstPrinter printer;
+			println("Printing AST:");
+			root->accept(printer);
+		}
+		println("main: parser error :(");
 		parser.dumpError();
 		exit(EXIT_FAILURE);
 	}

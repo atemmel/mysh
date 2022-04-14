@@ -4,6 +4,6 @@ fn add x y {
 	return $x + $y
 }
 
-var result4 = (ls) | wc -w | add 10
+var result4 = ls | wc -w | add 10
 
 print result4 is $result4

@@ -32,7 +32,9 @@ struct String {
 
 	auto view() const -> StringView;
 	auto view(size_t first, size_t last) const -> StringView;
+	auto view(size_t first) const -> StringView;
 
+	auto cropLeftWhitespace() -> void;
 	auto cropRightWhitespace() -> void;
 
 private:

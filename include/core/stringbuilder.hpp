@@ -14,6 +14,7 @@ struct StringBuilder {
 
 	auto append(StringView value) -> StringBuilder&;
 	auto append(const String& value) -> StringBuilder&;
+	auto append(const char* value) -> StringBuilder&;
 	auto append(int value) -> StringBuilder&;
 	auto append(int64_t value) -> StringBuilder&;
 	auto append(double value) -> StringBuilder&;
@@ -22,6 +23,8 @@ struct StringBuilder {
 
 	auto view() const -> StringView;
 	auto copy() const -> String;
+
+	auto addNull() -> StringBuilder&;
 
 private:
 	auto growIfLessThan(size_t that) -> void;

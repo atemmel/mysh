@@ -25,6 +25,9 @@ struct Interpreter : public AstVisitor {
 	auto visit(UnaryOperatorNode& node) -> void override;
 	auto visit(FunctionCallNode& node) -> void override;
 	auto visit(RootNode& node) -> void override;
+
+	auto executeFunction(StringView identifier,
+		const Array<Value>& args, Optional<const Value*> inArg) -> Optional<Value>;
 private:
 
 	// arithmetic operators
@@ -33,6 +36,7 @@ private:
 	auto negateValue(const Value& operand) -> Value;
 	auto multiplyValues(const Value& lhs, const Value& rhs) -> Value;
 	auto divideValues(const Value& lhs, const Value& rhs) -> Value;
+	auto moduloValues(const Value& lhs, const Value& rhs) -> Value;
 
 	// logical operators
 	auto lessValues(const Value& lhs, const Value& rhs) -> Value;
@@ -55,8 +59,6 @@ private:
 	// other operators
 	auto pipe(Child& current, Child& next) -> Optional<Value>;
 
-	auto executeFunction(StringView identifier,
-		const Array<Value>& args, Optional<const Value*> inArg) -> Optional<Value>;
 	auto executeUserDefinedFunction(FnDeclarationNode* func,
 		const Array<Value>& args) -> Optional<Value>;
 

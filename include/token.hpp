@@ -19,6 +19,7 @@ struct Token {
 		Subtract,		// -
 		Multiply,		// *
 		Divide,			// /
+		Modulo,			// %
 		Less,			// <
 		Greater,		// >
 		Bang,			// !
@@ -59,6 +60,7 @@ struct Token {
 		"Subtract",
 		"Multiply",
 		"Divide",
+		"Modulo",
 		"Less",
 		"Greater",
 		"Bang",
@@ -98,6 +100,7 @@ struct Token {
 		"-",
 		"*",
 		"/",
+		"%",
 		"<",
 		">",
 		"!",
@@ -122,13 +125,55 @@ struct Token {
 		"",
 	};
 
+	static constexpr StaticArray<int, (size_t)Kind::NTokens> Precedences = {
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		16,		// =
+		6,		// +
+		6,		// -
+		5,		// *
+		5,		// /
+		5,		// %
+		9,		// <
+		9,		// >
+		3,		// !
+		10,		// ==
+		10,		// !=
+		9,		// <=
+		9,		// >=
+		11,		// &
+		13,		// |
+		14,		// &&
+		15,		// ||
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+	};
+
 	static constexpr size_t KeywordBegin = 1;
 	static constexpr size_t KeywordEnd = 9;
 
 	static constexpr size_t OperatorBegin = 9;
-	static constexpr size_t OperatorEnd = 31;
+	static constexpr size_t OperatorEnd = 32;
 
 	static auto isOperator(StringView view) -> bool;
+
+	auto precedence() const -> int;
 
 	Kind kind;
 	StringView value;
