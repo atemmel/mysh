@@ -9,3 +9,9 @@ print numbers is $numbers
 #print numbers is $numbers
 
 #print numbers is now $numbers | append 6
+
+#fn isEven x {
+#	return $x % 2 == 0
+#}
+
+#$numbers | filter isEven
