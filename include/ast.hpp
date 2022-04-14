@@ -176,6 +176,7 @@ private:
 	auto parseExpr(bool trailingNewline = false) -> Child;
 	auto parsePrimaryExpr() -> Child;
 	auto parseCallableExpr() -> Child;
+	auto parseIterableExpr() -> Child;
 	auto parseIdentifier() -> Child;
 	auto parseBareword() -> Child;
 	auto parseVariable() -> Child;

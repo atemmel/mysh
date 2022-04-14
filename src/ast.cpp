@@ -564,6 +564,22 @@ auto AstParser::parseCallableExpr() -> Child {
 	return nullptr;
 }
 
+auto AstParser::parseIterableExpr() -> Child {
+	if(auto call = parseCallableExpr();
+		call != nullptr) {
+		return call;
+	}
+	if(auto arrayLiteral = parseArrayLiteral();
+		arrayLiteral != nullptr) {
+		return arrayLiteral;
+	}
+	if(auto var = parseVariable();
+		var != nullptr) {
+		return var;
+	}
+	return nullptr;
+}
+
 auto AstParser::parseIdentifier() -> Child {
 	auto checkpoint = current;
 	auto token = getIf(Token::Kind::Identifier);
@@ -702,12 +718,9 @@ auto AstParser::parseForInLoop() -> Child {
 		return expected(Token::Kind::In);
 	}
 
-	auto iterable = parseVariable();
+	auto iterable = parseExpr();
 	if(iterable == nullptr) {
-		iterable = parseArrayLiteral();
-		if(iterable == nullptr) {
-			return expected(ExpectableThings::Iterable);
-		}
+		return expected(ExpectableThings::Iterable);
 	}
 
 	auto scope = parseScope();
