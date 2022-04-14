@@ -265,11 +265,15 @@ auto AstParser::parseFunctionCall() -> Child {
 
 	Child node = OwnPtr<FunctionCallNode>::create(token);
 
+	mayReadPipe = false;
+
 	Child child = parseExpr();
 	while(child != nullptr) {
 		node->addChild(child);
 		child = parseExpr();
 	}
+
+	mayReadPipe = true;
 
 	// pipe chain check
 	token = getIf(Token::Kind::Or);
@@ -631,6 +635,10 @@ auto AstParser::parseBinaryExpression() -> Child {
 
 	// pipe edge case, may only be followed by callables
 	if(op->token->kind == Token::Kind::Or) {
+		if(!mayReadPipe) {
+			current = checkpoint;
+			return nullptr;
+		}
 		auto rhs = parseFunctionCall();
 		if(rhs == nullptr) {
 			return expected(ExpectableThings::Callable);

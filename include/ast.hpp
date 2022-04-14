@@ -186,4 +186,5 @@ private:
 	const Token* whatWeGot = nullptr;
 	const Array<Token>* tokens = nullptr;
 	size_t current = 0;
+	bool mayReadPipe = true;
 };

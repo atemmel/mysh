@@ -113,6 +113,14 @@ auto operator==(const String& lhs, const String& rhs) -> bool {
 	return stringeq(lhs.data(), rhs.data());
 }
 
+auto operator==(const String& lhs, const char* rhs) -> bool {
+	return stringeq(lhs.data(), rhs);
+}
+
+auto operator==(const char* lhs, const String& rhs) -> bool {
+	return stringeq(lhs, rhs.data());
+}
+
 auto fprintType(FILE* desc, const String& value) -> void {
 	if(value.data() != nullptr) {
 		printf("'%s'\n", value.data());

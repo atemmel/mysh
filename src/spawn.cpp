@@ -3,14 +3,11 @@
 #include "core/stringbuilder.hpp"
 #include "globals.hpp"
 
-#include "core/print.hpp"
-
 #include <errno.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
 
-//auto spawnImpl(StringView prefix, const Array<String>& strings, bool captureStdout) -> SpawnResult {
 auto spawnImpl(StringView prefix, const SpawnOptions& options) -> SpawnResult {
 	const auto& strings = options.args;
 
@@ -33,43 +30,45 @@ auto spawnImpl(StringView prefix, const SpawnOptions& options) -> SpawnResult {
 	}
 	args.append(nullptr);
 
-	// capture stdout
+	// piping
 	constexpr size_t bufferSize = 512;
-	int pipefd[2];
+	int meRead, meWrite, youRead, youWrite;
 	StaticArray<char, bufferSize> buffer;
 	StringBuilder bob;
 
 	if(options.captureStdout) {
+		int pipefd[2];
 		bob.reserve(bufferSize);
-	}
-
-	if(options.captureStdout || options.stdinView.hasValue()) {
 		pipe(pipefd);
+		meRead = pipefd[0];
+		youWrite = pipefd[1];
 	}
 
-	// end of capture stdout
+	if(options.stdinView.hasValue()) {
+		int pipefd[2];
+		pipe(pipefd);
+		youRead = pipefd[0];
+		meWrite = pipefd[1];
+	}
+
+	// end of piping
 
 	auto pid = fork();
 	if(pid == 0) {	// child code
-		if(!options.stdinView.hasValue() && options.captureStdout) {
-			close(pipefd[0]);
-		} 
-
-		if(options.captureStdout) {
-			dup2(pipefd[1], STDOUT_FILENO);
-			dup2(pipefd[1], STDOUT_FILENO);
-		}
 
 		if(options.stdinView.hasValue()) {
-			dup2(pipefd[0], STDIN_FILENO);
+			dup2(youRead, STDIN_FILENO);
+			close(youRead);
+			close(meWrite);
 		}
 
-		if(options.stdinView.hasValue() && !options.captureStdout) {
-			close(pipefd[1]);
+		if(options.captureStdout) {
+			dup2(youWrite, STDOUT_FILENO);
+			close(meRead);
+			close(youWrite);
 		}
 
 		auto result = execv(command.data(), (char* const*)args.data());
-		//println(strerror(errno), result);
 		exit(result);
 	} else if(pid == -1) {
 		assert(false);
@@ -77,24 +76,23 @@ auto spawnImpl(StringView prefix, const SpawnOptions& options) -> SpawnResult {
 		int status;
 
 		if(options.stdinView.hasValue()) {
-			write(pipefd[1], options.stdinView.value().data(),
-				options.stdinView.value().size());
-			close(pipefd[1]);
+			close(youRead);
+			auto view = options.stdinView.value();
+			write(meWrite, view.data(), view.size());
+			close(meWrite);
 		}
 
 		if(options.captureStdout) {
-			if(!options.stdinView.hasValue()) {
-				close(pipefd[1]);
-			}
-			auto output = fdopen(pipefd[0], "r");
+			close(youWrite);
+			auto output = fdopen(meRead, "r");
 
-			for(size_t len = fread(buffer.data(), sizeof(char), buffer.size(), output);
-				len > 0; len = fread(buffer.data(), sizeof(char), buffer.size(), output)) {
-
+			size_t len = fread(buffer.data(), sizeof(char), buffer.size(), output);
+			for(; len > 0; len = fread(buffer.data(), sizeof(char), buffer.size(), output)) {
 				auto view = StringView(buffer.data(), len);
 				bob.append(view);
 			}
 			bob.append('\0');
+			close(meRead);
 		}
 
 		wait(&status);
@@ -107,7 +105,6 @@ auto spawnImpl(StringView prefix, const SpawnOptions& options) -> SpawnResult {
 	return {};
 }
 
-//auto spawn(const Array<String>& strings, bool captureStdout) -> SpawnResult {
 auto spawn(const SpawnOptions& options) -> SpawnResult {
 	SpawnResult result;
 	for(auto path : globals::paths) {
@@ -115,7 +112,6 @@ auto spawn(const SpawnOptions& options) -> SpawnResult {
 		if(result.code == 0) {
 			return result;
 		}
-		//println("Result was", result);
 	}
 	return result;
 }

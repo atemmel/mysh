@@ -40,6 +40,8 @@ struct SymTable {
 	auto create(const String& string) -> Value;
 	auto create(String&& string) -> Value;
 
+	auto createConverted(String&& string) -> Value;
+
 	auto dump() const -> void;
 private:
 	using Variables = HashTable<StringView, Value>;

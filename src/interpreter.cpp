@@ -896,9 +896,10 @@ auto Interpreter::executeFunction(StringView identifier,
 		});
 	}
 
+
 	if(!spawnResult.out.empty()) {
 		spawnResult.out.cropRightWhitespace();
-		return symTable.create(spawnResult.out);
+		return symTable.createConverted(move(spawnResult.out));
 	}
 
 	return {};

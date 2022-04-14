@@ -10,7 +10,11 @@ isMyCity England
 
 pwd | isMyCity
 
-pwd | isMyCity | wc -w
+fn double x {
+	return $x * 2
+}
+
+pwd | isMyCity | wc -w | double
 
 #TODO: error
 #England | isMyCity

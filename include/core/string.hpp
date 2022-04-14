@@ -40,6 +40,8 @@ private:
 };
 
 auto operator==(const String& lhs, const String& rhs) -> bool;
+auto operator==(const String& lhs, const char* rhs) -> bool;
+auto operator==(const char* lhs, const String& rhs) -> bool;
 
 auto fprintType(FILE* desc, const String& value) -> void;
 

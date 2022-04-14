@@ -149,6 +149,39 @@ auto SymTable::create(String&& string) -> Value {
 	};
 }
 
+auto SymTable::createConverted(String&& string) -> Value {
+	if(string == "true") {
+		return Value{
+			.boolean = true,
+			.kind = Value::Kind::Bool,
+			.ownerIndex = Value::OwnerLess,
+		};
+	}
+
+	if(string == "false") {
+		return Value{
+			.boolean = false,
+			.kind = Value::Kind::Bool,
+			.ownerIndex = Value::OwnerLess,
+		};
+	}
+
+	//TODO: proper conversion error handling
+	char* strEnd = nullptr;
+	auto value = strtol(string.data(), &strEnd, 10);
+
+	if(*strEnd == '\0') {
+		return Value{
+			.integer = value,
+			.kind = Value::Kind::Integer,
+			.ownerIndex = Value::OwnerLess,
+		};
+	}
+
+	// unconvertable, remain as a string
+	return create(string);
+}
+
 auto SymTable::dump() const -> void {
 	for(const auto& scope : scopes) {
 		for(auto it = scope.begin();
