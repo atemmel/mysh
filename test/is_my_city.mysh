@@ -15,6 +15,3 @@ fn double x {
 }
 
 pwd | isMyCity | wc -w | double
-
-#TODO: error
-#England | isMyCity
