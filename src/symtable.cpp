@@ -21,6 +21,97 @@ auto Value::toString() const -> String {
 	return "";
 }
 
+Value::Value() : Value(false) {
+
+}
+
+Value::Value(StringView other) 
+	: kind(Value::Kind::String) {
+	new (&string) String(other);
+}
+
+Value::Value(String&& other) 
+	: kind(Value::Kind::String) {
+	new (&string) String(::move(other));
+}
+
+Value::Value(bool other) 
+	: kind(Value::Kind::Bool), boolean(other) {
+}
+
+Value::Value(int64_t other) 
+	: kind(Value::Kind::Integer), integer(other) {
+
+}
+
+Value::Value(const Value& other) {
+	copy(other);
+}
+
+Value::Value(Value&& other) {
+	move(::move(other));
+}
+
+Value::~Value() {
+	free();
+}
+
+
+auto Value::operator=(const Value& other) -> void {
+	if(this == &other) {
+		return;
+	}
+	free();
+	copy(other);
+}
+
+auto Value::operator=(Value&& other) -> void {
+	free();
+	move(::move(other));
+}
+
+auto Value::copy(const Value& other) -> void {
+	kind = other.kind;
+	switch(kind) {
+		case Kind::Bool:
+			boolean = other.boolean;
+			break;
+		case Kind::Integer:
+			integer = other.integer;
+			break;
+		case Kind::String:
+			new (&string) String(other.string);
+			break;
+	}
+}
+
+auto Value::move(Value&& other) -> void {
+	kind = other.kind;
+	switch(kind) {
+		case Kind::Bool:
+			boolean = other.boolean;
+			break;
+		case Kind::Integer:
+			integer = other.integer;
+			break;
+		case Kind::String:
+			new (&string) String(::move(other.string));
+			break;
+	}
+}
+
+auto Value::free() -> void {
+	switch(kind) {
+		case Kind::String:
+			string.~String();
+			break;
+		// no peculiar freeing policy
+		case Kind::Bool:
+		case Kind::Integer:
+			break;
+	}
+}
+
 auto fprintType(FILE* desc, const Value& value) -> void {
 	switch(value.kind) {
 		case Value::Kind::String:
@@ -37,24 +128,6 @@ auto fprintType(FILE* desc, const Value& value) -> void {
 	}
 }
 
-auto Value::free(SymTable& owner) -> void {
-	// if has owner
-	if(ownerIndex != Value::OwnerLess) {
-		// notify owner
-		switch(kind) {
-			case Kind::String:
-				owner.freeString(this);
-				break;
-			// no peculiar freeing policy
-			case Kind::Bool:
-			case Kind::Integer:
-				break;
-		}
-	}
-	// reset
-	ownerIndex = Value::OwnerLess;
-}
-
 auto SymTable::addScope() -> void {
 	scopes.append({});
 }
@@ -62,9 +135,6 @@ auto SymTable::addScope() -> void {
 auto SymTable::dropScope() -> void {
 	assert(!scopes.empty());
 	auto& lastScopeVars = scopes[scopes.size() - 1];
-	for(auto it = lastScopeVars.begin(); it != lastScopeVars.end(); ++it) {
-		it->value.free(*this);
-	}
 	lastScopeVars.clear();
 	scopes.pop();
 }
@@ -77,7 +147,6 @@ auto SymTable::putVariable(StringView identifier, const Value& value) -> void {
 	// remove prior value (if applicable)
 	auto prev = getVariableInfo(identifier);
 	if(prev.value != nullptr) {
-		prev.value->free(*this);
 		scopeIndex = prev.scope;
 	} else {
 		scopeIndex = scopes.size() - 1;
@@ -101,29 +170,15 @@ auto SymTable::createValue(const Value& value) -> Value {
 }
 
 auto SymTable::createValue(StringView value) -> Value {
-	assert(value.size() < 1024);
-	auto index = createString(value);
-	return Value{
-		.string = strings[index],
-		.kind = Value::Kind::String,
-		.ownerIndex = index,
-	};
+	return Value(value);
 }
 
 auto SymTable::createValue(bool value) -> Value {
-	return Value{
-		.boolean = value,
-		.kind = Value::Kind::Bool,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(value);
 }
 
 auto SymTable::createValue(int64_t value) -> Value {
-	return Value{
-		.integer = value,
-		.kind = Value::Kind::Integer,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(value);
 }
 
 auto SymTable::getVariable(StringView identifier) -> Value* {
@@ -141,29 +196,16 @@ auto SymTable::create(const String& string) -> Value {
 }
 
 auto SymTable::create(String&& string) -> Value {
-	auto index = createString(move(string));
-	return Value{
-		.string = strings[index].view(),
-		.kind = Value::Kind::String,
-		.ownerIndex = index,
-	};
+	return Value(move(string));
 }
 
 auto SymTable::createConverted(String&& string) -> Value {
 	if(string == "true") {
-		return Value{
-			.boolean = true,
-			.kind = Value::Kind::Bool,
-			.ownerIndex = Value::OwnerLess,
-		};
+		return Value(true);
 	}
 
 	if(string == "false") {
-		return Value{
-			.boolean = false,
-			.kind = Value::Kind::Bool,
-			.ownerIndex = Value::OwnerLess,
-		};
+		return Value(false);
 	}
 
 	//TODO: proper conversion error handling
@@ -171,11 +213,7 @@ auto SymTable::createConverted(String&& string) -> Value {
 	auto value = strtol(string.data(), &strEnd, 10);
 
 	if(*strEnd == '\0') {
-		return Value{
-			.integer = value,
-			.kind = Value::Kind::Integer,
-			.ownerIndex = Value::OwnerLess,
-		};
+		return Value(value);
 	}
 
 	// unconvertable, remain as a string
@@ -194,11 +232,6 @@ auto SymTable::dump() const -> void {
 auto SymTable::putVariable(size_t scope, StringView identifier, const Value& value) -> void {
 	assert(scope < scopes.size());
 	auto newValue = createValue(value);
-
-	auto prev = getVariable(identifier);
-	if(prev != nullptr) {
-		prev->free(*this);
-	}
 	auto& theScope = scopes[scope];
 	theScope.put(identifier, newValue);
 }
@@ -218,32 +251,4 @@ auto SymTable::getVariableInfo(StringView identifier) -> VariableInfo {
 		nullptr,
 		0,
 	};
-}
-
-auto SymTable::createString(StringView string) -> size_t {
-	if(freeStrings.empty()) {
-		strings.append(string);
-		return strings.size() - 1;
-	}
-
-	auto index = freeStrings[0];
-	freeStrings.remove(0);
-	strings[index] = string;
-	return index;
-}
-
-auto SymTable::createString(String&& string) -> size_t {
-	if(freeStrings.empty()) {
-		strings.append(string);
-		return strings.size() - 1;
-	}
-
-	auto index = freeStrings[0];
-	freeStrings.remove(0);
-	strings[index] = string;
-	return index;
-}
-
-auto SymTable::freeString(const Value* variable) -> void {
-	freeStrings.append(variable->ownerIndex);
 }

@@ -3,6 +3,7 @@
 #include "core/assert.hpp"
 
 #include <stdlib.h>
+#include <new>
 
 namespace mem {
 

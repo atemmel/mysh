@@ -123,7 +123,6 @@ auto operator==(const char* lhs, const String& rhs) -> bool {
 
 auto fprintType(FILE* desc, const String& value) -> void {
 	if(value.data() != nullptr) {
-		printf("'%s'\n", value.data());
 		fprintf(desc, "%s", value.data());
 	}
 }

@@ -41,48 +41,26 @@ auto Interpreter::interpret(RootNode& root) -> bool {
 }
 
 auto Interpreter::visit(IdentifierNode& node) -> void {
-	collectedValues.append(Value{
-		.string = node.token->value,
-		.kind = Value::Kind::String,
-		.ownerIndex = static_cast<size_t>(-1),
-	});
+	collectedValues.append(Value(node.token->value));
 }
 
 auto Interpreter::visit(BarewordNode& node) -> void {
-	collectedValues.append(Value{
-		.string = node.token->value,
-		.kind = Value::Kind::String,
-		.ownerIndex = static_cast<size_t>(-1),
-	});
+	collectedValues.append(Value(node.token->value));
 }
 
 auto Interpreter::visit(StringLiteralNode& node) -> void {
-	collectedValues.append(escape(interpolate(Value{
-		.string = node.token->value,
-		.kind = Value::Kind::String,
-		.ownerIndex = Value::OwnerLess,
-	})));
+	collectedValues.append(escape(interpolate(Value(node.token->value))));
 }
 
 auto Interpreter::visit(BoolLiteralNode& node) -> void {
-	auto value = Value{
-		.kind = Value::Kind::Bool,
-		.ownerIndex = Value::OwnerLess,
-	};
-
+	auto value = Value();
 	value.boolean = node.token->kind == Token::Kind::True;
-
 	collectedValues.append(value);
 }
 
 auto Interpreter::visit(IntegerLiteralNode& node) -> void {
-	auto value = Value{
-		.kind = Value::Kind::Integer,
-		.ownerIndex = Value::OwnerLess,
-	};
-
+	auto value = Value(node.value);
 	value.integer = node.value;
-
 	collectedValues.append(value);
 }
 
@@ -228,7 +206,6 @@ auto Interpreter::visit(AssignmentNode& node) -> void {
 	assert(collectedValues.size() == 1);
 	symTable.putVariable(identifier, collectedValues[0]);
 	// reset
-	collectedValues[0].free(symTable);
 	collectedValues.clear();
 }
 
@@ -294,8 +271,6 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 			assert(false);
 	}
 
-	lhs.free(symTable);
-	rhs.free(symTable);
 	collectedValues.append(result);
 }
 
@@ -323,7 +298,6 @@ auto Interpreter::visit(UnaryOperatorNode& node) -> void {
 			assert(false);
 	}
 
-	operand.free(symTable);
 	collectedValues.pop();
 	collectedValues.append(result);
 }
@@ -351,12 +325,6 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 
 	// execute
 	auto result = executeFunction(func, args, stdinArg);
-	if(stdinArg.hasValue()) {
-		stdinVal.free(symTable);
-	}
-	for(auto& arg : args) {
-		arg.free(symTable);
-	}
 	if(result.hasValue()) {
 		collectedValues.append(result.value());
 	} else {
@@ -380,11 +348,7 @@ auto Interpreter::addValues(const Value& lhs, const Value& rhs) -> Value {
 	assert(rhs.kind == Value::Kind::Integer);
 	auto left = lhs.integer;
 	auto right = rhs.integer;
-	return Value{
-		.integer = left + right,
-		.kind = Value::Kind::Integer,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(left + right);
 }
 
 auto Interpreter::subtractValues(const Value& lhs, const Value& rhs) -> Value {
@@ -392,21 +356,13 @@ auto Interpreter::subtractValues(const Value& lhs, const Value& rhs) -> Value {
 	assert(rhs.kind == Value::Kind::Integer);
 	auto left = lhs.integer;
 	auto right = rhs.integer;
-	return Value{
-		.integer = left - right,
-		.kind = Value::Kind::Integer,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(left - right);
 }
 
 auto Interpreter::negateValue(const Value& operand) -> Value {
 	assert(operand.kind == Value::Kind::Integer);
 	auto integer = operand.integer;
-	return Value{
-		.integer = -integer,
-		.kind = Value::Kind::Integer,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(-integer);
 }
 
 auto Interpreter::multiplyValues(const Value& lhs, const Value& rhs) -> Value {
@@ -414,11 +370,7 @@ auto Interpreter::multiplyValues(const Value& lhs, const Value& rhs) -> Value {
 	assert(rhs.kind == Value::Kind::Integer);
 	auto left = lhs.integer;
 	auto right = rhs.integer;
-	return Value{
-		.integer = left * right,
-		.kind = Value::Kind::Integer,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(left * right);
 }
 
 auto Interpreter::divideValues(const Value& lhs, const Value& rhs) -> Value {
@@ -426,11 +378,7 @@ auto Interpreter::divideValues(const Value& lhs, const Value& rhs) -> Value {
 	assert(rhs.kind == Value::Kind::Integer);
 	auto left = lhs.integer;
 	auto right = rhs.integer;
-	return Value{
-		.integer = left / right,
-		.kind = Value::Kind::Integer,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(left / right);
 }
 
 auto Interpreter::lessValues(const Value& lhs, const Value& rhs) -> Value {
@@ -441,11 +389,7 @@ auto Interpreter::lessValues(const Value& lhs, const Value& rhs) -> Value {
 	if(lhs.kind == Value::Kind::Integer && rhs.kind == Value::Kind::Integer) {
 		auto left = lhs.integer;
 		auto right = rhs.integer;
-		return Value{
-			.boolean = left < right,
-			.kind = Value::Kind::Bool,
-			.ownerIndex = Value::OwnerLess,
-		};
+		return Value(left < right);
 	} 
 
 	//TODO: this
@@ -473,11 +417,7 @@ auto Interpreter::greaterValues(const Value& lhs, const Value& rhs) -> Value {
 	if(lhs.kind == Value::Kind::Integer && rhs.kind == Value::Kind::Integer) {
 		auto left = lhs.integer;
 		auto right = rhs.integer;
-		return Value{
-			.boolean = left > right,
-			.kind = Value::Kind::Bool,
-			.ownerIndex = Value::OwnerLess,
-		};
+		return Value(left > right);
 	} 
 
 	//TODO: this
@@ -500,11 +440,7 @@ auto Interpreter::greaterValues(const Value& lhs, const Value& rhs) -> Value {
 auto Interpreter::notValue(const Value& operand) -> Value {
 	assert(operand.kind == Value::Kind::Bool);
 	auto boolean = operand.boolean;
-	return Value{
-		.boolean = !boolean,
-		.kind = Value::Kind::Bool,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(!boolean);
 }
 
 
@@ -512,17 +448,9 @@ auto Interpreter::equalsValues(const Value& lhs, const Value& rhs) -> Value {
 	assert(lhs.kind == rhs.kind);
 	switch(lhs.kind) {
 		case Value::Kind::Bool:
-			return Value{
-				.boolean = lhs.boolean == rhs.boolean,
-				.kind = Value::Kind::Bool,
-				.ownerIndex = Value::OwnerLess,
-			};
+			return Value(lhs.boolean == rhs.boolean);
 		case Value::Kind::Integer:
-			return Value{
-				.boolean = lhs.integer == rhs.integer,
-				.kind = Value::Kind::Bool,
-				.ownerIndex = Value::OwnerLess,
-			};
+			return Value(lhs.integer == rhs.integer);
 		default:
 			assert(false);
 			break;
@@ -536,17 +464,9 @@ auto Interpreter::notEqualsValues(const Value& lhs, const Value& rhs) -> Value {
 	assert(lhs.kind == rhs.kind);
 	switch(lhs.kind) {
 		case Value::Kind::Bool:
-			return Value{
-				.boolean = lhs.boolean != rhs.boolean,
-				.kind = Value::Kind::Bool,
-				.ownerIndex = Value::OwnerLess,
-			};
+			return Value(lhs.boolean != rhs.boolean);
 		case Value::Kind::Integer:
-			return Value{
-				.boolean = lhs.integer != rhs.integer,
-				.kind = Value::Kind::Bool,
-				.ownerIndex = Value::OwnerLess,
-			};
+			return Value(lhs.integer != rhs.integer);
 		default:
 			assert(false);
 			break;
@@ -561,11 +481,7 @@ auto Interpreter::lessEqualsValues(const Value& lhs, const Value& rhs) -> Value 
 	assert(lhs.kind == Value::Kind::Integer);
 	switch(lhs.kind) {
 		case Value::Kind::Integer:
-			return Value{
-				.boolean = lhs.integer <= rhs.integer,
-				.kind = Value::Kind::Bool,
-				.ownerIndex = Value::OwnerLess,
-			};
+			return Value(lhs.integer <= rhs.integer);
 		default:
 			assert(false);
 			break;
@@ -580,11 +496,7 @@ auto Interpreter::greaterEqualsValues(const Value& lhs, const Value& rhs) -> Val
 	assert(lhs.kind == Value::Kind::Integer);
 	switch(lhs.kind) {
 		case Value::Kind::Integer:
-			return Value{
-				.boolean = lhs.integer >= rhs.integer,
-				.kind = Value::Kind::Bool,
-				.ownerIndex = Value::OwnerLess,
-			};
+			return Value(lhs.integer >= rhs.integer);
 		default:
 			assert(false);
 			break;
@@ -601,11 +513,7 @@ auto Interpreter::logicalAndValues(const Value& lhs, const Value& rhs) -> Value 
 	auto l = lhs.boolean;
 	auto r = rhs.boolean;
 
-	return Value{
-		.boolean = l && r,
-		.kind = Value::Kind::Bool,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(l && r);
 }
 
 auto Interpreter::logicalOrValues(const Value& lhs, const Value& rhs) -> Value {
@@ -615,11 +523,7 @@ auto Interpreter::logicalOrValues(const Value& lhs, const Value& rhs) -> Value {
 	auto l = lhs.boolean;
 	auto r = rhs.boolean;
 
-	return Value{
-		.boolean = l || r,
-		.kind = Value::Kind::Bool,
-		.ownerIndex = Value::OwnerLess,
-	};
+	return Value(l || r);
 }
 
 

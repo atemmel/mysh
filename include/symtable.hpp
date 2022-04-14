@@ -8,22 +8,36 @@
 struct SymTable;
 
 struct Value {
-	constexpr static auto OwnerLess = static_cast<size_t>(-1);
 	enum struct Kind {
 		String,
 		Bool,
 		Integer,
 	};
 	union {
-		StringView string;
+		String string;
 		bool boolean;
 		int64_t integer;
 	};
 	Kind kind;
-	size_t ownerIndex = OwnerLess;
 
 	auto toString() const -> String;
-	auto free(SymTable& owner) -> void;
+
+	Value();
+	explicit Value(StringView other);
+	explicit Value(String&& other);
+	explicit Value(bool other);
+	explicit Value(int64_t other);
+	Value(const Value& other);
+	Value(Value&& other);
+	~Value();
+
+	auto operator=(const Value& other) -> void;
+	auto operator=(Value&& other) -> void;
+
+private:
+	auto copy(const Value& other) -> void;
+	auto move(Value&& other) -> void;
+	auto free() -> void;
 };
 
 auto fprintType(FILE* desc, const Value& value) -> void;
@@ -59,12 +73,5 @@ private:
 	auto createValue(bool value) -> Value;
 	auto createValue(int64_t value) -> Value;
 
-	auto createString(StringView string) -> size_t;
-	auto createString(String&& string) -> size_t;
-	auto freeString(const Value* variable) -> void;
-
-
-	Array<String> strings;
-	Array<size_t> freeStrings;
 	Scopes scopes;
 };
