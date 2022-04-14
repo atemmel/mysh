@@ -457,6 +457,7 @@ auto AstParser::parseIdentifier() -> Child {
 	if(token == nullptr) {
 		return nullptr;
 	}
+
 	return OwnPtr<IdentifierNode>::create(token);
 }
 
@@ -465,6 +466,7 @@ auto AstParser::parseBareword() -> Child {
 	if(token == nullptr) {
 		return nullptr;
 	}
+
 	return OwnPtr<BarewordNode>::create(token);
 }
 

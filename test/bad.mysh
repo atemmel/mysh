@@ -1,13 +1,9 @@
 #!../build/mysh
 
-fn add5 x {
-	return $x + 5
+fn add x y {
+	return $x + $y
 }
 
-fn add6 x {
-	return $x + 6
-}
+var result4 = (ls) | wc -w | add 10
 
-var result4 = 5 | add5 | add6
-
-print $result4
+print result4 is $result4

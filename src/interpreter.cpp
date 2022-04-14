@@ -89,8 +89,11 @@ auto Interpreter::visit(IntegerLiteralNode& node) -> void {
 auto Interpreter::visit(DeclarationNode& node) -> void {
 	auto identifier = node.token->value;
 	for(auto& child : node.children) {
+		piping = true;
 		child->accept(*this);
+		piping = false;
 	}
+
 	assert(collectedValues.size() == 1);
 	//TODO: check for redeclaration
 	assert(symTable.getVariable(identifier) == nullptr);
@@ -825,9 +828,15 @@ auto Interpreter::interpolateBraces(const Value& original) -> Value {
 }
 
 auto Interpreter::pipe(Child& current, Child& next) -> Optional<Value> {
-	piping = true;
+	bool unPipe = false;
+	if(!piping) {
+		piping = true;
+		unPipe = true;
+	}
 	current->accept(*this);
-	piping = false;
+	if(unPipe) {
+		piping = false;
+	}
 	assert(collectedValues.size() > 0);
 	next->accept(*this);
 	if(!collectedValues.empty()) {
@@ -895,7 +904,6 @@ auto Interpreter::executeFunction(StringView identifier,
 			.captureStdout = piping,
 		});
 	}
-
 
 	if(!spawnResult.out.empty()) {
 		spawnResult.out.cropRightWhitespace();
