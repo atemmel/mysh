@@ -29,11 +29,11 @@
   * ~~code block~~
   * ~~branch~~
   * binary operators ~~add~~ ~~subtract~~ ~~multiply~~ ~~divide~~ `+=` `-=` `*=` `/=`
-  * logical operators ~~>~~ ~~<~~ ~~!~~ `==` `!=` `<=` `>=`
+  * ~~logical operators `>` `<` `!` `==` `!=` `<=` `>=`~~
   * type conversions `newtype($variable)`
-  * operator precedence
+  * ~~operator precedence~~
   * ~~proper error messages~~
-  * function call as expression
+  * ~~function call as expression~~
   
 
 * interpreter
@@ -43,15 +43,15 @@
   * ~~function call (builtin)~~
   * ~~variable assignment~~
   * binary operators ~~add~~ ~~subtract~~ ~~multiply~~ ~~divide~~ `+=` `-=` `*=` `/=`
-  * logical operators ~~>~~ ~~<~~ ~~!~~ `==` `!=` `<=` `>=`
+  * ~~logical operators `>` `<` `!` `==` `!=` `<=` `>=`~~
   * type conversions `newtype($variable)`
-  * operator precedence
+  * ~~operator precedence~~
   * type system
     * ~~string~~
     * ~~bool~~
     * ~~int~~
     * float
-    * list/array
+    * list/array ~~literal~~ ~~append~~
     * table/dict
     * null/nil/none-esque(?)
   * ~~code block~~
