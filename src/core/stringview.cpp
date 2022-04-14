@@ -5,8 +5,7 @@
 #include "core/print.hpp"
 
 StringView::StringView(const String& src) 
-	: StringView(src.begin(), src.end()) {
-
+	: StringView(src.begin(), src.size()) {
 }
 
 auto operator==(const String& lhs, const StringView& rhs) -> bool {

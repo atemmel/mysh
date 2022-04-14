@@ -271,6 +271,20 @@ auto AstParser::parseFunctionCall() -> Child {
 		child = parseExpr();
 	}
 
+	// pipe chain check
+	token = getIf(Token::Kind::Or);
+	if(token != nullptr) {
+		auto rhs = parseFunctionCall();
+		if(rhs == nullptr) {
+			return expected(ExpectableThings::Callable);
+		}
+
+		auto pipe = OwnPtr<BinaryOperatorNode>::create(token);
+		pipe->addChild(node);
+		pipe->addChild(rhs);
+		return pipe;
+	}
+
 	return node;
 }
 

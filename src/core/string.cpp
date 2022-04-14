@@ -10,8 +10,16 @@ String::String(const char* other) : String(other, ::size(other)) {
 
 }
 
-String::String(const char* other, size_t amount) : buffer(other, amount + 1) {
-
+String::String(const char* other, size_t amount) : String() {
+	if(amount > 0) {
+		if(other[amount - 1] == '\0') {
+			buffer = Buffer<char>(other, amount);
+		} else {
+			buffer = Buffer<char>(amount + 1);
+			mem::copy(other, other + amount, buffer.begin());
+			*(end()) = '\0';
+		}
+	}
 }
 
 String::String(size_t amount, char toFill) : buffer(amount) {
@@ -20,7 +28,6 @@ String::String(size_t amount, char toFill) : buffer(amount) {
 }
 
 String::String(StringView other) : String(other.data(), other.size()) {
-	*end() = '\0';
 }
 
 String::String(StringBuilder&& other) : buffer(other.buffer) {
@@ -46,7 +53,6 @@ auto String::find(char delimeter) const -> size_t {
 	return -1;
 }
 
-
 auto String::operator[](size_t index) -> char& {
 	return buffer[index];
 }
@@ -54,7 +60,6 @@ auto String::operator[](size_t index) -> char& {
 auto String::operator[](size_t index) const -> const char& {
 	return buffer[index];
 }
-
 
 auto String::data() -> char* {
 	return buffer.data();
@@ -98,5 +103,8 @@ auto operator==(const String& lhs, const String& rhs) -> bool {
 }
 
 auto fprintType(FILE* desc, const String& value) -> void {
-	fprintf(desc, "%s", value.data());
+	if(value.data() != nullptr) {
+		printf("'%s'\n", value.data());
+		fprintf(desc, "%s", value.data());
+	}
 }

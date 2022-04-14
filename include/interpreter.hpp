@@ -52,10 +52,10 @@ private:
 	auto interpolateBraces(const Value& original) -> Value;
 
 	// other operators
-	auto pipe(const Value& lhs, Child& next) -> Value;
+	auto pipe(Child& current, Child& next) -> Optional<Value>;
 
 	auto executeFunction(StringView identifier,
-		const Array<Value>& args) -> Optional<Value>;
+		const Array<Value>& args, Optional<const Value*> inArg) -> Optional<Value>;
 	auto executeUserDefinedFunction(FnDeclarationNode* func,
 		const Array<Value>& args) -> Optional<Value>;
 
@@ -65,4 +65,5 @@ private:
 	Optional<Value> toReturn;
 	const VariableNode* lastVisitedVariable;
 	SymTable symTable;
+	bool piping = false;
 };

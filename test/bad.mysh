@@ -1,8 +1,13 @@
 #!../build/mysh
 
-fn g {
-	return 5
+fn add5 x {
+	return $x + 5
 }
 
-#TODO: this manages to parse (for some reason)
-var r = (g) | 5
+fn add6 x {
+	return $x + 6
+}
+
+var result4 = 5 | add5 | add6
+
+print $result4

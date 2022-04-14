@@ -9,9 +9,20 @@
 using Builtin = Optional<Value>(*)(const Array<Value>&);
 
 static auto builtinPrint(const Array<Value>& args) -> Optional<Value> {
-	for(const auto& arg : args) {
-		fprint(stdout, arg);
+	for(size_t i = 0; i < args.size(); ++i) {
+		fprint(stdout, args[i]);
 		fprint(stdout, " ");
+	}
+
+	// trailing newline check
+	if(!args.empty()) {
+		const auto& last = args[args.size() - 1];
+		if(last.kind == Value::Kind::String) {
+			const auto& str = last.string;
+			if(!str.empty() && str[str.size() - 1] == '\n') {
+				return {};
+			}
+		}
 	}
 	fprint(stdout, "\n");
 	return {};
@@ -218,18 +229,18 @@ auto Interpreter::visit(BinaryOperatorNode& node) -> void {
 	assert(node.children.size() == 2);
 
 
-	// collect args
-	node.children[0]->accept(*this);
-	auto lhs = collectedValues[0];
-	collectedValues.clear();
 
 	// pipe
 	if(node.token->kind == Token::Kind::Or) {
-		pipe(lhs, node.children[1]);
-		lhs.free(symTable);
+		pipe(node.children[0], node.children[1]);
 		return;
 	}
 
+	// collect args
+	node.children[0]->accept(*this);
+	assert(collectedValues.size() == 1);
+	auto lhs = collectedValues[0];
+	collectedValues.clear();
 	node.children[1]->accept(*this);
 	auto rhs = collectedValues[0];
 	collectedValues.clear();
@@ -314,6 +325,16 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 	// get function name
 	const auto func = node.token->value;
 
+	// recieved stdin check
+	Value stdinVal;
+	Optional<const Value*> stdinArg = {};
+
+	if(!collectedValues.empty()) {
+		stdinVal = collectedValues[0];
+		stdinArg = &stdinVal;
+		collectedValues.clear();
+	}
+
 	// collect args
 	for(auto& child : node.children) {
 		child->accept(*this);
@@ -322,7 +343,10 @@ auto Interpreter::visit(FunctionCallNode& node) -> void {
 	auto args = move(collectedValues);
 
 	// execute
-	auto result = executeFunction(func, args);
+	auto result = executeFunction(func, args, stdinArg);
+	if(stdinArg.hasValue()) {
+		stdinVal.free(symTable);
+	}
 	for(auto& arg : args) {
 		arg.free(symTable);
 	}
@@ -800,19 +824,30 @@ auto Interpreter::interpolateBraces(const Value& original) -> Value {
 	return symTable.create(move(builder));
 }
 
-auto Interpreter::pipe(const Value& lhs, Child& next) -> Value {
-	collectedValues.append(lhs);
+auto Interpreter::pipe(Child& current, Child& next) -> Optional<Value> {
+	piping = true;
+	current->accept(*this);
+	piping = false;
+	assert(collectedValues.size() > 0);
 	next->accept(*this);
-	assert(!collectedValues.empty());
-	return collectedValues[0];
+	if(!collectedValues.empty()) {
+		return collectedValues[0];
+	}
+	return {};
 }
 
 auto Interpreter::executeFunction(StringView identifier,
-	const Array<Value>& args) -> Optional<Value> {
+	const Array<Value>& args, Optional<const Value*> inArg) -> Optional<Value> {
 
 	// try to find builtin
 	auto builtin = builtins.get(identifier);
 	if(builtin != nullptr) {
+		if(inArg.hasValue()) {
+			auto newArgs = Array<Value>(args.size() + 1);
+			newArgs[0] = *inArg.value();
+			mem::copy(args.begin(), args.end(), newArgs.begin() + 1);
+			return (*builtin)(newArgs);
+		}
 		return (*builtin)(args);
 	}
 
@@ -820,6 +855,12 @@ auto Interpreter::executeFunction(StringView identifier,
 	// try to find fitting function
 	auto function = root->functions.get(identifier);
 	if(function != nullptr) {
+		if(inArg.hasValue()) {
+			auto newArgs = Array<Value>(args.size() + 1);
+			newArgs[0] = *inArg.value();
+			mem::copy(args.begin(), args.end(), newArgs.begin() + 1);
+			return executeUserDefinedFunction(function->get(), newArgs);
+		}
 		return executeUserDefinedFunction(function->get(), args);
 	}
 
@@ -830,7 +871,35 @@ auto Interpreter::executeFunction(StringView identifier,
 	for(auto& arg : args) {
 		strings.append(arg.toString());
 	}
-	spawn(strings);
+
+	SpawnResult spawnResult;
+
+	if(inArg.hasValue()) {
+		String str;
+		StringView view;
+		if(inArg.value()->kind == Value::Kind::String) {
+			view = inArg.value()->string;
+		} else {
+			str = inArg.value()->toString();
+			view = str;
+		}
+		spawnResult = spawn(SpawnOptions{
+			.args = strings,
+			.stdinView = view,
+			.captureStdout = piping,
+		});
+	} else {
+		spawnResult = spawn(SpawnOptions{
+			.args = strings,
+			.stdinView = {},
+			.captureStdout = piping,
+		});
+	}
+
+	if(!spawnResult.out.empty()) {
+		return symTable.create(spawnResult.out);
+	}
+
 	return {};
 }
 

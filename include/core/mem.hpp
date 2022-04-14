@@ -15,9 +15,8 @@ constexpr auto fill(Container& container, const Value& value) -> void {
 
 template<typename SrcIterator, typename DestIterator>
 constexpr auto copy(SrcIterator begin, SrcIterator end, DestIterator dest) -> void {
-	for(; begin != end; ++begin) {
+	for(; begin != end; ++begin, ++dest) {
 		*dest = *begin;
-		dest++;
 	}
 }
 

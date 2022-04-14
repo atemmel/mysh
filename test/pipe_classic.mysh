@@ -1,0 +1,2 @@
+#!../build/mysh
+(ls) | wc -w

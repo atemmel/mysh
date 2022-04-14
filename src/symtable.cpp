@@ -22,7 +22,19 @@ auto Value::toString() const -> String {
 }
 
 auto fprintType(FILE* desc, const Value& value) -> void {
-	fprintType(desc, value.toString());
+	switch(value.kind) {
+		case Value::Kind::String:
+			fprintType(desc, value.string);
+			break;
+		case Value::Kind::Bool:
+			fprintType(desc, value.boolean);
+			break;
+		case Value::Kind::Integer:
+			fprintType(desc, value.integer);
+			break;
+		default:
+			assert(false);
+	}
 }
 
 auto Value::free(SymTable& owner) -> void {
@@ -89,6 +101,7 @@ auto SymTable::createValue(const Value& value) -> Value {
 }
 
 auto SymTable::createValue(StringView value) -> Value {
+	assert(value.size() < 1024);
 	auto index = createString(value);
 	return Value{
 		.string = strings[index],

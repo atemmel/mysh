@@ -2,8 +2,6 @@
 
 #include <ctype.h>
 
-#include "core/print.hpp"
-
 auto Tokenizer::tokenize(StringView source) -> Array<Token> {
 	Array<Token> tokens;
 	this->tokens = &tokens;
