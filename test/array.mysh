@@ -4,7 +4,7 @@ var numbers = [1 2 3 4]
 
 print numbers is $numbers
 
-$numbers = (append $numbers 5)
+$numbers = append $numbers 5
 
 print numbers is $numbers
 
