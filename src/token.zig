@@ -187,7 +187,7 @@ pub const Token = struct {
     row: usize,
 };
 
-fn isOperator(slice: []const u8) bool {
+pub fn isOperator(slice: []const u8) bool {
     var i: usize = Token.operator_begin;
     while (i < Token.operator_end) : (i += 1) {
         const op = Token.strings[i];
