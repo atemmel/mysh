@@ -1,35 +1,36 @@
-const std = @import("std.zig");
+const std = @import("std");
 const Token = @import("token.zig").Token;
 
 const Kind = enum {
-    Identifier,
-    Bareword,
-    StringLiteral,
-    BoolLiteral,
-    IntegerLiteral,
-    ArrayLiteral,
-    VarDeclaration,
-    FnDeclaration,
-    Return,
-    Scope,
-    Branch,
-    Loop,
-    Assignment,
-    BinaryOperator,
-    UnaryOperator,
-    FunctionCall,
+    identifier,
+    bareword,
+    string,
+    boolean,
+    integer,
+    array,
+    varDecl,
+    fnDecl,
+    ret,
+    variable,
+    scope,
+    branch,
+    loop,
+    assignment,
+    binary,
+    unary,
+    call,
 };
 
 const Identifier = struct {
-    value: []const u8,
+    //value: []const u8,
 };
 
 const Bareword = struct {
-    value: []const u8,
+    //value: []const u8,
 };
 
 const StringLiteral = struct {
-    value: []const u8,
+    //value: []const u8,
 };
 
 const BoolLiteral = struct {
@@ -66,17 +67,17 @@ const Scope = struct {
     statements: []const Node,
 };
 
-const BranchNode = struct {
+const Branch = struct {
     condition: *Node,
     statement: *Node,
 };
 
-const LoopNode = struct {
+const Loop = struct {
     const Kind = enum(u1) {
-        Regular,
-        ForIn,
+        regular,
+        for_in,
     };
-    loop: union(LoopNode.Kind) {
+    loop: union(Loop.Kind) {
         // regular loop
         regular: struct {
             init: *Node,
@@ -111,8 +112,23 @@ const FunctionCall = struct {
     args: []const *const Node,
 };
 
-const Root = struct {
-    fn_table: std.StringHashMap(*FnDeclaration),
+pub const Root = struct {
+    pub const FnTable = std.StringHashMap(*FnDeclaration);
+
+    pub fn init(ally: std.mem.Allocator) Root {
+        return .{
+            .fn_table = FnTable.init(ally),
+            .children = &.{},
+        };
+    }
+
+    pub fn deinit(self: *Root) void {
+        //TODO: for key in FnTable free key
+        //TODO: for child in children recursively free
+        self.fn_table.deinit();
+    }
+
+    fn_table: FnTable,
     children: []*Node,
 };
 
@@ -128,13 +144,35 @@ const NodeData = union(Kind) {
     ret: Return,
     variable: Variable,
     scope: Scope,
+    branch: Branch,
+    loop: Loop,
     assignment: Assignment,
     binary: BinaryOperator,
     unary: UnaryOperator,
     call: FunctionCall,
 };
 
-const Node = struct {
+pub const Node = struct {
     data: NodeData,
     token: *Token,
+};
+
+pub const Parser = struct {
+    pub fn init(ally: std.mem.Allocator) Parser {
+        return .{
+            .ally = ally,
+            .tokens = undefined,
+        };
+    }
+
+    //TODO: either optional or error union, not just root
+    pub fn parse(self: *Parser, tokens: []const Token) ?Root {
+        self.tokens = tokens;
+
+        //TODO: actual parsing
+        return Root.init(self.ally);
+    }
+
+    ally: std.mem.Allocator,
+    tokens: []const Token,
 };

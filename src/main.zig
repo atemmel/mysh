@@ -2,7 +2,9 @@ const std = @import("std");
 const globals = @import("globals.zig");
 const Tokenizer = @import("tokenizer.zig").Tokenizer;
 const ArgParser = @import("argparser.zig").ArgParser;
+const ast = @import("ast.zig");
 
+const stderr = std.io.getStdErr().writer();
 var ally: std.mem.Allocator = undefined;
 
 pub fn doEverything(path: []const u8) !void {
@@ -12,6 +14,15 @@ pub fn doEverything(path: []const u8) !void {
     var tokenizer = Tokenizer.init(ally);
     var tokens = try tokenizer.tokenize(source);
     defer ally.free(tokens);
+
+    var parser = ast.Parser.init(ally);
+    var root = parser.parse(tokens);
+
+    if (root == null) {
+        try stderr.print("Parse failed, no root!\n", .{});
+    }
+
+    defer root.?.deinit();
 }
 
 pub fn main() anyerror!u8 {
@@ -22,8 +33,10 @@ pub fn main() anyerror!u8 {
     defer globals.deinit();
 
     // path dump
-    for (globals.paths.items) |path| {
-        std.debug.print("{s}\n", .{path});
+    if (false) {
+        for (globals.paths.items) |path| {
+            std.debug.print("{s}\n", .{path});
+        }
     }
 
     const alloced_args = try std.process.argsAlloc(ally);
@@ -43,7 +56,6 @@ pub fn main() anyerror!u8 {
         return 0;
     }
 
-    const stderr = std.io.getStdErr().writer();
     try stderr.print("No file specified, exiting...\n", .{});
     return 1;
 }
