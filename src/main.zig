@@ -16,7 +16,7 @@ pub fn doEverything(path: []const u8) !void {
     defer ally.free(tokens);
 
     var parser = ast.Parser.init(ally);
-    var root = parser.parse(tokens);
+    var root = try parser.parse(tokens);
 
     if (root == null) {
         try stderr.print("Parse failed, no root!\n", .{});

@@ -1,115 +1,156 @@
 const std = @import("std");
 const Token = @import("token.zig").Token;
 
-const Kind = enum {
-    identifier,
-    bareword,
-    string,
-    boolean,
-    integer,
-    array,
-    varDecl,
-    fnDecl,
-    ret,
-    variable,
-    scope,
-    branch,
-    loop,
-    assignment,
-    binary,
-    unary,
-    call,
-};
+const assert = std.debug.assert;
 
 const Identifier = struct {
-    //value: []const u8,
+    token: *Token,
 };
 
 const Bareword = struct {
-    //value: []const u8,
+    token: *Token,
 };
 
 const StringLiteral = struct {
-    //value: []const u8,
+    token: *Token,
 };
 
 const BoolLiteral = struct {
+    token: *Token,
     value: bool,
 };
 
 const IntegerLiteral = struct {
+    token: *Token,
     value: i64,
 };
 
 const ArrayLiteral = struct {
-    value: []const Node,
+    token: *Token,
+    value: []const Expr,
 };
 
 const VarDeclaration = struct {
-    declare: []const u8,
-    expr: *?Node,
+    token: *Token,
+    expr: ?Expr,
 };
 
 const FnDeclaration = struct {
-    statements: []const Node,
-    args: []const Token,
+    token: *Token,
+    scope: Scope,
+    args: []const *Token,
 };
 
 const Return = struct {
-    expr: *?Node,
+    token: *Token,
+    expr: *?Expr,
 };
 
 const Variable = struct {
+    token: *Token,
     name: []const u8,
 };
 
 const Scope = struct {
-    statements: []const Node,
+    token: *Token,
+    statements: []const Statement,
 };
 
 const Branch = struct {
-    condition: *Node,
-    statement: *Node,
+    token: *Token,
+    condition: Expr,
+    statements: []Statement,
 };
 
 const Loop = struct {
-    const Kind = enum(u1) {
+    const Kind = enum {
         regular,
         for_in,
     };
     loop: union(Loop.Kind) {
         // regular loop
         regular: struct {
-            init: *Node,
-            condition: *Node,
-            step: *Node,
+            init: ?*Statement,
+            condition: ?Expr,
+            step: ?*Statement,
         },
         // for in loop
         for_in: struct {
-            iterator: *Node,
-            iterable: *Node,
+            iterator: Token,
+            iterable: Variable,
         },
     },
-    statement: *Node,
+    token: *Token,
+    scope: Scope,
 };
 
 const Assignment = struct {
-    variable: *Node,
-    expr: *Node,
+    token: *Token,
+    variable: Identifier,
+    expr: ?Expr,
 };
 
 const BinaryOperator = struct {
-    lhs: *Node,
-    rhs: *Node,
+    token: *Token,
+    lhs: *Expr,
+    rhs: *Expr,
 };
 
 const UnaryOperator = struct {
-    expr: *Node,
+    token: *Token,
+    expr: *Expr,
 };
 
 const FunctionCall = struct {
+    token: *Token,
     name: []const u8,
-    args: []const *const Node,
+    args: []const Expr,
+};
+
+const ExprKind = enum {
+    bareword,
+    string_literal,
+    boolean_literal,
+    integer_literal,
+    array_literal,
+    variable,
+    binary_operator,
+    unary_operator,
+    call,
+};
+
+const Expr = union(ExprKind) {
+    bareword: Bareword,
+    string_literal: StringLiteral,
+    boolean_literal: BoolLiteral,
+    integer_literal: IntegerLiteral,
+    array_literal: ArrayLiteral,
+    variable: Variable,
+    binary_operator: BinaryOperator,
+    unary_operator: UnaryOperator,
+    call: FunctionCall,
+};
+
+const StatementKind = enum {
+    var_decl,
+    fn_decl,
+    ret,
+    scope,
+    branch,
+    loop,
+    assignment,
+    binary,
+};
+
+const Statement = union(StatementKind) {
+    var_decl: VarDeclaration,
+    fn_decl: FnDeclaration,
+    ret: Return,
+    scope: Scope,
+    branch: Branch,
+    loop: Loop,
+    assignment: Assignment,
+    binary: BinaryOperator,
 };
 
 pub const Root = struct {
@@ -118,7 +159,7 @@ pub const Root = struct {
     pub fn init(ally: std.mem.Allocator) Root {
         return .{
             .fn_table = FnTable.init(ally),
-            .children = &.{},
+            .statements = &.{},
         };
     }
 
@@ -129,32 +170,7 @@ pub const Root = struct {
     }
 
     fn_table: FnTable,
-    children: []*Node,
-};
-
-const NodeData = union(Kind) {
-    identifier: Identifier,
-    bareword: Bareword,
-    string: StringLiteral,
-    boolean: BoolLiteral,
-    integer: IntegerLiteral,
-    array: ArrayLiteral,
-    varDecl: VarDeclaration,
-    fnDecl: FnDeclaration,
-    ret: Return,
-    variable: Variable,
-    scope: Scope,
-    branch: Branch,
-    loop: Loop,
-    assignment: Assignment,
-    binary: BinaryOperator,
-    unary: UnaryOperator,
-    call: FunctionCall,
-};
-
-pub const Node = struct {
-    data: NodeData,
-    token: *Token,
+    statements: []Statement,
 };
 
 pub const Parser = struct {
@@ -162,17 +178,55 @@ pub const Parser = struct {
         return .{
             .ally = ally,
             .tokens = undefined,
+            .current = undefined,
         };
     }
 
     //TODO: either optional or error union, not just root
-    pub fn parse(self: *Parser, tokens: []const Token) ?Root {
+    pub fn parse(self: *Parser, tokens: []const Token) !?Root {
         self.tokens = tokens;
+        self.current = 0;
+        var root = Root.init(self.ally);
+
+        var statements = std.ArrayList(Statement).init(self.ally);
 
         //TODO: actual parsing
-        return Root.init(self.ally);
+        while (!self.eof()) {
+            if (self.parseStatement()) |stmnt| {
+                try statements.append(stmnt);
+            }
+
+            unreachable;
+        }
+
+        root.statements = statements.toOwnedSlice();
+        return root;
+    }
+
+    fn parseStatement(self: *Parser) ?Statement {
+        _ = self;
+        return null;
+    }
+
+    fn getIf(self: Parser, kind: Token.Kind) ?*const Token {
+        if (!self.eof() and kind == self.get().kind) {
+            const token = self.get();
+            self.current += 1;
+            return token;
+        }
+        return null;
+    }
+
+    fn eof(self: *Parser) bool {
+        return self.current >= self.tokens.len;
+    }
+
+    fn get(self: *Parser) *const Token {
+        assert(!self.eof());
+        return self.tokens[self.current];
     }
 
     ally: std.mem.Allocator,
     tokens: []const Token,
+    current: usize,
 };
