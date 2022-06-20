@@ -175,9 +175,9 @@ pub const Token = struct {
     pub const operator_begin = 11;
     pub const operator_end = 34;
 
-    fn precedence(self: *Token) u32 {
+    pub fn precedence(self: *const Token) u32 {
         const idx: usize = @enumToInt(self.kind);
-        const prec = self.precedences[idx];
+        const prec = precedences[idx];
         return prec;
     }
 

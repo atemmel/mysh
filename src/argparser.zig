@@ -29,7 +29,7 @@ pub const ArgParser = struct {
     }
 
     fn flagIndex(self: *ArgParser, arg: []const u8) ?usize {
-        var i: usize = 1;
+        var i: usize = 0;
         while (i < self.flags.len) : (i += 1) {
             const flag = self.flags[i];
             if (std.mem.eql(u8, flag.flag_name, arg)) {

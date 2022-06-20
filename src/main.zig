@@ -8,21 +8,31 @@ const stderr = std.io.getStdErr().writer();
 var ally: std.mem.Allocator = undefined;
 
 pub fn doEverything(path: []const u8) !void {
-    const source = try std.fs.cwd().readFileAlloc(ally, path, std.math.maxInt(usize));
+    const source = std.fs.cwd().readFileAlloc(ally, path, std.math.maxInt(usize)) catch {
+        std.debug.print("Unable to open file: {s}\n", .{path});
+        return;
+    };
     defer ally.free(source);
 
     var tokenizer = Tokenizer.init(ally);
     var tokens = try tokenizer.tokenize(source);
     defer ally.free(tokens);
+    if (globals.verbose) {
+        //TODO: print tokens
+    }
 
     var parser = ast.Parser.init(ally);
     var root = try parser.parse(tokens);
 
     if (root == null) {
         try stderr.print("Parse failed, no root!\n", .{});
+    } else {
+        defer root.?.deinit();
     }
 
-    defer root.?.deinit();
+    if (parser.encounteredError()) {
+        parser.dumpError();
+    }
 }
 
 pub fn main() anyerror!u8 {
