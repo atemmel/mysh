@@ -36,14 +36,14 @@ const VarDeclaration = struct {
 };
 
 const FnDeclaration = struct {
-    token: *Token,
+    token: *const Token,
     scope: Scope,
-    args: []const *Token,
+    args: []const Token,
 };
 
 const Return = struct {
-    token: *Token,
-    expr: *?Expr,
+    token: *const Token,
+    expr: ?*Expr,
 };
 
 const Variable = struct {
@@ -52,7 +52,7 @@ const Variable = struct {
 };
 
 const Scope = struct {
-    token: *Token,
+    token: *const Token,
     statements: []const Statement,
 };
 
@@ -153,7 +153,7 @@ const Statement = union(StatementKind) {
 };
 
 pub const Root = struct {
-    pub const FnTable = std.StringHashMap(*FnDeclaration);
+    pub const FnTable = std.StringHashMap(FnDeclaration);
 
     pub fn init(ally: std.mem.Allocator) Root {
         return .{
@@ -197,9 +197,17 @@ pub const Parser = struct {
         while (!self.eot()) {
             if (try self.parseStatement()) |stmnt| {
                 try statements.append(stmnt);
+                continue;
+            }
+            if (try self.parseFnDeclaration()) |fn_decl| {
+                const name = fn_decl.token.value;
+                try root.fn_table.put(name, fn_decl);
             }
 
-            unreachable;
+            if (!self.encounteredError()) {
+                self.expected(Expectable.statement);
+            }
+            return null;
         }
 
         root.statements = statements.toOwnedSlice();
@@ -207,7 +215,7 @@ pub const Parser = struct {
     }
 
     pub fn encounteredError(self: *Parser) bool {
-        return self.token_we_got == null or self.token_we_wanted != Token.Kind.NTokens or self.thing_we_wanted != Expectable.n_expectables;
+        return self.token_we_got != null or self.token_we_wanted != Token.Kind.NTokens or self.thing_we_wanted != Expectable.n_expectables;
     }
 
     pub fn dumpError(self: *Parser) void {
@@ -285,7 +293,7 @@ pub const Parser = struct {
         //		return child;
         //	}
 
-        unreachable;
+        return null;
     }
 
     //const CallOrPipeKind = enum {
@@ -358,9 +366,61 @@ pub const Parser = struct {
 
     fn parseDeclaration() void {}
 
-    fn parseFnDeclaration() void {}
+    fn parseFnDeclaration(self: *Parser) !?FnDeclaration {
+        var token = self.getIf(Token.Kind.FnKeyword);
+        if (token == null) {
+            return null;
+        }
 
-    fn parseReturn() void {}
+        token = self.getIf(Token.Kind.Identifier);
+        if (token == null) {
+            self.expectedToken(Token.Kind.Identifier);
+            return null;
+        }
+
+        const args_begin = self.current;
+        var args_end = self.current;
+        while (self.getIf(Token.Kind.Identifier)) |_| {
+            args_end += 1;
+        }
+
+        var args = self.tokens[args_begin..args_end];
+
+        var scope = try self.parseScope(.{
+            .end_with_newline = true,
+            .may_return = true,
+        });
+        if (scope == null) {
+            self.expected(Expectable.scope);
+            return null;
+        }
+
+        return FnDeclaration{
+            .token = token.?,
+            .scope = scope.?,
+            .args = args,
+        };
+    }
+
+    fn parseReturn(self: *Parser) !?Return {
+        const token = self.getIf(Token.Kind.Return);
+        if (token == null) {
+            return null;
+        }
+
+        var expr: ?*Expr = undefined;
+        if (try self.parseExpr()) |parsed_expr| {
+            expr = try self.ally.create(Expr);
+            expr.?.* = parsed_expr;
+        } else {
+            expr = null;
+        }
+
+        return Return{
+            .token = token.?,
+            .expr = expr,
+        };
+    }
 
     fn parseExprMaybeTrailingNewline(self: *Parser, trailingNewline: bool) !?Expr {
         var expr = try self.parsePrimaryExpr();
@@ -534,9 +594,62 @@ pub const Parser = struct {
         _ = self;
     }
 
-    //fn parseScope(bool endsWithNewline = true, bool mayReturn = false)  void {
-    //
-    //}
+    const ParseScopeOptions = struct {
+        end_with_newline: bool = true,
+        may_return: bool = false,
+    };
+
+    fn parseScope(self: *Parser, options: ParseScopeOptions) !?Scope {
+        const lbrace = self.getIf(Token.Kind.LeftBrace);
+        if (lbrace == null) {
+            return null;
+        }
+
+        if (self.getIf(Token.Kind.Newline) == null) {
+            self.expectedToken(Token.Kind.Newline);
+            return null;
+        }
+
+        var statements = std.ArrayList(Statement).init(self.ally);
+        defer statements.deinit();
+
+        while (true) {
+            if (try self.parseStatement()) |statement| {
+                try statements.append(statement);
+                continue;
+            }
+
+            if (options.may_return) {
+                if (try self.parseReturn()) |ret| {
+                    try statements.append(.{
+                        .ret = ret,
+                    });
+                    continue;
+                }
+            }
+
+            if (self.getIf(Token.Kind.RightBrace)) |_| {
+                break;
+            }
+
+            self.expectedToken(Token.Kind.RightBrace);
+            return null;
+        }
+
+        if (options.end_with_newline) {
+            if (!self.eot()) {
+                if (self.getIf(Token.Kind.Newline) == null) {
+                    self.expectedToken(Token.Kind.Newline);
+                    return null;
+                }
+            }
+        }
+
+        return Scope{
+            .token = lbrace.?,
+            .statements = statements.toOwnedSlice(),
+        };
+    }
 
     fn parseAssignment(self: *Parser) void {
         _ = self;
@@ -620,6 +733,7 @@ pub const Parser = struct {
         scope,
         callable,
         iterable,
+        statement,
         n_expectables,
     };
 
