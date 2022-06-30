@@ -553,6 +553,49 @@ pub const Parser = struct {
     }
 
     fn parsePrimaryExpr(self: *Parser) !?Expr {
+
+        //if(auto un = parseUnaryExpression();
+        //un != nullptr) {
+        //return un;
+        //}
+        //if(auto call = parseFunctionCallExpr();
+        //call != nullptr) {
+        //return call;
+        //}
+        //if(auto identifier = parseIdentifier();
+        //identifier != nullptr) {
+        //return identifier;
+        //}
+        //if(auto bareword = parseBareword();
+        //bareword != nullptr) {
+        //return bareword;
+        //}
+        //if(auto variable = parseVariable();
+        //variable != nullptr) {
+        //return variable;
+        //}
+        //if(auto stringLiteral = parseStringLiteral();
+        //stringLiteral != nullptr) {
+        //return stringLiteral;
+        //}
+        //if(auto integerLiteral = parseIntegerLiteral();
+        //integerLiteral != nullptr) {
+        //return integerLiteral;
+        //}
+        //if(auto boolLiteral = parseBoolLiteral();
+        //boolLiteral != nullptr) {
+        //return boolLiteral;
+        //}
+        //if(auto arrayLiteral = parseArrayLiteral();
+        //arrayLiteral != nullptr) {
+        //return arrayLiteral;
+        //}
+        //if(auto call = parseFunctionCall();
+        //call != nullptr) {
+        //return call;
+        //}
+        //return nullptr;
+
         _ = self;
         return null;
     }
