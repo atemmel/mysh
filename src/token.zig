@@ -181,6 +181,24 @@ pub const Token = struct {
         return prec;
     }
 
+    pub fn print(self: *const Token) void {
+        const printImpl = std.debug.print;
+        printImpl("Row: {}, Column: {}, Kind: {s}", .{
+            self.row,
+            self.column,
+            printable_strings[@enumToInt(self.kind)],
+        });
+
+        if (self.value.len > 0) {
+            if (self.kind == .Newline) {
+                printImpl("Value: \\n", .{});
+            } else {
+                printImpl("Value: {s}", .{self.value});
+            }
+        }
+        printImpl("\n", .{});
+    }
+
     kind: Kind,
     value: []const u8,
     column: usize,

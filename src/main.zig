@@ -7,10 +7,10 @@ const ast = @import("ast.zig");
 const stderr = std.io.getStdErr().writer();
 var ally: std.mem.Allocator = undefined;
 
-pub fn doEverything(path: []const u8) !void {
+pub fn doEverything(path: []const u8) !bool {
     const source = std.fs.cwd().readFileAlloc(ally, path, std.math.maxInt(usize)) catch {
         std.debug.print("Unable to open file: {s}\n", .{path});
-        return;
+        return false;
     };
     defer ally.free(source);
 
@@ -18,7 +18,9 @@ pub fn doEverything(path: []const u8) !void {
     var tokens = try tokenizer.tokenize(source);
     defer ally.free(tokens);
     if (globals.verbose) {
-        //TODO: print tokens
+        for (tokens) |*token| {
+            token.print();
+        }
     }
 
     var parser = ast.Parser.init(ally);
@@ -32,7 +34,10 @@ pub fn doEverything(path: []const u8) !void {
 
     if (parser.encounteredError()) {
         parser.dumpError();
+        return false;
     }
+
+    return true;
 }
 
 pub fn main() anyerror!u8 {
@@ -62,10 +67,9 @@ pub fn main() anyerror!u8 {
 
     if (remainder.len > 0) {
         const path = remainder[0];
-        try doEverything(path);
-        return 0;
+        return if (try doEverything(path)) 0 else 1;
     }
 
     try stderr.print("No file specified, exiting...\n", .{});
-    return 1;
+    return 2;
 }
