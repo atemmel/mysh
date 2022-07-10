@@ -3,39 +3,39 @@ const Token = @import("token.zig").Token;
 
 const assert = std.debug.assert;
 
-const Identifier = struct {
-    token: *Token,
+pub const Identifier = struct {
+    token: *const Token,
 };
 
-const Bareword = struct {
-    token: *Token,
+pub const Bareword = struct {
+    token: *const Token,
 };
 
-const StringLiteral = struct {
-    token: *Token,
+pub const StringLiteral = struct {
+    token: *const Token,
 };
 
-const BoolLiteral = struct {
-    token: *Token,
+pub const BoolLiteral = struct {
+    token: *const Token,
     value: bool,
 };
 
-const IntegerLiteral = struct {
-    token: *Token,
+pub const IntegerLiteral = struct {
+    token: *const Token,
     value: i64,
 };
 
-const ArrayLiteral = struct {
-    token: *Token,
+pub const ArrayLiteral = struct {
+    token: *const Token,
     value: []const Expr,
 };
 
-const VarDeclaration = struct {
-    token: *Token,
+pub const VarDeclaration = struct {
+    token: *const Token,
     expr: ?Expr,
 };
 
-const FnDeclaration = struct {
+pub const FnDeclaration = struct {
     token: *const Token,
     scope: Scope,
     args: []const Token,
@@ -45,7 +45,7 @@ const FnDeclaration = struct {
     }
 };
 
-const Return = struct {
+pub const Return = struct {
     token: *const Token,
     expr: ?*Expr,
 
@@ -57,12 +57,12 @@ const Return = struct {
     }
 };
 
-const Variable = struct {
+pub const Variable = struct {
     token: *const Token,
     name: []const u8,
 };
 
-const Scope = struct {
+pub const Scope = struct {
     token: *const Token,
     statements: []const Statement,
 
@@ -74,7 +74,7 @@ const Scope = struct {
     }
 };
 
-const Branch = struct {
+pub const Branch = struct {
     token: *Token,
     condition: Expr,
     statements: []Statement,
@@ -87,7 +87,7 @@ const Branch = struct {
     }
 };
 
-const Loop = struct {
+pub const Loop = struct {
     const Kind = enum {
         regular,
         for_in,
@@ -127,13 +127,13 @@ const Loop = struct {
     }
 };
 
-const Assignment = struct {
+pub const Assignment = struct {
     token: *Token,
     variable: Identifier,
     expr: ?Expr,
 };
 
-const BinaryOperator = struct {
+pub const BinaryOperator = struct {
     token: *const Token,
     lhs: *Expr,
     rhs: *Expr,
@@ -146,7 +146,7 @@ const BinaryOperator = struct {
     }
 };
 
-const UnaryOperator = struct {
+pub const UnaryOperator = struct {
     token: *Token,
     expr: *Expr,
 
@@ -156,11 +156,12 @@ const UnaryOperator = struct {
     }
 };
 
-const FunctionCall = struct {
+pub const FunctionCall = struct {
     token: *const Token,
     args: []const Expr,
 
     fn deinit(self: *const FunctionCall, ally: std.mem.Allocator) void {
+        std.debug.print("Dropping call {s}\n", .{self.token.value});
         for (self.args) |arg| {
             arg.deinit(ally);
         }
@@ -168,7 +169,7 @@ const FunctionCall = struct {
     }
 };
 
-const ExprKind = enum {
+pub const ExprKind = enum {
     bareword,
     string_literal,
     boolean_literal,
@@ -180,7 +181,7 @@ const ExprKind = enum {
     call,
 };
 
-const Expr = union(ExprKind) {
+pub const Expr = union(ExprKind) {
     bareword: Bareword,
     string_literal: StringLiteral,
     boolean_literal: BoolLiteral,
@@ -207,7 +208,7 @@ const Expr = union(ExprKind) {
     }
 };
 
-const StatementKind = enum {
+pub const StatementKind = enum {
     var_decl,
     fn_decl,
     ret,
@@ -218,7 +219,7 @@ const StatementKind = enum {
     expr,
 };
 
-const Statement = union(StatementKind) {
+pub const Statement = union(StatementKind) {
     var_decl: VarDeclaration,
     fn_decl: FnDeclaration,
     ret: Return,
@@ -367,6 +368,13 @@ pub const Parser = struct {
                 };
             }
             self.current = checkpoint;
+            expr.deinit(self.ally);
+        }
+
+        if (try self.parseDeclaration()) |decl| {
+            return Statement{
+                .var_decl = decl,
+            };
         }
 
         // Unaltered original cpp version
@@ -420,17 +428,18 @@ pub const Parser = struct {
 
         self.may_read_pipe = false;
         var children = std.ArrayList(Expr).init(self.ally);
+        defer {
+            for (children.items) |child| {
+                child.deinit(self.ally);
+            }
+            children.deinit();
+        }
 
         while (try self.parseExpr()) |expr| {
             try children.append(expr);
         }
 
         self.may_read_pipe = true;
-
-        var call = FunctionCall{
-            .token = token.?,
-            .args = children.toOwnedSlice(),
-        };
 
         // pipe chain check
         if (self.getIf(Token.Kind.Or)) |pipe| {
@@ -443,13 +452,13 @@ pub const Parser = struct {
 
             var lhs = try self.ally.create(Expr);
             lhs.* = Expr{
-                .call = call,
+                .call = FunctionCall{
+                    .token = token.?,
+                    .args = children.toOwnedSlice(),
+                },
             };
             var rhs = try self.ally.create(Expr);
             rhs.* = rhs_call.?;
-            //rhs.* = Expr{
-            //.call = rhs_call.?,
-            //};
 
             var bin = BinaryOperator{
                 .token = pipe,
@@ -463,13 +472,70 @@ pub const Parser = struct {
         }
 
         return Expr{
-            .call = call,
+            .call = FunctionCall{
+                .token = token.?,
+                .args = children.toOwnedSlice(),
+            },
         };
     }
 
-    fn parseFunctionCallExpr() void {}
+    fn parseFunctionCallExpr(self: *Parser) !?Expr {
+        const checkpoint = self.current;
+        const token = self.getIf(Token.Kind.LeftPar);
+        if (token == null) {
+            return null;
+        }
 
-    fn parseDeclaration() void {}
+        const call = try self.parseFunctionCall();
+        if (call == null) {
+            self.current = checkpoint;
+            return null;
+        }
+
+        if (self.getIf(Token.Kind.RightPar) == null) {
+            self.expectedToken(Token.Kind.RightPar);
+            return null;
+        }
+
+        return call;
+    }
+
+    fn parseDeclaration(self: *Parser) !?VarDeclaration {
+        const token = self.getIf(Token.Kind.VarKeyword);
+        if (token == null) {
+            return null;
+        }
+
+        const identifier = self.getIf(Token.Kind.Identifier);
+        if (identifier == null) {
+            self.expectedToken(Token.Kind.Identifier);
+            return null;
+        }
+
+        const assign = self.getIf(Token.Kind.Assign);
+        if (assign == null) {
+            self.expectedToken(Token.Kind.Assign);
+            return null;
+        }
+
+        const expr = try self.parseExpr();
+        if (expr == null) {
+            self.expected(Expectable.expression);
+            return null;
+        }
+
+        if (!self.eot()) {
+            if (self.getIf(Token.Kind.Newline) == null) {
+                self.expectedToken(Token.Kind.Newline);
+                return null;
+            }
+        }
+
+        return VarDeclaration{
+            .token = token.?,
+            .expr = expr.?,
+        };
+    }
 
     fn parseFnDeclaration(self: *Parser) !?FnDeclaration {
         var token = self.getIf(Token.Kind.FnKeyword);
@@ -668,10 +734,30 @@ pub const Parser = struct {
     }
 
     fn parsePrimaryExpr(self: *Parser) !?Expr {
+        if (try self.parseFunctionCallExpr()) |call| {
+            return call;
+        }
+
+        if (self.parseBareword()) |bareword| {
+            return Expr{
+                .bareword = bareword,
+            };
+        }
+
         if (self.parseVariable()) |variable| {
             return Expr{
                 .variable = variable,
             };
+        }
+
+        if (try self.parseIntegerLiteral()) |int| {
+            return Expr{
+                .integer_literal = int,
+            };
+        }
+
+        if (try self.parseFunctionCall()) |call| {
+            return call;
         }
 
         //if(auto un = parseUnaryExpression();
@@ -733,8 +819,13 @@ pub const Parser = struct {
         _ = self;
     }
 
-    fn parseBareword(self: *Parser) void {
-        _ = self;
+    fn parseBareword(self: *Parser) ?Bareword {
+        if (self.getIf(Token.Kind.Bareword)) |token| {
+            return Bareword{
+                .token = token,
+            };
+        }
+        return null;
     }
 
     fn parseVariable(self: *Parser) ?Variable {
@@ -802,7 +893,11 @@ pub const Parser = struct {
                     try statements.append(.{
                         .ret = ret,
                     });
-                    continue;
+                    if (self.getIf(Token.Kind.Newline)) |_| {
+                        continue;
+                    } else {
+                        self.expectedToken(Token.Kind.Newline);
+                    }
                 }
             }
 
@@ -875,8 +970,15 @@ pub const Parser = struct {
         _ = self;
     }
 
-    fn parseIntegerLiteral(self: *Parser) void {
-        _ = self;
+    fn parseIntegerLiteral(self: *Parser) !?IntegerLiteral {
+        if (self.getIf(Token.Kind.IntegerLiteral)) |token| {
+            const value = try std.fmt.parseInt(i64, token.value, 0);
+            return IntegerLiteral{
+                .token = token,
+                .value = value,
+            };
+        }
+        return null;
     }
 
     fn parseArrayLiteral(self: *Parser) void {

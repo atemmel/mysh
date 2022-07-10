@@ -3,6 +3,7 @@ const globals = @import("globals.zig");
 const Tokenizer = @import("tokenizer.zig").Tokenizer;
 const ArgParser = @import("argparser.zig").ArgParser;
 const ast = @import("ast.zig");
+const astprint = @import("astprint.zig");
 
 const stderr = std.io.getStdErr().writer();
 var ally: std.mem.Allocator = undefined;
@@ -36,6 +37,8 @@ pub fn doEverything(path: []const u8) !bool {
         parser.dumpError();
         return false;
     }
+
+    //astprint.print(&root.?);
 
     return true;
 }
