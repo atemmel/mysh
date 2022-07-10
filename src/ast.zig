@@ -39,27 +39,52 @@ const FnDeclaration = struct {
     token: *const Token,
     scope: Scope,
     args: []const Token,
+
+    fn deinit(self: *const FnDeclaration, ally: std.mem.Allocator) void {
+        self.scope.deinit(ally);
+    }
 };
 
 const Return = struct {
     token: *const Token,
     expr: ?*Expr,
+
+    fn deinit(self: *const Return, ally: std.mem.Allocator) void {
+        if (self.expr) |e| {
+            e.deinit(ally);
+            ally.destroy(e);
+        }
+    }
 };
 
 const Variable = struct {
-    token: *Token,
+    token: *const Token,
     name: []const u8,
 };
 
 const Scope = struct {
     token: *const Token,
     statements: []const Statement,
+
+    fn deinit(self: *const Scope, ally: std.mem.Allocator) void {
+        for (self.statements) |stmnt| {
+            stmnt.deinit(ally);
+        }
+        ally.free(self.statements);
+    }
 };
 
 const Branch = struct {
     token: *Token,
     condition: Expr,
     statements: []Statement,
+
+    fn deinit(self: *const Branch, ally: std.mem.Allocator) void {
+        for (self.statements) |stmnt| {
+            stmnt.deinit(ally);
+        }
+        ally.free(self.statements);
+    }
 };
 
 const Loop = struct {
@@ -82,6 +107,24 @@ const Loop = struct {
     },
     token: *Token,
     scope: Scope,
+
+    fn deinit(self: *const Loop, ally: std.mem.Allocator) void {
+        switch (self.loop) {
+            .regular => |regular| {
+                if (regular.init) |init| {
+                    init.deinit(ally);
+                    ally.destroy(init);
+                }
+                if (regular.step) |step| {
+                    step.deinit(ally);
+                    ally.destroy(step);
+                }
+            },
+            .for_in => {},
+        }
+
+        self.scope.deinit(ally);
+    }
 };
 
 const Assignment = struct {
@@ -94,16 +137,35 @@ const BinaryOperator = struct {
     token: *const Token,
     lhs: *Expr,
     rhs: *Expr,
+
+    fn deinit(self: *const BinaryOperator, ally: std.mem.Allocator) void {
+        self.lhs.deinit(ally);
+        self.rhs.deinit(ally);
+        ally.destroy(self.lhs);
+        ally.destroy(self.rhs);
+    }
 };
 
 const UnaryOperator = struct {
     token: *Token,
     expr: *Expr,
+
+    fn deinit(self: *const UnaryOperator, ally: std.mem.Allocator) void {
+        self.expr.deinit(ally);
+        ally.destroy(self.expr);
+    }
 };
 
 const FunctionCall = struct {
     token: *const Token,
     args: []const Expr,
+
+    fn deinit(self: *const FunctionCall, ally: std.mem.Allocator) void {
+        for (self.args) |arg| {
+            arg.deinit(ally);
+        }
+        ally.free(self.args);
+    }
 };
 
 const ExprKind = enum {
@@ -128,6 +190,21 @@ const Expr = union(ExprKind) {
     binary_operator: BinaryOperator,
     unary_operator: UnaryOperator,
     call: FunctionCall,
+
+    fn deinit(self: *const Expr, ally: std.mem.Allocator) void {
+        switch (self.*) {
+            .bareword, .string_literal, .boolean_literal, .integer_literal, .array_literal, .variable => {},
+            .binary_operator => |bin| {
+                bin.deinit(ally);
+            },
+            .unary_operator => |unary| {
+                unary.deinit(ally);
+            },
+            .call => |call| {
+                call.deinit(ally);
+            },
+        }
+    }
 };
 
 const StatementKind = enum {
@@ -150,6 +227,30 @@ const Statement = union(StatementKind) {
     loop: Loop,
     assignment: Assignment,
     expr: Expr,
+
+    fn deinit(self: *const Statement, ally: std.mem.Allocator) void {
+        switch (self.*) {
+            .var_decl, .assignment => {},
+            .fn_decl => |fn_decl| {
+                fn_decl.deinit(ally);
+            },
+            .ret => |ret| {
+                ret.deinit(ally);
+            },
+            .scope => |scope| {
+                scope.deinit(ally);
+            },
+            .branch => |branch| {
+                branch.deinit(ally);
+            },
+            .loop => |loop| {
+                loop.deinit(ally);
+            },
+            .expr => |expr| {
+                expr.deinit(ally);
+            },
+        }
+    }
 };
 
 pub const Root = struct {
@@ -157,17 +258,26 @@ pub const Root = struct {
 
     pub fn init(ally: std.mem.Allocator) Root {
         return .{
+            .ally = ally,
             .fn_table = FnTable.init(ally),
             .statements = &.{},
         };
     }
 
     pub fn deinit(self: *Root) void {
-        //TODO: for key in FnTable free key
-        //TODO: for child in children recursively free
+        var it = self.fn_table.iterator();
+        while (it.next()) |fn_node| {
+            fn_node.value_ptr.deinit(self.ally);
+        }
         self.fn_table.deinit();
+
+        for (self.statements) |stmnt| {
+            stmnt.deinit(self.ally);
+        }
+        self.ally.free(self.statements);
     }
 
+    ally: std.mem.Allocator,
     fn_table: FnTable,
     statements: []Statement,
 };
@@ -202,10 +312,16 @@ pub const Parser = struct {
             if (try self.parseFnDeclaration()) |fn_decl| {
                 const name = fn_decl.token.value;
                 try root.fn_table.put(name, fn_decl);
+                continue;
             }
 
             if (!self.encounteredError()) {
                 self.expected(Expectable.statement);
+            }
+
+            root.deinit();
+            for (statements.items) |stmnt| {
+                stmnt.deinit(self.ally);
             }
             return null;
         }
@@ -296,17 +412,6 @@ pub const Parser = struct {
         return null;
     }
 
-    //const CallOrPipeKind = enum {
-    //call,
-    //pipe,
-    //};
-
-    //const CallOrPipe = union(FuncOrPipeKind) {
-    //call: FunctionCall,
-    //pipe: BinaryOperator,
-    //};
-
-    //fn parseFunctionCall(self: *Parser) anyerror!?FuncOrPipe {
     fn parseFunctionCall(self: *Parser) anyerror!?Expr {
         var token = self.getIf(Token.Kind.Identifier);
         if (token == null) {
@@ -443,11 +548,21 @@ pub const Parser = struct {
 
         // shunting yard algorithm
         // https://en.wikipedia.org/wiki/Shunting_yard_algorithm
-        var operands = std.ArrayList(Expr).init(self.ally);
-        var operators = std.ArrayList(BinaryOperator).init(self.ally);
+        const Operands = std.ArrayList(Expr);
+        const BinaryOperators = std.ArrayList(BinaryOperator);
+        var operands = Operands.init(self.ally);
+        var operators = BinaryOperators.init(self.ally);
 
-        defer operands.deinit();
-        defer operators.deinit();
+        defer {
+            for (operands.items) |op| {
+                op.deinit(self.ally);
+            }
+            for (operators.items) |op| {
+                op.deinit(self.ally);
+            }
+            operands.deinit();
+            operators.deinit();
+        }
 
         try operands.append(expr.?);
         try operators.append(bin.?);
@@ -459,12 +574,14 @@ pub const Parser = struct {
                 };
             } else {
                 self.expected(Expectable.callable);
+                expr.?.deinit(self.ally);
                 return null;
             }
         } else {
             expr = try self.parsePrimaryExpr();
             if (expr == null) {
                 self.expected(Expectable.expression);
+                expr.?.deinit(self.ally);
                 return null;
             }
         }
@@ -477,6 +594,7 @@ pub const Parser = struct {
             self.current = checkpoint;
             bin = null;
         }
+
         while (bin != null) {
             var top_operator = &operators.items[operators.items.len - 1];
             if (bin.?.token.precedence() >= top_operator.token.precedence()) {
@@ -542,10 +660,7 @@ pub const Parser = struct {
             return null;
         }
 
-        var binary_operator = operators.pop();
-        return Expr{
-            .binary_operator = binary_operator,
-        };
+        return operands.pop();
     }
 
     fn parseExpr(self: *Parser) !?Expr {
@@ -553,6 +668,11 @@ pub const Parser = struct {
     }
 
     fn parsePrimaryExpr(self: *Parser) !?Expr {
+        if (self.parseVariable()) |variable| {
+            return Expr{
+                .variable = variable,
+            };
+        }
 
         //if(auto un = parseUnaryExpression();
         //un != nullptr) {
@@ -617,8 +737,18 @@ pub const Parser = struct {
         _ = self;
     }
 
-    fn parseVariable(self: *Parser) void {
-        _ = self;
+    fn parseVariable(self: *Parser) ?Variable {
+        const token = self.getIf(.Variable);
+        if (token == null) {
+            return null;
+        }
+
+        const variable = token.?;
+
+        return Variable{
+            .token = variable,
+            .name = variable.value,
+        };
     }
 
     fn parseBranch(self: *Parser) void {
@@ -654,7 +784,12 @@ pub const Parser = struct {
         }
 
         var statements = std.ArrayList(Statement).init(self.ally);
-        defer statements.deinit();
+        defer {
+            for (statements.items) |stmnt| {
+                stmnt.deinit(self.ally);
+            }
+            statements.deinit();
+        }
 
         while (true) {
             if (try self.parseStatement()) |statement| {
@@ -703,8 +838,25 @@ pub const Parser = struct {
     }
 
     fn parseBinaryOperator(self: *Parser) ?BinaryOperator {
-        _ = self;
-        return null;
+        if (self.eot()) {
+            return null;
+        }
+
+        switch (self.tokens[self.current].kind) {
+            .Add, .Subtract, .Multiply, .Divide, .Modulo, .Less, .Greater, .Equals, .NotEquals, .GreaterEquals, .LessEquals, .LogicalAnd, .LogicalOr => {},
+            else => {
+                return null;
+            },
+        }
+
+        const token = self.get();
+        self.current += 1;
+
+        return BinaryOperator{
+            .token = token,
+            .lhs = undefined,
+            .rhs = undefined,
+        };
     }
 
     fn parseUnaryExpression(self: *Parser) void {
