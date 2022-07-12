@@ -228,7 +228,7 @@ const Printer = struct {
     fn pad(self: *Printer) void {
         var i: u32 = 0;
         while (i < self.depth) : (i += 1) {
-            printImpl("  ", .{});
+            printImpl("    ", .{});
         }
     }
 };

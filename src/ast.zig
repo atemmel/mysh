@@ -383,7 +383,7 @@ pub const Parser = struct {
         }
     }
 
-    fn parseStatement(self: *Parser) !?Statement {
+    fn parseStatement(self: *Parser) anyerror!?Statement {
         const checkpoint = self.current;
         if (try self.parseFunctionCall()) |expr| {
             if ((!self.eot() and self.getIf(Token.Kind.Newline) != null) or self.eot()) {
@@ -404,6 +404,12 @@ pub const Parser = struct {
         if (try self.parseAssignment()) |assign| {
             return Statement{
                 .assignment = assign,
+            };
+        }
+
+        if (try self.parseScope(.{})) |scope| {
+            return Statement{
+                .scope = scope,
             };
         }
 
