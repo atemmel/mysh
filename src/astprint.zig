@@ -147,8 +147,11 @@ const Printer = struct {
     }
 
     pub fn printUnaryOperator(self: *Printer, node: *const ast.UnaryOperator) void {
-        _ = self;
-        _ = node;
+        self.pad();
+        printImpl("UnaryOperatorNode: {s}\n", .{node.token.value});
+        self.depth += 1;
+        self.printExpr(node.expr);
+        self.depth -= 1;
     }
 
     pub fn printFunctionCall(self: *Printer, node: *const ast.FunctionCall) void {

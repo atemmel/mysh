@@ -157,7 +157,7 @@ pub const BinaryOperator = struct {
 };
 
 pub const UnaryOperator = struct {
-    token: *Token,
+    token: *const Token,
     expr: *Expr,
 
     fn deinit(self: *const UnaryOperator, ally: std.mem.Allocator) void {
@@ -760,7 +760,13 @@ pub const Parser = struct {
         return try self.parseExprMaybeTrailingNewline(false);
     }
 
-    fn parsePrimaryExpr(self: *Parser) !?Expr {
+    fn parsePrimaryExpr(self: *Parser) anyerror!?Expr {
+        if (try self.parseUnaryExpression()) |unary| {
+            return Expr{
+                .unary_operator = unary,
+            };
+        }
+
         if (try self.parseFunctionCallExpr()) |call| {
             return call;
         }
@@ -774,6 +780,12 @@ pub const Parser = struct {
         if (self.parseVariable()) |variable| {
             return Expr{
                 .variable = variable,
+            };
+        }
+
+        if (self.parseStringLiteral()) |string| {
+            return Expr{
+                .string_literal = string,
             };
         }
 
@@ -1011,16 +1023,55 @@ pub const Parser = struct {
         };
     }
 
-    fn parseUnaryExpression(self: *Parser) void {
-        _ = self;
+    fn parseUnaryExpression(self: *Parser) !?UnaryOperator {
+        const checkpoint = self.current;
+        const unary = self.parseUnaryOperator();
+        if (unary == null) {
+            return null;
+        }
+
+        const parsed_expr = try self.parsePrimaryExpr();
+
+        if (parsed_expr == null) {
+            self.current = checkpoint;
+            return null;
+        }
+
+        var expr = try self.ally.create(Expr);
+        expr.* = parsed_expr.?;
+
+        return UnaryOperator{
+            .token = unary.?,
+            .expr = expr,
+        };
     }
 
-    fn parseUnaryOperator(self: *Parser) void {
-        _ = self;
+    fn parseUnaryOperator(self: *Parser) ?*const Token {
+        if (self.eot()) {
+            return null;
+        }
+
+        const token = self.get();
+
+        switch (token.*.kind) {
+            .Subtract, .Bang => {},
+            else => {
+                return null;
+            },
+        }
+
+        self.current += 1;
+        return token;
     }
 
-    fn parseStringLiteral(self: *Parser) void {
-        _ = self;
+    fn parseStringLiteral(self: *Parser) ?StringLiteral {
+        const token = self.getIf(Token.Kind.StringLiteral);
+        if (token == null) {
+            return null;
+        }
+        return StringLiteral{
+            .token = token.?,
+        };
     }
 
     fn parseBoolLiteral(self: *Parser) ?BoolLiteral {
