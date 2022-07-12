@@ -1,2 +1,2 @@
-#!../build/mysh
+#!../zig-out/bin/mysh
 ls | wc -w

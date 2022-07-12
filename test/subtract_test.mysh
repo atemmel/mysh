@@ -1,4 +1,4 @@
-#!../build/mysh
+#!../zig-out/bin/mysh
 
 print This should print "1"
 print 4 - 3

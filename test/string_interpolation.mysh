@@ -1,4 +1,4 @@
-#!../build/mysh
+#!../zig-out/bin/mysh
 
 # shell-like interpolation
 

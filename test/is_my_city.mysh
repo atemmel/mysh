@@ -1,4 +1,4 @@
-#!../build/mysh
+#!../zig-out/bin/mysh
 
 fn isMyCity x {
 	return "{x} is my city!"
