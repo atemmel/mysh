@@ -429,6 +429,12 @@ pub const Parser = struct {
             };
         }
 
+        if (try self.parseExprMaybeTrailingNewline(true)) |expr| {
+            return Statement{
+                .expr = expr,
+            };
+        }
+
         // Unaltered original cpp version
         //      auto checkpoint = current;
         //	if(auto child = parseFunctionCall();
