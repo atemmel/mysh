@@ -28,6 +28,13 @@ pub const IntegerLiteral = struct {
 pub const ArrayLiteral = struct {
     token: *const Token,
     value: []const Expr,
+
+    fn deinit(self: *const ArrayLiteral, ally: std.mem.Allocator) void {
+        for (self.value) |expr| {
+            expr.deinit(ally);
+        }
+        ally.free(self.value);
+    }
 };
 
 pub const VarDeclaration = struct {
@@ -215,7 +222,9 @@ pub const Expr = union(ExprKind) {
             .string_literal => {},
             .boolean_literal => {},
             .integer_literal => {},
-            .array_literal => {},
+            .array_literal => |array| {
+                array.deinit(ally);
+            },
             .variable => {},
             .binary_operator => |bin| {
                 bin.deinit(ally);
@@ -792,6 +801,12 @@ pub const Parser = struct {
             };
         }
 
+        if (try self.parseArrayLiteral()) |array| {
+            return Expr{
+                .array_literal = array,
+            };
+        }
+
         if (try self.parseFunctionCall()) |call| {
             return call;
         }
@@ -1177,8 +1192,27 @@ pub const Parser = struct {
         return null;
     }
 
-    fn parseArrayLiteral(self: *Parser) void {
-        _ = self;
+    fn parseArrayLiteral(self: *Parser) !?ArrayLiteral {
+        const token = self.getIf(Token.Kind.LeftBrack);
+        if (token == null) {
+            return null;
+        }
+
+        var exprs = std.ArrayList(Expr).init(self.ally);
+        defer exprs.deinit();
+        while (try self.parseExpr()) |expr| {
+            try exprs.append(expr);
+        }
+
+        if (self.getIf(Token.Kind.RightBrack) == null) {
+            self.expectedToken(Token.Kind.RightBrack);
+            return null;
+        }
+
+        return ArrayLiteral{
+            .token = token.?,
+            .value = exprs.toOwnedSlice(),
+        };
     }
 
     fn getIf(self: *Parser, kind: Token.Kind) ?*const Token {
