@@ -138,9 +138,24 @@ const Printer = struct {
     }
 
     pub fn printLoop(self: *Printer, node: *const ast.Loop) void {
-        _ = self;
-        _ = node;
-        unreachable;
+        switch (node.*) {
+            .while_loop => |*while_loop| {
+                self.printWhileLoop(while_loop);
+            },
+            .for_in_loop => {
+                unreachable;
+            },
+        }
+    }
+
+    pub fn printWhileLoop(self: *Printer, node: *const ast.Loop.WhileLoop) void {
+        self.pad();
+        printImpl("WhileLoopNode:\n", .{});
+        self.depth += 1;
+        self.printExpr(&node.condition);
+        self.depth += 1;
+        self.printScope(&node.scope);
+        self.depth -= 2;
     }
 
     pub fn printAssignment(self: *Printer, node: *const ast.Assignment) void {

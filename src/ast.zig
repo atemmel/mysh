@@ -98,43 +98,39 @@ pub const Branch = struct {
     }
 };
 
-pub const Loop = struct {
-    const Kind = enum {
-        regular,
-        for_in,
+const LoopKind = enum {
+    while_loop,
+    for_in_loop,
+};
+
+pub const Loop = union(LoopKind) {
+
+    // regular loop
+    pub const WhileLoop = struct {
+        condition: Expr,
+        token: *const Token,
+        scope: Scope,
     };
-    loop: union(Loop.Kind) {
-        // regular loop
-        regular: struct {
-            init: ?*Statement,
-            condition: ?Expr,
-            step: ?*Statement,
-        },
-        // for in loop
-        for_in: struct {
-            iterator: Token,
-            iterable: Variable,
-        },
-    },
-    token: *Token,
-    scope: Scope,
+
+    // for in loop
+    pub const ForInLoop = struct {
+        iterator: Token,
+        iterable: Variable,
+        token: *const Token,
+        scope: Scope,
+    };
+
+    while_loop: WhileLoop,
+    for_in_loop: ForInLoop,
 
     fn deinit(self: *const Loop, ally: std.mem.Allocator) void {
-        switch (self.loop) {
-            .regular => |regular| {
-                if (regular.init) |init| {
-                    init.deinit(ally);
-                    ally.destroy(init);
-                }
-                if (regular.step) |step| {
-                    step.deinit(ally);
-                    ally.destroy(step);
-                }
+        switch (self.*) {
+            .while_loop => |while_loop| {
+                while_loop.condition.deinit(ally);
+                while_loop.scope.deinit(ally);
             },
-            .for_in => {},
+            .for_in_loop => {},
         }
-
-        self.scope.deinit(ally);
     }
 };
 
@@ -424,6 +420,12 @@ pub const Parser = struct {
         if (try self.parseBranch()) |branch| {
             return Statement{
                 .branch = branch,
+            };
+        }
+
+        if (try self.parseLoop()) |loop| {
+            return Statement{
+                .loop = loop,
             };
         }
 
@@ -975,16 +977,47 @@ pub const Parser = struct {
         return null;
     }
 
-    fn parseLoop(self: *Parser) void {
-        _ = self;
+    fn parseLoop(self: *Parser) !?Loop {
+        if (try self.parseWhile()) |while_loop| {
+            return Loop{
+                .while_loop = while_loop,
+            };
+        } else if (try self.parseForInLoop()) |for_in_loop| {
+            return Loop{
+                .for_in_loop = for_in_loop,
+            };
+        }
+        return null;
     }
 
-    fn parseWhile(self: *Parser) void {
-        _ = self;
+    fn parseWhile(self: *Parser) !?Loop.WhileLoop {
+        const token = self.getIf(Token.Kind.While);
+        if (token == null) {
+            return null;
+        }
+
+        var expr = try self.parseExpr();
+        if (expr == null) {
+            self.expected(Expectable.expression);
+            return null;
+        }
+
+        var scope = try self.parseScope(.{});
+        if (scope == null) {
+            self.expected(Expectable.scope);
+            return null;
+        }
+
+        return Loop.WhileLoop{
+            .token = token.?,
+            .condition = expr.?,
+            .scope = scope.?,
+        };
     }
 
-    fn parseForInLoop(self: *Parser) void {
+    fn parseForInLoop(self: *Parser) !?Loop.ForInLoop {
         _ = self;
+        return null;
     }
 
     const ParseScopeOptions = struct {
