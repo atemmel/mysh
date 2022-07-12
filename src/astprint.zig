@@ -119,16 +119,19 @@ const Printer = struct {
     pub fn printBranch(self: *Printer, node: *const ast.Branch) void {
         _ = self;
         _ = node;
+        unreachable;
     }
 
     pub fn printLoop(self: *Printer, node: *const ast.Loop) void {
         _ = self;
         _ = node;
+        unreachable;
     }
 
     pub fn printAssignment(self: *Printer, node: *const ast.Assignment) void {
         _ = self;
         _ = node;
+        unreachable;
     }
 
     pub fn printBinaryOperator(self: *Printer, node: *const ast.BinaryOperator) void {
@@ -219,7 +222,7 @@ const Printer = struct {
     fn pad(self: *Printer) void {
         var i: u32 = 0;
         while (i < self.depth) : (i += 1) {
-            printImpl(" ", .{});
+            printImpl("  ", .{});
         }
     }
 };

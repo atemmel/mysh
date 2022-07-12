@@ -25,26 +25,28 @@ pub fn doEverything(path: []const u8) !bool {
     }
 
     var parser = ast.Parser.init(ally);
-    var root = try parser.parse(tokens);
+    var maybe_root = try parser.parse(tokens);
 
-    if (root == null) {
+    if (maybe_root == null) {
         try stderr.print("Parse failed, no root!\n", .{});
-    } else {
-        defer root.?.deinit();
+        if (parser.encounteredError()) {
+            parser.dumpError();
+            return false;
+        }
     }
 
-    if (parser.encounteredError()) {
-        parser.dumpError();
-        return false;
-    }
+    var root = maybe_root.?;
+    defer root.deinit();
 
-    //astprint.print(&root.?);
+    astprint.print(&root);
 
     return true;
 }
 
 pub fn main() anyerror!u8 {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .stack_trace_frames = 10,
+    }){};
     defer std.debug.assert(!gpa.deinit());
     ally = gpa.allocator();
     try globals.init(ally);

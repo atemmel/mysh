@@ -33,6 +33,12 @@ pub const ArrayLiteral = struct {
 pub const VarDeclaration = struct {
     token: *const Token,
     expr: ?Expr,
+
+    fn deinit(self: *const VarDeclaration, ally: std.mem.Allocator) void {
+        if (self.expr) |e| {
+            e.deinit(ally);
+        }
+    }
 };
 
 pub const FnDeclaration = struct {
@@ -161,7 +167,6 @@ pub const FunctionCall = struct {
     args: []const Expr,
 
     fn deinit(self: *const FunctionCall, ally: std.mem.Allocator) void {
-        std.debug.print("Dropping call {s}\n", .{self.token.value});
         for (self.args) |arg| {
             arg.deinit(ally);
         }
@@ -194,7 +199,12 @@ pub const Expr = union(ExprKind) {
 
     fn deinit(self: *const Expr, ally: std.mem.Allocator) void {
         switch (self.*) {
-            .bareword, .string_literal, .boolean_literal, .integer_literal, .array_literal, .variable => {},
+            .bareword => {},
+            .string_literal => {},
+            .boolean_literal => {},
+            .integer_literal => {},
+            .array_literal => {},
+            .variable => {},
             .binary_operator => |bin| {
                 bin.deinit(ally);
             },
@@ -231,7 +241,12 @@ pub const Statement = union(StatementKind) {
 
     fn deinit(self: *const Statement, ally: std.mem.Allocator) void {
         switch (self.*) {
-            .var_decl, .assignment => {},
+            .var_decl => |var_decl| {
+                var_decl.deinit(ally);
+            },
+            .assignment => {
+                unreachable;
+            },
             .fn_decl => |fn_decl| {
                 fn_decl.deinit(ally);
             },
@@ -493,6 +508,7 @@ pub const Parser = struct {
         }
 
         if (self.getIf(Token.Kind.RightPar) == null) {
+            call.?.deinit(self.ally);
             self.expectedToken(Token.Kind.RightPar);
             return null;
         }
