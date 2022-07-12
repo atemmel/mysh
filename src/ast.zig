@@ -81,15 +81,20 @@ pub const Scope = struct {
 };
 
 pub const Branch = struct {
-    token: *Token,
-    condition: Expr,
-    statements: []Statement,
+    token: *const Token,
+    condition: ?Expr,
+    scope: Scope,
+    next: ?*Branch,
 
     fn deinit(self: *const Branch, ally: std.mem.Allocator) void {
-        for (self.statements) |stmnt| {
-            stmnt.deinit(ally);
+        if (self.condition) |e| {
+            e.deinit(ally);
         }
-        ally.free(self.statements);
+        self.scope.deinit(ally);
+        if (self.next) |next| {
+            next.deinit(ally);
+            ally.destroy(next);
+        }
     }
 };
 
@@ -184,6 +189,7 @@ pub const FunctionCall = struct {
 
 pub const ExprKind = enum {
     bareword,
+    identifier,
     string_literal,
     boolean_literal,
     integer_literal,
@@ -196,6 +202,7 @@ pub const ExprKind = enum {
 
 pub const Expr = union(ExprKind) {
     bareword: Bareword,
+    identifier: Identifier,
     string_literal: StringLiteral,
     boolean_literal: BoolLiteral,
     integer_literal: IntegerLiteral,
@@ -208,6 +215,7 @@ pub const Expr = union(ExprKind) {
     fn deinit(self: *const Expr, ally: std.mem.Allocator) void {
         switch (self.*) {
             .bareword => {},
+            .identifier => {},
             .string_literal => {},
             .boolean_literal => {},
             .integer_literal => {},
@@ -410,6 +418,12 @@ pub const Parser = struct {
         if (try self.parseScope(.{})) |scope| {
             return Statement{
                 .scope = scope,
+            };
+        }
+
+        if (try self.parseBranch()) |branch| {
+            return Statement{
+                .branch = branch,
             };
         }
 
@@ -776,6 +790,12 @@ pub const Parser = struct {
             return call;
         }
 
+        if (self.parseIdentifier()) |identifier| {
+            return Expr{
+                .identifier = identifier,
+            };
+        }
+
         if (self.parseBareword()) |bareword| {
             return Expr{
                 .bareword = bareword,
@@ -852,7 +872,6 @@ pub const Parser = struct {
         //}
         //return nullptr;
 
-        _ = self;
         return null;
     }
 
@@ -867,8 +886,14 @@ pub const Parser = struct {
         _ = self;
     }
 
-    fn parseIdentifier(self: *Parser) void {
-        _ = self;
+    fn parseIdentifier(self: *Parser) ?Identifier {
+        const token = self.getIf(Token.Kind.Identifier);
+        if (token == null) {
+            return null;
+        }
+        return Identifier{
+            .token = token.?,
+        };
     }
 
     fn parseBareword(self: *Parser) ?Bareword {
@@ -894,8 +919,60 @@ pub const Parser = struct {
         };
     }
 
-    fn parseBranch(self: *Parser) void {
-        _ = self;
+    fn parseBranch(self: *Parser) anyerror!?Branch {
+        const branch_begin = self.getIf(Token.Kind.If);
+        if (branch_begin == null) {
+            return null;
+        }
+
+        var expr = try self.parseExpr();
+        if (expr == null) {
+            self.expected(Expectable.expression);
+            return null;
+        }
+
+        var scope = try self.parseScope(.{ .end_with_newline = false });
+        if (scope == null) {
+            self.expected(Expectable.scope);
+            return null;
+        }
+
+        var branch = Branch{
+            .token = branch_begin.?,
+            .condition = expr.?,
+            .scope = scope.?,
+            .next = null,
+        };
+
+        // single if
+        if (self.eot() or self.getIf(Token.Kind.Newline) != null) {
+            return branch;
+        }
+
+        // else could mean:
+        if (self.getIf(Token.Kind.Else)) |next_begin| {
+            if (try self.parseBranch()) |child| {
+                // if else check
+                var next = try self.ally.create(Branch);
+                next.* = child;
+                branch.next = next;
+                return branch;
+            } else if (try self.parseScope(.{})) |child| {
+                // solo else check
+                var next = try self.ally.create(Branch);
+                next.* = .{
+                    .token = next_begin,
+                    .condition = null,
+                    .scope = child,
+                    .next = null,
+                };
+                branch.next = next;
+                return branch;
+            }
+        }
+
+        self.expectedToken(Token.Kind.Else);
+        return null;
     }
 
     fn parseLoop(self: *Parser) void {

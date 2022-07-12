@@ -117,9 +117,24 @@ const Printer = struct {
     }
 
     pub fn printBranch(self: *Printer, node: *const ast.Branch) void {
-        _ = self;
-        _ = node;
-        unreachable;
+        self.pad();
+        printImpl("BranchNode:\n", .{});
+        self.depth += 1;
+        if (node.condition) |*condition| {
+            self.printExpr(condition);
+        } else {
+            self.pad();
+            printImpl("no condition\n", .{});
+        }
+        self.depth += 1;
+        self.printScope(&node.scope);
+        self.depth -= 2;
+
+        if (node.next) |next| {
+            self.pad();
+            printImpl("branch chain\n", .{});
+            self.printBranch(next);
+        }
     }
 
     pub fn printLoop(self: *Printer, node: *const ast.Loop) void {
@@ -168,6 +183,9 @@ const Printer = struct {
         switch (node.*) {
             .bareword => |*bareword| {
                 self.printBareword(bareword);
+            },
+            .identifier => |*identifier| {
+                self.printIdentifier(identifier);
             },
             .string_literal => |*string_literal| {
                 self.printStringLiteral(string_literal);
