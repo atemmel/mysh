@@ -868,9 +868,32 @@ pub const Parser = struct {
     }
 
     fn parseIdentifier(self: *Parser) ?Identifier {
+        const checkpoint = self.current;
         const token = self.getIf(Token.Kind.Identifier);
         if (token == null) {
             return null;
+        }
+
+        if (!self.eot()) {
+            var i = @enumToInt(self.get().kind);
+
+            // if next token is operator
+            if (i >= Token.operator_begin and i < Token.operator_end) {
+                // if we can't look two tokens backwards
+                if (self.current < 2) {
+                    // fail the parse
+                    self.current = checkpoint;
+                    return null;
+                }
+            }
+
+            // look two tokens backwards
+            i = @enumToInt(self.tokens[self.current - 2].kind);
+            if (i >= Token.operator_begin and i < Token.operator_end) {
+                // fail the parse
+                self.current = checkpoint;
+                return null;
+            }
         }
         return Identifier{
             .token = token.?,
