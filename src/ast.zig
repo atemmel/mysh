@@ -134,9 +134,13 @@ pub const Loop = struct {
 };
 
 pub const Assignment = struct {
-    token: *Token,
-    variable: Identifier,
-    expr: ?Expr,
+    token: *const Token,
+    variable: Variable,
+    expr: Expr,
+
+    fn deinit(self: *const Assignment, ally: std.mem.Allocator) void {
+        self.expr.deinit(ally);
+    }
 };
 
 pub const BinaryOperator = struct {
@@ -244,8 +248,8 @@ pub const Statement = union(StatementKind) {
             .var_decl => |var_decl| {
                 var_decl.deinit(ally);
             },
-            .assignment => {
-                unreachable;
+            .assignment => |assignment| {
+                assignment.deinit(ally);
             },
             .fn_decl => |fn_decl| {
                 fn_decl.deinit(ally);
@@ -339,6 +343,7 @@ pub const Parser = struct {
             for (statements.items) |stmnt| {
                 stmnt.deinit(self.ally);
             }
+            statements.deinit();
             return null;
         }
 
@@ -389,6 +394,12 @@ pub const Parser = struct {
         if (try self.parseDeclaration()) |decl| {
             return Statement{
                 .var_decl = decl,
+            };
+        }
+
+        if (try self.parseAssignment()) |assign| {
+            return Statement{
+                .assignment = assign,
             };
         }
 
@@ -772,6 +783,12 @@ pub const Parser = struct {
             };
         }
 
+        if (self.parseBoolLiteral()) |boolean| {
+            return Expr{
+                .boolean_literal = boolean,
+            };
+        }
+
         if (try self.parseFunctionCall()) |call| {
             return call;
         }
@@ -940,8 +957,32 @@ pub const Parser = struct {
         };
     }
 
-    fn parseAssignment(self: *Parser) void {
-        _ = self;
+    fn parseAssignment(self: *Parser) !?Assignment {
+        const checkpoint = self.current;
+        const variable = self.parseVariable();
+        if (variable == null) {
+            return null;
+        }
+
+        const equals = self.getIf(Token.Kind.Assign);
+        if (equals == null) {
+            self.current = checkpoint;
+            return null;
+        }
+
+        const expr = try self.parseExpr();
+        if (expr == null) {
+            self.expected(Expectable.expression);
+            return null;
+        }
+
+        const newline = self.getIf(Token.Kind.Newline);
+        if (newline == null and !self.eot()) {
+            self.expectedToken(Token.Kind.Newline);
+            return null;
+        }
+
+        return Assignment{ .token = equals.?, .variable = variable.?, .expr = expr.? };
     }
 
     fn parseBinaryExpression(self: *Parser) void {
@@ -982,8 +1023,19 @@ pub const Parser = struct {
         _ = self;
     }
 
-    fn parseBoolLiteral(self: *Parser) void {
-        _ = self;
+    fn parseBoolLiteral(self: *Parser) ?BoolLiteral {
+        if (self.getIf(Token.Kind.False)) |false_literal| {
+            return BoolLiteral{
+                .token = false_literal,
+                .value = false,
+            };
+        } else if (self.getIf(Token.Kind.True)) |true_literal| {
+            return BoolLiteral{
+                .token = true_literal,
+                .value = true,
+            };
+        }
+        return null;
     }
 
     fn parseIntegerLiteral(self: *Parser) !?IntegerLiteral {

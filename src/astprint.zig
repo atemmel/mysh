@@ -129,9 +129,12 @@ const Printer = struct {
     }
 
     pub fn printAssignment(self: *Printer, node: *const ast.Assignment) void {
-        _ = self;
-        _ = node;
-        unreachable;
+        self.pad();
+        printImpl("AssignmentNode:\n", .{});
+        self.depth += 1;
+        self.printVariable(&node.variable);
+        self.printExpr(&node.expr);
+        self.depth -= 1;
     }
 
     pub fn printBinaryOperator(self: *Printer, node: *const ast.BinaryOperator) void {
