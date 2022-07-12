@@ -14,10 +14,8 @@ syn keyword Builtins print filter
 
 syn region String start='"' end='"'
 
-"syn match Bareword "[a-zA-Z0-9_+\-]\+"
-
 syn match Identifier "\$[a-zA-Z0-9_]\+"
 
-syn match Number " [0-9]\+\|^[0-9]\+"
+syn match Number "\<[0-9]\+"
 
 syn region Comment start="#" end="$"
