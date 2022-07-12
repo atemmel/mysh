@@ -141,8 +141,8 @@ const Printer = struct {
         self.pad();
         printImpl("BinaryOperatorNode: {s}\n", .{node.token.value});
         self.depth += 1;
-        self.printExpr(node.lhs);
-        self.printExpr(node.rhs);
+        self.printExpr(node.lhs.?);
+        self.printExpr(node.rhs.?);
         self.depth -= 1;
     }
 

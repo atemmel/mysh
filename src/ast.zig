@@ -145,14 +145,18 @@ pub const Assignment = struct {
 
 pub const BinaryOperator = struct {
     token: *const Token,
-    lhs: *Expr,
-    rhs: *Expr,
+    lhs: ?*Expr,
+    rhs: ?*Expr,
 
     fn deinit(self: *const BinaryOperator, ally: std.mem.Allocator) void {
-        self.lhs.deinit(ally);
-        self.rhs.deinit(ally);
-        ally.destroy(self.lhs);
-        ally.destroy(self.rhs);
+        if (self.lhs) |lhs| {
+            lhs.deinit(ally);
+            ally.destroy(lhs);
+        }
+        if (self.rhs) |rhs| {
+            rhs.deinit(ally);
+            ally.destroy(rhs);
+        }
     }
 };
 
@@ -634,6 +638,7 @@ pub const Parser = struct {
 
         var token = bin.?.token;
 
+        // if pipe found where not applicable, drop it
         if (!self.may_read_pipe and token.kind == Token.Kind.Or) {
             self.current = checkpoint;
             return expr;
@@ -661,20 +666,16 @@ pub const Parser = struct {
         try operators.append(bin.?);
 
         if (token.kind == Token.Kind.Or) {
-            if (self.parseCallableExpr()) |call| {
-                expr = Expr{
-                    .call = call,
-                };
+            if (try self.parseCallableExpr()) |call| {
+                expr = call;
             } else {
                 self.expected(Expectable.callable);
-                expr.?.deinit(self.ally);
                 return null;
             }
         } else {
             expr = try self.parsePrimaryExpr();
             if (expr == null) {
                 self.expected(Expectable.expression);
-                expr.?.deinit(self.ally);
                 return null;
             }
         }
@@ -697,8 +698,8 @@ pub const Parser = struct {
 
                 op.rhs = try self.ally.create(Expr);
                 op.lhs = try self.ally.create(Expr);
-                op.rhs.* = rhs;
-                op.lhs.* = lhs;
+                op.rhs.?.* = rhs;
+                op.lhs.?.* = lhs;
 
                 try operands.append(Expr{
                     .binary_operator = op,
@@ -709,10 +710,8 @@ pub const Parser = struct {
             try operators.append(bin.?);
 
             if (token.kind == Token.Kind.Or) {
-                if (self.parseCallableExpr()) |call| {
-                    expr = Expr{
-                        .call = call,
-                    };
+                if (try self.parseCallableExpr()) |call| {
+                    expr = call;
                 } else {
                     self.expected(Expectable.callable);
                     return null;
@@ -741,8 +740,8 @@ pub const Parser = struct {
 
             op.rhs = try self.ally.create(Expr);
             op.lhs = try self.ally.create(Expr);
-            op.rhs.* = rhs;
-            op.lhs.* = lhs;
+            op.rhs.?.* = rhs;
+            op.lhs.?.* = lhs;
             try operands.append(Expr{
                 .binary_operator = op,
             });
@@ -851,8 +850,10 @@ pub const Parser = struct {
         return null;
     }
 
-    fn parseCallableExpr(self: *Parser) ?FunctionCall {
-        _ = self;
+    fn parseCallableExpr(self: *Parser) !?Expr {
+        if (try self.parseFunctionCall()) |call| {
+            return call;
+        }
         return null;
     }
 
@@ -997,17 +998,13 @@ pub const Parser = struct {
         return Assignment{ .token = equals.?, .variable = variable.?, .expr = expr.? };
     }
 
-    fn parseBinaryExpression(self: *Parser) void {
-        _ = self;
-    }
-
     fn parseBinaryOperator(self: *Parser) ?BinaryOperator {
         if (self.eot()) {
             return null;
         }
 
         switch (self.tokens[self.current].kind) {
-            .Add, .Subtract, .Multiply, .Divide, .Modulo, .Less, .Greater, .Equals, .NotEquals, .GreaterEquals, .LessEquals, .LogicalAnd, .LogicalOr => {},
+            .Add, .Subtract, .Multiply, .Divide, .Modulo, .Less, .Greater, .Equals, .NotEquals, .GreaterEquals, .LessEquals, .LogicalAnd, .LogicalOr, .Or => {},
             else => {
                 return null;
             },
@@ -1018,8 +1015,8 @@ pub const Parser = struct {
 
         return BinaryOperator{
             .token = token,
-            .lhs = undefined,
-            .rhs = undefined,
+            .lhs = null,
+            .rhs = null,
         };
     }
 
