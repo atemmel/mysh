@@ -323,7 +323,6 @@ pub const Parser = struct {
         };
     }
 
-    //TODO: either optional or error union, not just root
     pub fn parse(self: *Parser, tokens: []const Token) !?Root {
         self.tokens = tokens;
         self.current = 0;
@@ -331,7 +330,6 @@ pub const Parser = struct {
 
         var statements = std.ArrayList(Statement).init(self.ally);
 
-        //TODO: actual parsing
         while (!self.eot()) {
             if (try self.parseStatement()) |stmnt| {
                 try statements.append(stmnt);
@@ -434,46 +432,6 @@ pub const Parser = struct {
                 .expr = expr,
             };
         }
-
-        // Unaltered original cpp version
-        //      auto checkpoint = current;
-        //	if(auto child = parseFunctionCall();
-        //		child != nullptr) {
-        //		if((!eot() && getIf(Token::Kind::Newline) != nullptr) || eot()) {
-        //			return child;
-        //		}
-        //		current = checkpoint;
-        //	}
-        //
-        //	if(auto child = parseDeclaration();
-        //		child != nullptr) {
-        //		return child;
-        //	}
-        //
-        //	if(auto child = parseAssignment();
-        //		child != nullptr) {
-        //		return child;
-        //	}
-        //
-        //	if(auto child = parseScope();
-        //		child != nullptr) {
-        //		return child;
-        //	}
-
-        //	if(auto child = parseBranch();
-        //		child != nullptr) {
-        //		return child;
-        //	}
-
-        //	if(auto child = parseLoop();
-        //		child != nullptr) {
-        //		return child;
-        //	}
-
-        //	if(auto child = parseExpr(true);
-        //		child != nullptr) {
-        //		return child;
-        //	}
 
         return null;
     }
