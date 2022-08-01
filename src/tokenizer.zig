@@ -305,7 +305,7 @@ pub const Tokenizer = struct {
 
         try self.tokens.append(.{
             .kind = .StringLiteral,
-            .value = self.source[old_current..self.current],
+            .value = self.source[old_current + 1 .. self.current],
             .column = old_column,
             .row = old_row,
         });

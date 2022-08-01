@@ -4,6 +4,7 @@ const Tokenizer = @import("tokenizer.zig").Tokenizer;
 const ArgParser = @import("argparser.zig").ArgParser;
 const ast = @import("ast.zig");
 const astprint = @import("astprint.zig");
+const Interpreter = @import("interpreter.zig").Interpreter;
 
 const stderr = std.io.getStdErr().writer();
 var ally: std.mem.Allocator = undefined;
@@ -38,8 +39,17 @@ pub fn doEverything(path: []const u8) !bool {
     var root = maybe_root.?;
     defer root.deinit();
 
-    astprint.print(&root);
+    if (globals.verbose) {
+        astprint.print(&root);
+    }
 
+    var interpreter = try Interpreter.init(ally);
+    defer interpreter.deinit();
+
+    if (!try interpreter.interpret(&root)) {
+        interpreter.reportError();
+        return false;
+    }
     return true;
 }
 
