@@ -94,10 +94,14 @@ pub const Interpreter = struct {
                 try self.handleStringLiteral(string);
             },
             .boolean_literal => unreachable,
-            .integer_literal => unreachable,
+            .integer_literal => |*integer| {
+                try self.handleIntegerLiteral(integer);
+            },
             .array_literal => unreachable,
             .variable => unreachable,
-            .binary_operator => unreachable,
+            .binary_operator => |*binary| {
+                try self.handleBinaryOperator(binary);
+            },
             .unary_operator => unreachable,
             .call => |*call| {
                 try self.handleCall(call);
@@ -115,6 +119,35 @@ pub const Interpreter = struct {
         try self.collected_values.append(.{
             .string = try self.ally.dupe(u8, string.token.value),
         });
+    }
+
+    fn handleIntegerLiteral(self: *Interpreter, integer: *const ast.IntegerLiteral) !void {
+        try self.collected_values.append(.{
+            .integer = integer.value,
+        });
+    }
+
+    fn handleBinaryOperator(self: *Interpreter, binary: *const ast.BinaryOperator) !void {
+        assert(binary.lhs != null);
+        assert(binary.rhs != null);
+        const expr_lhs = binary.lhs.?;
+        const expr_rhs = binary.rhs.?;
+
+        try self.handleExpr(expr_lhs);
+        const lhs = self.collected_values.pop();
+        try self.handleExpr(expr_rhs);
+        const rhs = self.collected_values.pop();
+        defer {
+            lhs.deinit(self.ally);
+            rhs.deinit(self.ally);
+        }
+
+        const result = switch (binary.token.kind) {
+            .Add => self.addValues(&lhs, &rhs),
+            else => unreachable,
+        };
+
+        try self.collected_values.append(result);
     }
 
     fn handleCall(self: *Interpreter, call: *const ast.FunctionCall) !void {
@@ -158,6 +191,16 @@ pub const Interpreter = struct {
         }
 
         return null;
+    }
+
+    fn addValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        assert(@as(Value.Kind, lhs.*) == .integer);
+        assert(@as(Value.Kind, rhs.*) == .integer);
+
+        return .{
+            .integer = lhs.integer + rhs.integer,
+        };
     }
 };
 
