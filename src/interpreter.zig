@@ -119,7 +119,7 @@ pub const Interpreter = struct {
             .array_literal => unreachable,
             .variable => |*variable| try self.handleVariable(variable),
             .binary_operator => |*binary| try self.handleBinaryOperator(binary),
-            .unary_operator => unreachable,
+            .unary_operator => |*unary| try self.handleUnaryOperator(unary),
             .call => |*call| try self.handleCall(call),
         };
     }
@@ -145,7 +145,7 @@ pub const Interpreter = struct {
     fn handleVariable(self: *Interpreter, variable: *const ast.Variable) !Value {
         const name = variable.name;
         const maybe_value = self.sym_table.get(name);
-        //TODO: this is looking up a variable that does not exist
+        //TODO: this is looking up a variable that does not exist, should be an error message
         assert(maybe_value != null);
         return maybe_value.?;
     }
@@ -165,6 +165,16 @@ pub const Interpreter = struct {
 
         return switch (binary.token.kind) {
             .Add => self.addValues(&lhs, &rhs),
+            .Subtract => self.subtractValues(&lhs, &rhs),
+            else => unreachable,
+        };
+    }
+
+    fn handleUnaryOperator(self: *Interpreter, unary: *const ast.UnaryOperator) !Value {
+        var value = (try self.handleExpr(unary.expr)) orelse unreachable;
+
+        return switch (unary.token.kind) {
+            .Subtract => self.negateValue(&value),
             else => unreachable,
         };
     }
@@ -219,6 +229,25 @@ pub const Interpreter = struct {
 
         return .{
             .integer = lhs.integer + rhs.integer,
+        };
+    }
+
+    fn subtractValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        assert(@as(Value.Kind, lhs.*) == .integer);
+        assert(@as(Value.Kind, rhs.*) == .integer);
+
+        return .{
+            .integer = lhs.integer - rhs.integer,
+        };
+    }
+
+    fn negateValue(self: *Interpreter, value: *const Value) Value {
+        _ = self;
+        assert(@as(Value.Kind, value.*) == .integer);
+
+        return .{
+            .integer = -value.integer,
         };
     }
 };
