@@ -17,7 +17,8 @@ pub const Interpreter = struct {
     collected_return: ?Value = null,
     last_visited_variable: ?*ast.Variable = null,
     sym_table: SymTable = undefined,
-    piping: bool = false,
+    piped_value: ?Value = null,
+    is_piping: bool = false,
     builtins: Builtins = undefined,
 
     pub fn init(ally: std.mem.Allocator) !Interpreter {
@@ -186,11 +187,19 @@ pub const Interpreter = struct {
         return maybe_value.?;
     }
 
-    fn handleBinaryOperator(self: *Interpreter, binary: *const ast.BinaryOperator) !Value {
+    fn handleBinaryOperator(self: *Interpreter, binary: *const ast.BinaryOperator) !?Value {
         assert(binary.lhs != null);
         assert(binary.rhs != null);
         const expr_lhs = binary.lhs.?;
         const expr_rhs = binary.rhs.?;
+
+        // pipe check
+        switch (binary.token.kind) {
+            .Or => {
+                return self.pipe(expr_lhs, expr_rhs);
+            },
+            else => {},
+        }
 
         var lhs = (try self.handleExpr(expr_lhs)) orelse unreachable;
         var rhs = (try self.handleExpr(expr_rhs)) orelse unreachable;
@@ -217,11 +226,8 @@ pub const Interpreter = struct {
 
     fn handleCall(self: *Interpreter, call: *const ast.FunctionCall) !?Value {
         const name = call.token.value;
-
-        //TODO: stdin check
-        const stdin_arg: ?Value = null;
-
-        const n_args = call.args.len;
+        const has_stdin_arg = self.piped_value != null;
+        const n_args = if (has_stdin_arg) call.args.len + 1 else call.args.len;
 
         var args_array = try ValueArray.initCapacity(self.ally, n_args);
         defer {
@@ -229,6 +235,11 @@ pub const Interpreter = struct {
                 arg.deinit(self.ally);
             }
             args_array.deinit();
+        }
+
+        if (self.piped_value) |value| {
+            try args_array.append(value);
+            self.piped_value = null;
         }
 
         for (call.args) |*arg| {
@@ -243,13 +254,28 @@ pub const Interpreter = struct {
 
         assert(args_array.items.len == n_args);
 
-        return try self.executeFunction(name, args_array.items, stdin_arg);
+        return try self.executeFunction(name, args_array.items, has_stdin_arg);
     }
 
-    fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, stdin_arg: ?Value) !?Value {
+    fn pipe(self: *Interpreter, current: *const ast.Expr, next: *const ast.Expr) !?Value {
+        var unpipe = false;
+        if (!self.is_piping) {
+            self.is_piping = true;
+            unpipe = true;
+        }
 
-        //TODO: piping
-        _ = stdin_arg;
+        self.piped_value = (try self.handleExpr(current)) orelse unreachable;
+        if (unpipe) {
+            self.is_piping = false;
+        }
+
+        return self.handleExpr(next);
+    }
+
+    fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, has_stdin_arg: bool) !?Value {
+
+        //TODO: external cmd piping
+        _ = has_stdin_arg;
 
         if (self.builtins.get(name)) |func| {
             return try func(self, args);
