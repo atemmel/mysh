@@ -90,18 +90,28 @@ pub const SymTable = struct {
         }
     }
 
-    fn current(self: *SymTable) *Scope {
+    fn lookup(self: *SymTable, name: []const u8) usize {
         const n_scopes = self.scopes.items.len;
-        return &self.scopes.items[n_scopes - 1];
+        const last_scope = n_scopes - 1;
+        var i: usize = 0;
+        while (i < n_scopes) : (i += 1) {
+            var scope = &self.scopes.items[i];
+            if (scope.get(name) != null) {
+                return i;
+            }
+        }
+        return last_scope;
     }
 
     pub fn put(self: *SymTable, name: []const u8, value: *const Value) !void {
-        var scope = self.current();
+        const idx = self.lookup(name);
+        var scope = &self.scopes.items[idx];
         try scope.put(name, value.*);
     }
 
     pub fn get(self: *SymTable, name: []const u8) ?Value {
-        var scope = self.current();
+        const idx = self.lookup(name);
+        var scope = &self.scopes.items[idx];
         return scope.get(name);
     }
 };
