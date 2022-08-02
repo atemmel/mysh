@@ -92,9 +92,6 @@ pub const Interpreter = struct {
     }
 
     fn handleVarDeclaration(self: *Interpreter, var_decl: *const ast.VarDeclaration) !void {
-        _ = self;
-        _ = var_decl;
-
         const var_name = var_decl.decl;
         var var_value: Value = undefined;
 
@@ -110,6 +107,8 @@ pub const Interpreter = struct {
             return err;
         }
 
+        //TODO: redeclaration check
+        assert(self.sym_table.get(var_name) == null);
         try self.sym_table.put(var_name, &var_value);
     }
 
