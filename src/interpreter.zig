@@ -12,8 +12,9 @@ pub const Interpreter = struct {
     ally: std.mem.Allocator = undefined,
     root_node: *ast.Root = undefined,
     collected_value: ?Value = null,
+    return_just_handled: bool = false,
     call_args: ValueArray = undefined,
-    to_return: ?Value = null,
+    collected_return: ?Value = null,
     last_visited_variable: ?*ast.Variable = null,
     sym_table: SymTable = undefined,
     piping: bool = false,
@@ -66,7 +67,9 @@ pub const Interpreter = struct {
                 try self.handleVarDeclaration(var_decl);
             },
             .fn_decl => unreachable,
-            .ret => unreachable,
+            .ret => |*ret| {
+                try self.handleReturn(ret);
+            },
             .scope => unreachable,
             .branch => unreachable,
             .loop => unreachable,
@@ -109,7 +112,7 @@ pub const Interpreter = struct {
         try self.sym_table.put(var_name, &var_value);
     }
 
-    fn handleFnDeclaration(self: *Interpreter, fn_decl: *const ast.FnDeclaration, args: []const Value) !void {
+    fn handleFnDeclaration(self: *Interpreter, fn_decl: *const ast.FnDeclaration, args: []const Value) !?Value {
         assert(args.len == fn_decl.args.len);
 
         try self.sym_table.addScope();
@@ -121,11 +124,25 @@ pub const Interpreter = struct {
             try self.sym_table.put(args_name, args_value);
         }
 
+        self.collected_return = null;
+        self.return_just_handled = false;
+
         for (fn_decl.scope.statements) |*stmnt| {
             try self.handleStatement(stmnt);
+            if (self.return_just_handled) {
+                return self.collected_return;
+            }
         }
 
-        //TODO: return value management
+        return null;
+    }
+
+    fn handleReturn(self: *Interpreter, ret: *const ast.Return) !void {
+        self.return_just_handled = true;
+        if (ret.expr) |expr| {
+            const value = (try self.handleExpr(expr)) orelse unreachable;
+            self.collected_return = value;
+        }
     }
 
     fn handleExpr(self: *Interpreter, expr: *const ast.Expr) anyerror!?Value {
@@ -238,7 +255,7 @@ pub const Interpreter = struct {
             return try func(self, args);
         } else {
             if (self.root_node.fn_table.get(name)) |*fn_node| {
-                try self.handleFnDeclaration(fn_node, args);
+                return try self.handleFnDeclaration(fn_node, args);
             } else {
                 unreachable;
             }
