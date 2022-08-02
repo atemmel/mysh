@@ -67,7 +67,7 @@ const Printer = struct {
 
     pub fn printVarDeclaration(self: *Printer, node: *const ast.VarDeclaration) void {
         self.pad();
-        printImpl("VarDeclarationNode: {s}\n", .{node.token.value});
+        printImpl("VarDeclarationNode: {s}\n", .{node.decl});
         if (node.expr) |*expr| {
             self.depth += 1;
             self.printExpr(expr);

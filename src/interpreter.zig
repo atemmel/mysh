@@ -11,7 +11,7 @@ pub const Interpreter = struct {
 
     ally: std.mem.Allocator = undefined,
     root_node: *ast.Root = undefined,
-    collected_values: ValueArray = undefined,
+    collected_value: ?Value = null,
     call_args: ValueArray = undefined,
     to_return: ?Value = null,
     last_visited_variable: ?*ast.Variable = null,
@@ -28,7 +28,6 @@ pub const Interpreter = struct {
 
         return Interpreter{
             .ally = ally,
-            .collected_values = ValueArray.init(ally),
             .call_args = ValueArray.init(ally),
             .sym_table = SymTable.init(ally),
             .builtins = builtins,
@@ -36,7 +35,6 @@ pub const Interpreter = struct {
     }
 
     pub fn deinit(self: *Interpreter) void {
-        self.collected_values.deinit();
         self.call_args.deinit();
         self.sym_table.deinit();
         self.builtins.deinit();
@@ -44,7 +42,7 @@ pub const Interpreter = struct {
 
     pub fn interpret(self: *Interpreter, root_node: *ast.Root) !bool {
         self.root_node = root_node;
-        self.sym_table.addScope();
+        try self.sym_table.addScope();
         try self.handleRoot();
         self.sym_table.dropScope();
         return true;
@@ -59,19 +57,14 @@ pub const Interpreter = struct {
         var root = self.root_node;
         for (root.statements) |*stmnt| {
             try self.handleStatement(stmnt);
-
-            const n_collected = self.collected_values.items.len;
-            if (n_collected > 0) {
-                assert(n_collected == 1);
-                //builtinPrint(self, collected_values.items);
-            }
-            self.collected_values.clearRetainingCapacity();
         }
     }
 
     fn handleStatement(self: *Interpreter, stmnt: *ast.Statement) !void {
         switch (stmnt.*) {
-            .var_decl => unreachable,
+            .var_decl => |*var_decl| {
+                try self.handleVarDeclaration(var_decl);
+            },
             .fn_decl => unreachable,
             .ret => unreachable,
             .scope => unreachable,
@@ -79,78 +72,104 @@ pub const Interpreter = struct {
             .loop => unreachable,
             .assignment => unreachable,
             .expr => |*expr| {
-                try self.handleExpr(expr);
+                const err_maybe_value = self.handleExpr(expr);
+                if (err_maybe_value) |maybe_value| {
+                    if (maybe_value) |value| {
+                        const value_array = [_]Value{
+                            value,
+                        };
+                        _ = try builtinPrint(self, &value_array);
+                    }
+                } else |err| {
+                    return err;
+                }
             },
         }
     }
 
-    fn handleExpr(self: *Interpreter, expr: *const ast.Expr) anyerror!void {
-        switch (expr.*) {
+    fn handleVarDeclaration(self: *Interpreter, var_decl: *const ast.VarDeclaration) !void {
+        _ = self;
+        _ = var_decl;
+
+        const var_name = var_decl.decl;
+        var var_value: Value = undefined;
+
+        assert(var_decl.expr != null);
+        const err_maybe_value = self.handleExpr(&var_decl.expr.?);
+        if (err_maybe_value) |maybe_value| {
+            if (maybe_value) |value| {
+                var_value = value;
+            } else {
+                unreachable;
+            }
+        } else |err| {
+            return err;
+        }
+
+        try self.sym_table.put(var_name, &var_value);
+    }
+
+    fn handleExpr(self: *Interpreter, expr: *const ast.Expr) anyerror!?Value {
+        return switch (expr.*) {
             .bareword => unreachable,
-            .identifier => |*identifier| {
-                try self.handleIdentifier(identifier);
-            },
-            .string_literal => |*string| {
-                try self.handleStringLiteral(string);
-            },
+            .identifier => |*identifier| try self.handleIdentifier(identifier),
+            .string_literal => |*string| try self.handleStringLiteral(string),
             .boolean_literal => unreachable,
-            .integer_literal => |*integer| {
-                try self.handleIntegerLiteral(integer);
-            },
+            .integer_literal => |*integer| self.handleIntegerLiteral(integer),
             .array_literal => unreachable,
-            .variable => unreachable,
-            .binary_operator => |*binary| {
-                try self.handleBinaryOperator(binary);
-            },
+            .variable => |*variable| try self.handleVariable(variable),
+            .binary_operator => |*binary| try self.handleBinaryOperator(binary),
             .unary_operator => unreachable,
-            .call => |*call| {
-                try self.handleCall(call);
-            },
-        }
+            .call => |*call| try self.handleCall(call),
+        };
     }
 
-    fn handleIdentifier(self: *Interpreter, identifier: *const ast.Identifier) !void {
-        try self.collected_values.append(.{
+    fn handleIdentifier(self: *Interpreter, identifier: *const ast.Identifier) !Value {
+        return Value{
             .string = try self.ally.dupe(u8, identifier.token.value),
-        });
+        };
     }
 
-    fn handleStringLiteral(self: *Interpreter, string: *const ast.StringLiteral) !void {
-        try self.collected_values.append(.{
+    fn handleStringLiteral(self: *Interpreter, string: *const ast.StringLiteral) !Value {
+        return Value{
             .string = try self.ally.dupe(u8, string.token.value),
-        });
+        };
     }
 
-    fn handleIntegerLiteral(self: *Interpreter, integer: *const ast.IntegerLiteral) !void {
-        try self.collected_values.append(.{
+    fn handleIntegerLiteral(_: *Interpreter, integer: *const ast.IntegerLiteral) Value {
+        return .{
             .integer = integer.value,
-        });
+        };
     }
 
-    fn handleBinaryOperator(self: *Interpreter, binary: *const ast.BinaryOperator) !void {
+    fn handleVariable(self: *Interpreter, variable: *const ast.Variable) !Value {
+        const name = variable.name;
+        const maybe_value = self.sym_table.get(name);
+        //TODO: this is looking up a variable that does not exist
+        assert(maybe_value != null);
+        return maybe_value.?;
+    }
+
+    fn handleBinaryOperator(self: *Interpreter, binary: *const ast.BinaryOperator) !Value {
         assert(binary.lhs != null);
         assert(binary.rhs != null);
         const expr_lhs = binary.lhs.?;
         const expr_rhs = binary.rhs.?;
 
-        try self.handleExpr(expr_lhs);
-        const lhs = self.collected_values.pop();
-        try self.handleExpr(expr_rhs);
-        const rhs = self.collected_values.pop();
+        var lhs = (try self.handleExpr(expr_lhs)) orelse unreachable;
+        var rhs = (try self.handleExpr(expr_rhs)) orelse unreachable;
         defer {
             lhs.deinit(self.ally);
             rhs.deinit(self.ally);
         }
 
-        const result = switch (binary.token.kind) {
+        return switch (binary.token.kind) {
             .Add => self.addValues(&lhs, &rhs),
             else => unreachable,
         };
-
-        try self.collected_values.append(result);
     }
 
-    fn handleCall(self: *Interpreter, call: *const ast.FunctionCall) !void {
+    fn handleCall(self: *Interpreter, call: *const ast.FunctionCall) !?Value {
         const name = call.token.value;
 
         //TODO: stdin check
@@ -158,27 +177,27 @@ pub const Interpreter = struct {
 
         const n_args = call.args.len;
 
-        try self.collected_values.ensureTotalCapacity(n_args);
-        for (call.args) |*arg| {
-            try self.handleExpr(arg);
-        }
-
-        var args = self.collected_values.toOwnedSlice();
+        var args_array = try ValueArray.initCapacity(self.ally, n_args);
         defer {
-            for (args) |arg| {
+            for (args_array.items) |arg| {
                 arg.deinit(self.ally);
             }
-            self.ally.free(args);
+            args_array.deinit();
         }
 
-        assert(args.len == n_args);
-
-        var maybe_result = try self.executeFunction(name, args, stdin_arg);
-        if (maybe_result) |result| {
-            try self.collected_values.append(result);
-        } else {
-            //TODO: ?
+        for (call.args) |*arg| {
+            const err_maybe_arg = self.handleExpr(arg);
+            if (err_maybe_arg) |maybe_arg| {
+                assert(maybe_arg != null);
+                args_array.appendAssumeCapacity(maybe_arg.?);
+            } else |err| {
+                return err;
+            }
         }
+
+        assert(args_array.items.len == n_args);
+
+        return try self.executeFunction(name, args_array.items, stdin_arg);
     }
 
     fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, stdin_arg: ?Value) !?Value {

@@ -39,6 +39,7 @@ pub const ArrayLiteral = struct {
 
 pub const VarDeclaration = struct {
     token: *const Token,
+    decl: []const u8,
     expr: ?Expr,
 
     fn deinit(self: *const VarDeclaration, ally: std.mem.Allocator) void {
@@ -559,6 +560,7 @@ pub const Parser = struct {
 
         return VarDeclaration{
             .token = token.?,
+            .decl = identifier.?.value,
             .expr = expr.?,
         };
     }
@@ -919,7 +921,7 @@ pub const Parser = struct {
 
         return Variable{
             .token = variable,
-            .name = variable.value,
+            .name = variable.value[1..],
         };
     }
 

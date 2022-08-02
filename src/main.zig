@@ -9,13 +9,16 @@ const Interpreter = @import("interpreter.zig").Interpreter;
 const stderr = std.io.getStdErr().writer();
 var ally: std.mem.Allocator = undefined;
 
-pub fn doEverything(path: []const u8) !bool {
+fn doEverythingWithPath(path: []const u8) !bool {
     const source = std.fs.cwd().readFileAlloc(ally, path, std.math.maxInt(usize)) catch {
-        std.debug.print("Unable to open file: {s}\n", .{path});
+        try stderr.print("Unable to open file: {s}\n", .{path});
         return false;
     };
     defer ally.free(source);
+    return doEverything(source);
+}
 
+pub fn doEverything(source: []const u8) !bool {
     var tokenizer = Tokenizer.init(ally);
     var tokens = try tokenizer.tokenize(source);
     defer ally.free(tokens);
@@ -82,7 +85,7 @@ pub fn main() anyerror!u8 {
 
     if (remainder.len > 0) {
         const path = remainder[0];
-        return if (try doEverything(path)) 0 else 1;
+        return if (try doEverythingWithPath(path)) 0 else 1;
     }
 
     try stderr.print("No file specified, exiting...\n", .{});
