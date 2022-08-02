@@ -60,7 +60,7 @@ pub const Interpreter = struct {
         }
     }
 
-    fn handleStatement(self: *Interpreter, stmnt: *ast.Statement) !void {
+    fn handleStatement(self: *Interpreter, stmnt: *const ast.Statement) !void {
         switch (stmnt.*) {
             .var_decl => |*var_decl| {
                 try self.handleVarDeclaration(var_decl);
@@ -107,6 +107,25 @@ pub const Interpreter = struct {
         }
 
         try self.sym_table.put(var_name, &var_value);
+    }
+
+    fn handleFnDeclaration(self: *Interpreter, fn_decl: *const ast.FnDeclaration, args: []const Value) !void {
+        assert(args.len == fn_decl.args.len);
+
+        try self.sym_table.addScope();
+        defer self.sym_table.dropScope();
+        var i: usize = 0;
+        while (i < args.len) : (i += 1) {
+            const args_name = fn_decl.args[i].value;
+            const args_value = &args[i];
+            try self.sym_table.put(args_name, args_value);
+        }
+
+        for (fn_decl.scope.statements) |*stmnt| {
+            try self.handleStatement(stmnt);
+        }
+
+        //TODO: return value management
     }
 
     fn handleExpr(self: *Interpreter, expr: *const ast.Expr) anyerror!?Value {
@@ -211,12 +230,18 @@ pub const Interpreter = struct {
     }
 
     fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, stdin_arg: ?Value) !?Value {
+
+        //TODO: piping
         _ = stdin_arg;
 
         if (self.builtins.get(name)) |func| {
             return try func(self, args);
         } else {
-            unreachable;
+            if (self.root_node.fn_table.get(name)) |*fn_node| {
+                try self.handleFnDeclaration(fn_node, args);
+            } else {
+                unreachable;
+            }
         }
 
         return null;
