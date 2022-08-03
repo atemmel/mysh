@@ -5,6 +5,7 @@ const Value = @import("symtable.zig").Value;
 const ValueArray = @import("symtable.zig").ValueArray;
 const assert = std.debug.assert;
 const print = std.debug.print;
+const math = std.math;
 
 pub const Interpreter = struct {
     const Builtins = std.StringHashMap(builtin_signature);
@@ -210,6 +211,9 @@ pub const Interpreter = struct {
         return switch (binary.token.kind) {
             .Add => self.addValues(&lhs, &rhs),
             .Subtract => self.subtractValues(&lhs, &rhs),
+            .Multiply => self.multiplyValues(&lhs, &rhs),
+            .Divide => try self.divideValues(&lhs, &rhs),
+            .Modulo => try self.moduloValues(&lhs, &rhs),
             else => unreachable,
         };
     }
@@ -315,6 +319,36 @@ pub const Interpreter = struct {
 
         return .{
             .integer = -value.integer,
+        };
+    }
+
+    fn multiplyValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        assert(@as(Value.Kind, lhs.*) == .integer);
+        assert(@as(Value.Kind, rhs.*) == .integer);
+
+        return .{
+            .integer = lhs.integer * rhs.integer,
+        };
+    }
+
+    fn divideValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) !Value {
+        _ = self;
+        assert(@as(Value.Kind, lhs.*) == .integer);
+        assert(@as(Value.Kind, rhs.*) == .integer);
+
+        return Value{
+            .integer = try math.divTrunc(i64, lhs.integer, rhs.integer),
+        };
+    }
+
+    fn moduloValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) !Value {
+        _ = self;
+        assert(@as(Value.Kind, lhs.*) == .integer);
+        assert(@as(Value.Kind, rhs.*) == .integer);
+
+        return Value{
+            .integer = try math.mod(i64, lhs.integer, rhs.integer),
         };
     }
 };
