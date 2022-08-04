@@ -74,8 +74,12 @@ pub const Interpreter = struct {
             .ret => |*ret| {
                 try self.handleReturn(ret);
             },
-            .scope => unreachable,
-            .branch => unreachable,
+            .scope => |*scope| {
+                try self.handleScope(scope);
+            },
+            .branch => |*branch| {
+                try self.handleBranch(branch);
+            },
             .loop => unreachable,
             .assignment => |*assignment| {
                 try self.handleAssignment(assignment);
@@ -150,6 +154,37 @@ pub const Interpreter = struct {
         }
     }
 
+    fn handleScope(self: *Interpreter, scope: *const ast.Scope) anyerror!void {
+        try self.sym_table.addScope();
+        defer self.sym_table.dropScope();
+
+        for (scope.statements) |*stmnt| {
+            try self.handleStatement(stmnt);
+            if (self.return_just_handled) {
+                return;
+            }
+        }
+    }
+
+    fn handleBranch(self: *Interpreter, branch: *const ast.Branch) anyerror!void {
+        // else branch
+        if (branch.condition == null) {
+            try self.handleScope(&branch.scope);
+            return;
+        }
+
+        const maybe_condition = try self.handleExpr(&branch.condition.?);
+        assert(maybe_condition != null);
+        const condition = maybe_condition.?;
+        assert(@as(Value.Kind, condition.inner) == .boolean);
+
+        if (condition.inner.boolean) {
+            try self.handleScope(&branch.scope);
+        } else if (branch.next) |next| {
+            try self.handleBranch(next);
+        }
+    }
+
     fn handleAssignment(self: *Interpreter, assign: *const ast.Assignment) !void {
         const name = assign.variable.name;
         const maybe_value = try self.handleExpr(&assign.expr);
@@ -173,27 +208,27 @@ pub const Interpreter = struct {
     }
 
     fn handleIdentifier(self: *Interpreter, identifier: *const ast.Identifier) !Value {
-        return Value{
+        return Value{ .inner = .{
             .string = try self.ally.dupe(u8, identifier.token.value),
-        };
+        } };
     }
 
     fn handleStringLiteral(self: *Interpreter, string: *const ast.StringLiteral) !Value {
-        return Value{
+        return Value{ .inner = .{
             .string = try self.ally.dupe(u8, string.token.value),
-        };
+        } };
     }
 
     fn handleBoolLiteral(_: *Interpreter, boolean: *const ast.BoolLiteral) Value {
-        return .{
+        return .{ .inner = .{
             .boolean = boolean.value,
-        };
+        } };
     }
 
     fn handleIntegerLiteral(_: *Interpreter, integer: *const ast.IntegerLiteral) Value {
-        return .{
+        return .{ .inner = .{
             .integer = integer.value,
-        };
+        } };
     }
 
     fn handleVariable(self: *Interpreter, variable: *const ast.Variable) !Value {
@@ -312,61 +347,61 @@ pub const Interpreter = struct {
 
     fn addValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
         _ = self;
-        assert(@as(Value.Kind, lhs.*) == .integer);
-        assert(@as(Value.Kind, rhs.*) == .integer);
+        assert(@as(Value.Kind, lhs.inner) == .integer);
+        assert(@as(Value.Kind, rhs.inner) == .integer);
 
-        return .{
-            .integer = lhs.integer + rhs.integer,
-        };
+        return .{ .inner = .{
+            .integer = lhs.inner.integer + rhs.inner.integer,
+        } };
     }
 
     fn subtractValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
         _ = self;
-        assert(@as(Value.Kind, lhs.*) == .integer);
-        assert(@as(Value.Kind, rhs.*) == .integer);
+        assert(@as(Value.Kind, lhs.inner) == .integer);
+        assert(@as(Value.Kind, rhs.inner) == .integer);
 
-        return .{
-            .integer = lhs.integer - rhs.integer,
-        };
+        return .{ .inner = .{
+            .integer = lhs.inner.integer - rhs.inner.integer,
+        } };
     }
 
     fn negateValue(self: *Interpreter, value: *const Value) Value {
         _ = self;
-        assert(@as(Value.Kind, value.*) == .integer);
+        assert(@as(Value.Kind, value.inner) == .integer);
 
-        return .{
-            .integer = -value.integer,
-        };
+        return .{ .inner = .{
+            .integer = -value.inner.integer,
+        } };
     }
 
     fn multiplyValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
         _ = self;
-        assert(@as(Value.Kind, lhs.*) == .integer);
-        assert(@as(Value.Kind, rhs.*) == .integer);
+        assert(@as(Value.Kind, lhs.inner) == .integer);
+        assert(@as(Value.Kind, rhs.inner) == .integer);
 
-        return .{
-            .integer = lhs.integer * rhs.integer,
-        };
+        return .{ .inner = .{
+            .integer = lhs.inner.integer * rhs.inner.integer,
+        } };
     }
 
     fn divideValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) !Value {
         _ = self;
-        assert(@as(Value.Kind, lhs.*) == .integer);
-        assert(@as(Value.Kind, rhs.*) == .integer);
+        assert(@as(Value.Kind, lhs.inner) == .integer);
+        assert(@as(Value.Kind, rhs.inner) == .integer);
 
-        return Value{
-            .integer = try math.divTrunc(i64, lhs.integer, rhs.integer),
-        };
+        return Value{ .inner = .{
+            .integer = try math.divTrunc(i64, lhs.inner.integer, rhs.inner.integer),
+        } };
     }
 
     fn moduloValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) !Value {
         _ = self;
-        assert(@as(Value.Kind, lhs.*) == .integer);
-        assert(@as(Value.Kind, rhs.*) == .integer);
+        assert(@as(Value.Kind, lhs.inner) == .integer);
+        assert(@as(Value.Kind, rhs.inner) == .integer);
 
-        return Value{
-            .integer = try math.mod(i64, lhs.integer, rhs.integer),
-        };
+        return Value{ .inner = .{
+            .integer = try math.mod(i64, lhs.inner.integer, rhs.inner.integer),
+        } };
     }
 };
 
@@ -385,7 +420,7 @@ fn builtinPrint(interp: *Interpreter, args: []const Value) !?Value {
     // trailing newline check
     if (args.len > 0) {
         const last_arg = args[args.len - 1];
-        switch (last_arg) {
+        switch (last_arg.inner) {
             .string => |string| {
                 if (string.len > 0) {
                     const last_byte = string[string.len - 1];

@@ -2,7 +2,7 @@ const std = @import("std");
 
 pub const ValueArray = std.ArrayList(Value);
 
-pub const Value = union(Kind) {
+pub const Value = struct {
     pub const Kind = enum {
         string,
         boolean,
@@ -10,13 +10,24 @@ pub const Value = union(Kind) {
         array,
     };
 
-    string: []u8,
-    boolean: bool,
-    integer: i64,
-    array: ValueArray,
+    pub const Inner = union(Kind) {
+        string: []u8,
+        boolean: bool,
+        integer: i64,
+        array: ValueArray,
+    };
+
+    inner: Inner = undefined,
+    owned: bool = false,
 
     pub fn deinit(self: *const Value, ally: std.mem.Allocator) void {
-        switch (self.*) {
+        if (!self.owned) {
+            self.deinitWithOwnership(ally);
+        }
+    }
+
+    pub fn deinitWithOwnership(self: *const Value, ally: std.mem.Allocator) void {
+        switch (self.inner) {
             .string => |string| {
                 ally.free(string);
             },
@@ -37,7 +48,7 @@ pub const Value = union(Kind) {
         _ = fmt;
         _ = options;
 
-        switch (self.*) {
+        switch (self.inner) {
             .string => |string| {
                 try writer.print("{s}", .{string});
             },
@@ -86,7 +97,7 @@ pub const SymTable = struct {
         defer scope.deinit();
         var iterator = scope.iterator();
         while (iterator.next()) |entry| {
-            entry.value_ptr.deinit(self.ally);
+            entry.value_ptr.deinitWithOwnership(self.ally);
         }
     }
 
@@ -106,7 +117,16 @@ pub const SymTable = struct {
     pub fn put(self: *SymTable, name: []const u8, value: *const Value) !void {
         const idx = self.lookup(name);
         var scope = &self.scopes.items[idx];
-        try scope.put(name, value.*);
+
+        if (scope.get(name)) |*prev_value| {
+            prev_value.deinitWithOwnership(self.ally);
+        }
+
+        const inserted_value: Value = .{
+            .inner = value.inner,
+            .owned = true,
+        };
+        try scope.put(name, inserted_value);
     }
 
     pub fn get(self: *SymTable, name: []const u8) ?Value {
