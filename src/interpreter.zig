@@ -26,7 +26,9 @@ pub const Interpreter = struct {
         var builtins = Builtins.init(ally);
 
         inline for (builtins_array) |builtin| {
-            try builtins.put(builtin[0], builtin[1]);
+            const name = builtin[0];
+            const func = builtin[1];
+            try builtins.put(name, func);
         }
 
         return Interpreter{
@@ -75,7 +77,9 @@ pub const Interpreter = struct {
             .scope => unreachable,
             .branch => unreachable,
             .loop => unreachable,
-            .assignment => unreachable,
+            .assignment => |*assignment| {
+                try self.handleAssignment(assignment);
+            },
             .expr => |*expr| {
                 const err_maybe_value = self.handleExpr(expr);
                 if (err_maybe_value) |maybe_value| {
@@ -146,12 +150,19 @@ pub const Interpreter = struct {
         }
     }
 
+    fn handleAssignment(self: *Interpreter, assign: *const ast.Assignment) !void {
+        const name = assign.variable.name;
+        const maybe_value = try self.handleExpr(&assign.expr);
+        assert(maybe_value != null);
+        try self.sym_table.put(name, &maybe_value.?);
+    }
+
     fn handleExpr(self: *Interpreter, expr: *const ast.Expr) anyerror!?Value {
         return switch (expr.*) {
             .bareword => unreachable,
             .identifier => |*identifier| try self.handleIdentifier(identifier),
             .string_literal => |*string| try self.handleStringLiteral(string),
-            .boolean_literal => unreachable,
+            .boolean_literal => |*boolean| self.handleBoolLiteral(boolean),
             .integer_literal => |*integer| self.handleIntegerLiteral(integer),
             .array_literal => unreachable,
             .variable => |*variable| try self.handleVariable(variable),
@@ -170,6 +181,12 @@ pub const Interpreter = struct {
     fn handleStringLiteral(self: *Interpreter, string: *const ast.StringLiteral) !Value {
         return Value{
             .string = try self.ally.dupe(u8, string.token.value),
+        };
+    }
+
+    fn handleBoolLiteral(_: *Interpreter, boolean: *const ast.BoolLiteral) Value {
+        return .{
+            .boolean = boolean.value,
         };
     }
 
