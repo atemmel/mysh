@@ -11,7 +11,7 @@ pub const Value = struct {
     };
 
     pub const Inner = union(Kind) {
-        string: []u8,
+        string: []const u8,
         boolean: bool,
         integer: i64,
         array: ValueArray,

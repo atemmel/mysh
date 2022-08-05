@@ -378,7 +378,7 @@ pub const Interpreter = struct {
                 return try self.handleFnDeclaration(fn_node, args);
             } else {
                 const n_args = if (has_stdin_arg) args.len else args.len + 1;
-                const to_stringify_args = args[n_args - args.len ..];
+                const to_stringify_args = if (has_stdin_arg) args[1..] else args;
                 const stringified_args = try self.ally.alloc([]u8, n_args);
                 var stringified_stdin: ?[]u8 = null;
                 defer {
@@ -400,15 +400,17 @@ pub const Interpreter = struct {
                     stringified_args[i + 1] = try value.stringify(self.ally);
                 }
 
-                const result = try spawn.cmd(self.ally, stringified_args, .{
-                    .capture_stdout = self.is_piping,
+                const opts = spawn.SpawnCommandOptions{
+                    .capture_stdout = true,
                     .stdin_slice = stringified_stdin,
-                });
+                };
+
+                const result = try spawn.cmd(self.ally, stringified_args, opts);
 
                 if (result.stdout) |stdout| {
                     return Value{
                         .inner = .{
-                            .string = stdout,
+                            .string = std.mem.trimRight(u8, stdout, &std.ascii.spaces),
                         },
                     };
                 }

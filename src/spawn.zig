@@ -14,23 +14,12 @@ pub fn cmd(ally: std.mem.Allocator, args: []const []const u8, opts: SpawnCommand
     var proc = try std.ChildProcess.init(args, ally);
     defer proc.deinit();
 
-    var stdout_buffer = std.ArrayList(u8).init(ally);
-    errdefer stdout_buffer.deinit();
-
-    var me_read: std.os.fd_t = undefined;
-    var you_write: std.os.fd_t = undefined;
-    var you_read: std.os.fd_t = undefined;
-    var me_write: std.os.fd_t = undefined;
     var captured_stdout: []u8 = &.{};
+    errdefer ally.free(captured_stdout);
 
     // stdout prep
     if (opts.capture_stdout) {
-        try stdout_buffer.ensureTotalCapacity(512);
         proc.stdout_behavior = .Pipe;
-        //TODO: set fd?
-        const pipe_fd = try std.os.pipe();
-        me_read = pipe_fd[0];
-        you_write = pipe_fd[1];
     } else {
         proc.stdout_behavior = .Ignore;
     }
@@ -38,10 +27,6 @@ pub fn cmd(ally: std.mem.Allocator, args: []const []const u8, opts: SpawnCommand
     // stdin prep
     if (opts.stdin_slice != null) {
         proc.stdin_behavior = .Pipe;
-        //TODO: set fd?
-        const pipe_fd = try std.os.pipe();
-        you_read = pipe_fd[0];
-        me_write = pipe_fd[1];
     } else {
         proc.stdin_behavior = .Ignore;
     }
@@ -50,14 +35,14 @@ pub fn cmd(ally: std.mem.Allocator, args: []const []const u8, opts: SpawnCommand
 
     // stdin check
     if (opts.stdin_slice) |stdin_slice| {
-        std.os.close(you_read);
-        _ = try std.os.write(me_write, stdin_slice);
-        std.os.close(me_write);
+        const stdin = proc.stdin.?.writer();
+        try stdin.writeAll(stdin_slice);
     }
 
     // stdout check
     if (opts.capture_stdout) {
-        //TODO: handle me_read, you_write, etc...
+        const stdout = proc.stdout.?.reader();
+        captured_stdout = try stdout.readAllAlloc(ally, 50 * 1024);
     }
 
     // wait
@@ -76,11 +61,13 @@ pub fn cmd(ally: std.mem.Allocator, args: []const []const u8, opts: SpawnCommand
     };
 }
 
-test "ls test" {
+test "stdout capture test" {
+    const Term = std.ChildProcess.Term;
     var ally = std.testing.allocator;
 
     const args = [_][]const u8{
-        "ls",
+        "echo",
+        "test",
     };
 
     const opts = SpawnCommandOptions{
@@ -88,9 +75,17 @@ test "ls test" {
         .stdin_slice = null,
     };
 
+    const expected_term = Term{ .Exited = 0 };
+    const expected_stdout = "test\n";
+
     const result = try cmd(ally, &args, opts);
-    std.debug.print("{}\n", .{result});
-    if (result.stdout) |stdout| {
-        ally.free(stdout);
+    defer {
+        if (result.stdout) |stdout| {
+            ally.free(stdout);
+        }
     }
+
+    try std.testing.expectEqual(result.term, expected_term);
+    try std.testing.expect(result.stdout != null);
+    try std.testing.expectEqualSlices(u8, result.stdout.?, expected_stdout);
 }
