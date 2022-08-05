@@ -91,6 +91,7 @@ pub const Interpreter = struct {
                 const err_maybe_value = self.handleExpr(expr);
                 if (err_maybe_value) |maybe_value| {
                     if (maybe_value) |value| {
+                        defer value.deinit(self.ally);
                         const value_array = [_]Value{
                             value,
                         };
@@ -296,6 +297,7 @@ pub const Interpreter = struct {
 
         return switch (unary.token.kind) {
             .Subtract => self.negateValue(&value),
+            .Bang => self.notValue(&value),
             else => unreachable,
         };
     }
@@ -408,9 +410,12 @@ pub const Interpreter = struct {
                 const result = try spawn.cmd(self.ally, stringified_args, opts);
 
                 if (result.stdout) |stdout| {
+                    defer self.ally.free(stdout);
+                    const string = std.mem.trimRight(u8, stdout, &std.ascii.spaces);
                     return Value{
                         .inner = .{
-                            .string = std.mem.trimRight(u8, stdout, &std.ascii.spaces),
+                            .string = try self.ally.dupe(u8, string),
+                            //.string = stdout,
                         },
                     };
                 }
@@ -529,50 +534,136 @@ pub const Interpreter = struct {
 
     fn notValue(self: *Interpreter, value: *const Value) Value {
         _ = self;
-        _ = value;
-        unreachable;
+        assert(@as(Value.Kind, value.inner) == .boolean);
+        return .{
+            .inner = .{
+                .boolean = !value.inner.boolean,
+            },
+        };
     }
 
     fn equalsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
         _ = self;
-        _ = lhs;
-        _ = rhs;
-        unreachable;
+        const lhs_kind = @as(Value.Kind, lhs.inner);
+        const rhs_kind = @as(Value.Kind, rhs.inner);
+        assert(lhs_kind == rhs_kind);
+        return .{
+            .inner = .{
+                .boolean = switch (lhs_kind) {
+                    .integer => lhs.inner.integer == rhs.inner.integer,
+                    .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .eq,
+                    .array => {
+                        //TODO: should maybe work(?)
+                        unreachable;
+                    },
+                    .boolean => {
+                        // should be error
+                        assert(false);
+                        unreachable;
+                    },
+                },
+            },
+        };
     }
 
     fn notEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
         _ = self;
-        _ = lhs;
-        _ = rhs;
-        unreachable;
+        const lhs_kind = @as(Value.Kind, lhs.inner);
+        const rhs_kind = @as(Value.Kind, rhs.inner);
+        assert(lhs_kind == rhs_kind);
+        return .{
+            .inner = .{
+                .boolean = switch (lhs_kind) {
+                    .integer => lhs.inner.integer != rhs.inner.integer,
+                    .string => !std.mem.eql(u8, lhs.inner.string, rhs.inner.string),
+                    .array => {
+                        //TODO: should maybe work(?)
+                        unreachable;
+                    },
+                    .boolean => {
+                        // should be error
+                        assert(false);
+                        unreachable;
+                    },
+                },
+            },
+        };
     }
 
     fn lessEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
         _ = self;
-        _ = lhs;
-        _ = rhs;
-        unreachable;
+        const lhs_kind = @as(Value.Kind, lhs.inner);
+        const rhs_kind = @as(Value.Kind, rhs.inner);
+        assert(lhs_kind == rhs_kind);
+        return .{
+            .inner = .{
+                .boolean = switch (lhs_kind) {
+                    .integer => lhs.inner.integer <= rhs.inner.integer,
+                    .string => switch (std.mem.order(u8, lhs.inner.string, rhs.inner.string)) {
+                        .lt, .eq => true,
+                        .gt => false,
+                    },
+                    .array => {
+                        //TODO: should maybe work(?)
+                        unreachable;
+                    },
+                    .boolean => {
+                        // should be error
+                        assert(false);
+                        unreachable;
+                    },
+                },
+            },
+        };
     }
 
     fn greaterEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
         _ = self;
-        _ = lhs;
-        _ = rhs;
-        unreachable;
+        const lhs_kind = @as(Value.Kind, lhs.inner);
+        const rhs_kind = @as(Value.Kind, rhs.inner);
+        assert(lhs_kind == rhs_kind);
+        return .{
+            .inner = .{
+                .boolean = switch (lhs_kind) {
+                    .integer => lhs.inner.integer <= rhs.inner.integer,
+                    .string => switch (std.mem.order(u8, lhs.inner.string, rhs.inner.string)) {
+                        .gt, .eq => true,
+                        .lt => false,
+                    },
+                    .array => {
+                        //TODO: should maybe work(?)
+                        unreachable;
+                    },
+                    .boolean => {
+                        // should be error
+                        assert(false);
+                        unreachable;
+                    },
+                },
+            },
+        };
     }
 
     fn logicalAndValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
         _ = self;
-        _ = lhs;
-        _ = rhs;
-        unreachable;
+        assert(@as(Value.Kind, lhs.inner) == .boolean);
+        assert(@as(Value.Kind, rhs.inner) == .boolean);
+        return .{
+            .inner = .{
+                .boolean = lhs.inner.boolean and rhs.inner.boolean,
+            },
+        };
     }
 
     fn logicalOrValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
         _ = self;
-        _ = lhs;
-        _ = rhs;
-        unreachable;
+        assert(@as(Value.Kind, lhs.inner) == .boolean);
+        assert(@as(Value.Kind, rhs.inner) == .boolean);
+        return .{
+            .inner = .{
+                .boolean = lhs.inner.boolean or rhs.inner.boolean,
+            },
+        };
     }
 };
 
