@@ -3,6 +3,7 @@ const ast = @import("ast.zig");
 const SymTable = @import("symtable.zig").SymTable;
 const Value = @import("symtable.zig").Value;
 const ValueArray = @import("symtable.zig").ValueArray;
+const spawn = @import("spawn.zig");
 const assert = std.debug.assert;
 const print = std.debug.print;
 const math = std.math;
@@ -80,7 +81,9 @@ pub const Interpreter = struct {
             .branch => |*branch| {
                 try self.handleBranch(branch);
             },
-            .loop => unreachable,
+            .loop => |*loop| {
+                try self.handleLoop(loop);
+            },
             .assignment => |*assignment| {
                 try self.handleAssignment(assignment);
             },
@@ -185,6 +188,16 @@ pub const Interpreter = struct {
         }
     }
 
+    fn handleLoop(self: *Interpreter, loop: *const ast.Loop) !void {
+        try self.sym_table.addScope();
+        defer self.sym_table.dropScope();
+
+        switch (loop.*) {
+            .while_loop => |*while_loop| try self.whileLoop(while_loop),
+            .for_in_loop => unreachable,
+        }
+    }
+
     fn handleAssignment(self: *Interpreter, assign: *const ast.Assignment) !void {
         const name = assign.variable.name;
         const maybe_value = try self.handleExpr(&assign.expr);
@@ -266,6 +279,14 @@ pub const Interpreter = struct {
             .Multiply => self.multiplyValues(&lhs, &rhs),
             .Divide => try self.divideValues(&lhs, &rhs),
             .Modulo => try self.moduloValues(&lhs, &rhs),
+            .Less => self.lessValues(&lhs, &rhs),
+            .Greater => self.greaterValues(&lhs, &rhs),
+            .Equals => self.equalsValues(&lhs, &rhs),
+            .NotEquals => self.notEqualsValues(&lhs, &rhs),
+            .LessEquals => self.lessEqualsValues(&lhs, &rhs),
+            .GreaterEquals => self.greaterEqualsValues(&lhs, &rhs),
+            .LogicalAnd => self.logicalAndValues(&lhs, &rhs),
+            .LogicalOr => self.logicalOrValues(&lhs, &rhs),
             else => unreachable,
         };
     }
@@ -312,6 +333,24 @@ pub const Interpreter = struct {
         return try self.executeFunction(name, args_array.items, has_stdin_arg);
     }
 
+    fn whileLoop(self: *Interpreter, loop: *const ast.Loop.WhileLoop) !void {
+        while (true) {
+            var maybe_value = try self.handleExpr(&loop.condition);
+            assert(maybe_value != null);
+            var inner = maybe_value.?.inner;
+            assert(@as(Value.Kind, inner) == .boolean);
+
+            if (!inner.boolean) {
+                return;
+            }
+
+            try self.handleScope(&loop.scope);
+            if (self.return_just_handled) {
+                return;
+            }
+        }
+    }
+
     fn pipe(self: *Interpreter, current: *const ast.Expr, next: *const ast.Expr) !?Value {
         var unpipe = false;
         if (!self.is_piping) {
@@ -338,7 +377,41 @@ pub const Interpreter = struct {
             if (self.root_node.fn_table.get(name)) |*fn_node| {
                 return try self.handleFnDeclaration(fn_node, args);
             } else {
-                unreachable;
+                const n_args = if (has_stdin_arg) args.len else args.len + 1;
+                const to_stringify_args = args[n_args - args.len ..];
+                const stringified_args = try self.ally.alloc([]u8, n_args);
+                var stringified_stdin: ?[]u8 = null;
+                defer {
+                    if (stringified_stdin) |stdin| {
+                        self.ally.free(stdin);
+                    }
+                    for (stringified_args) |arg| {
+                        self.ally.free(arg);
+                    }
+                    self.ally.free(stringified_args);
+                }
+
+                if (has_stdin_arg) {
+                    stringified_stdin = try args[0].stringify(self.ally);
+                }
+
+                stringified_args[0] = try self.ally.dupe(u8, name);
+                for (to_stringify_args) |*value, i| {
+                    stringified_args[i + 1] = try value.stringify(self.ally);
+                }
+
+                const result = try spawn.cmd(self.ally, stringified_args, .{
+                    .capture_stdout = self.is_piping,
+                    .stdin_slice = stringified_stdin,
+                });
+
+                if (result.stdout) |stdout| {
+                    return Value{
+                        .inner = .{
+                            .string = stdout,
+                        },
+                    };
+                }
             }
         }
 
@@ -402,6 +475,102 @@ pub const Interpreter = struct {
         return Value{ .inner = .{
             .integer = try math.mod(i64, lhs.inner.integer, rhs.inner.integer),
         } };
+    }
+
+    fn lessValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        const lhs_kind = @as(Value.Kind, lhs.inner);
+        const rhs_kind = @as(Value.Kind, rhs.inner);
+        assert(lhs_kind == rhs_kind);
+        return .{
+            .inner = .{
+                .boolean = switch (lhs_kind) {
+                    .integer => lhs.inner.integer < rhs.inner.integer,
+                    .string => std.mem.lessThan(u8, lhs.inner.string, rhs.inner.string),
+                    .array => {
+                        //TODO: should maybe work(?)
+                        unreachable;
+                    },
+                    .boolean => {
+                        // should be error
+                        assert(false);
+                        unreachable;
+                    },
+                },
+            },
+        };
+    }
+
+    fn greaterValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        const lhs_kind = @as(Value.Kind, lhs.inner);
+        const rhs_kind = @as(Value.Kind, rhs.inner);
+        assert(lhs_kind == rhs_kind);
+        return .{
+            .inner = .{
+                .boolean = switch (lhs_kind) {
+                    .integer => lhs.inner.integer > rhs.inner.integer,
+                    .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .gt,
+                    .array => {
+                        //TODO: should maybe work(?)
+                        unreachable;
+                    },
+                    .boolean => {
+                        // should be error
+                        assert(false);
+                        unreachable;
+                    },
+                },
+            },
+        };
+    }
+
+    fn notValue(self: *Interpreter, value: *const Value) Value {
+        _ = self;
+        _ = value;
+        unreachable;
+    }
+
+    fn equalsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        _ = lhs;
+        _ = rhs;
+        unreachable;
+    }
+
+    fn notEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        _ = lhs;
+        _ = rhs;
+        unreachable;
+    }
+
+    fn lessEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        _ = lhs;
+        _ = rhs;
+        unreachable;
+    }
+
+    fn greaterEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        _ = lhs;
+        _ = rhs;
+        unreachable;
+    }
+
+    fn logicalAndValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        _ = lhs;
+        _ = rhs;
+        unreachable;
+    }
+
+    fn logicalOrValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
+        _ = self;
+        _ = lhs;
+        _ = rhs;
+        unreachable;
     }
 };
 

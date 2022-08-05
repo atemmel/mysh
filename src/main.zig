@@ -91,3 +91,7 @@ pub fn main() anyerror!u8 {
     try stderr.print("No file specified, exiting...\n", .{});
     return 2;
 }
+
+comptime {
+    _ = @import("spawn.zig");
+}

@@ -63,6 +63,10 @@ pub const Value = struct {
             },
         }
     }
+
+    pub fn stringify(self: *const Value, ally: std.mem.Allocator) ![]u8 {
+        return std.fmt.allocPrint(ally, "{}", .{self.*});
+    }
 };
 
 pub const SymTable = struct {
