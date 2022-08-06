@@ -4,6 +4,7 @@ const SymTable = @import("symtable.zig").SymTable;
 const Value = @import("symtable.zig").Value;
 const ValueArray = @import("symtable.zig").ValueArray;
 const spawn = @import("spawn.zig");
+const interpolate = @import("interpolate.zig");
 const assert = std.debug.assert;
 const print = std.debug.print;
 const math = std.math;
@@ -209,7 +210,7 @@ pub const Interpreter = struct {
     fn handleExpr(self: *Interpreter, expr: *const ast.Expr) anyerror!?Value {
         return switch (expr.*) {
             .bareword => |*bareword| try self.handleBareword(bareword),
-            .identifier => |*identifier| try self.handleIdentifier(identifier),
+            .identifier => |*identifier| self.handleIdentifier(identifier),
             .string_literal => |*string| try self.handleStringLiteral(string),
             .boolean_literal => |*boolean| self.handleBoolLiteral(boolean),
             .integer_literal => |*integer| self.handleIntegerLiteral(integer),
@@ -227,16 +228,29 @@ pub const Interpreter = struct {
         } };
     }
 
-    fn handleIdentifier(self: *Interpreter, identifier: *const ast.Identifier) !Value {
-        return Value{ .inner = .{
-            .string = try self.ally.dupe(u8, identifier.token.value),
-        } };
+    fn handleIdentifier(self: *Interpreter, identifier: *const ast.Identifier) Value {
+        _ = self;
+        return Value{
+            .inner = .{
+                .string = identifier.token.value,
+            },
+            .may_free = false,
+        };
     }
 
     fn handleStringLiteral(self: *Interpreter, string: *const ast.StringLiteral) !Value {
-        return Value{ .inner = .{
-            .string = try self.ally.dupe(u8, string.token.value),
-        } };
+        if (try interpolate.maybe(self.ally, string.token.value, &self.sym_table)) |interpolated| {
+            return Value{ .inner = .{
+                .string = interpolated,
+            } };
+        }
+
+        return Value{
+            .inner = .{
+                .string = string.token.value,
+            },
+            .may_free = false,
+        };
     }
 
     fn handleBoolLiteral(_: *Interpreter, boolean: *const ast.BoolLiteral) Value {
@@ -412,11 +426,13 @@ pub const Interpreter = struct {
                 const result = try spawn.cmd(self.ally, stringified_args, opts);
 
                 if (result.stdout) |stdout| {
-                    return Value{
-                        .inner = .{
-                            .string = stdout,
-                        },
-                    };
+                    const returned_value = Value.byConversion(stdout);
+                    // if converted from string
+                    if (@as(Value.Kind, returned_value.inner) != .string) {
+                        // free string
+                        self.ally.free(stdout);
+                    }
+                    return returned_value;
                     //TODO: consider this
                     //defer self.ally.free(stdout);
                     //const string = std.mem.trimRight(u8, stdout, &std.ascii.spaces);
