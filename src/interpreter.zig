@@ -134,8 +134,11 @@ pub const Interpreter = struct {
         var i: usize = 0;
         while (i < args.len) : (i += 1) {
             const args_name = fn_decl.args[i].value;
-            const args_value = &args[i];
-            try self.sym_table.put(args_name, args_value);
+            const args_value = Value{
+                .inner = args[i].inner,
+                .may_free = false,
+            };
+            try self.sym_table.put(args_name, &args_value);
         }
 
         self.collected_return = null;
@@ -325,7 +328,10 @@ pub const Interpreter = struct {
     fn handleCall(self: *Interpreter, call: *const ast.FunctionCall) !?Value {
         const name = call.token.value;
         const has_stdin_arg = self.piped_value != null;
-        const n_args = if (has_stdin_arg) call.args.len + 1 else call.args.len;
+        const n_args = if (has_stdin_arg)
+            call.args.len + 1
+        else
+            call.args.len;
 
         var args_array = try ValueArray.initCapacity(self.ally, n_args);
         defer {
@@ -381,6 +387,12 @@ pub const Interpreter = struct {
         }
 
         self.piped_value = (try self.handleExpr(current)) orelse unreachable;
+        //defer {
+        //if (self.piped_value) |*val| {
+        //val.deinit(self.ally);
+        //self.piped_value = null;
+        //}
+        //}
         if (unpipe) {
             self.is_piping = false;
         }
@@ -426,21 +438,15 @@ pub const Interpreter = struct {
                 const result = try spawn.cmd(self.ally, stringified_args, opts);
 
                 if (result.stdout) |stdout| {
-                    const returned_value = Value.byConversion(stdout);
+                    const shrinked_stdout = std.mem.trimRight(u8, stdout, &std.ascii.spaces);
+                    _ = self.ally.resize(stdout, shrinked_stdout.len);
+                    const returned_value = Value.byConversion(shrinked_stdout);
                     // if converted from string
                     if (@as(Value.Kind, returned_value.inner) != .string) {
                         // free string
-                        self.ally.free(stdout);
+                        self.ally.free(shrinked_stdout);
                     }
                     return returned_value;
-                    //TODO: consider this
-                    //defer self.ally.free(stdout);
-                    //const string = std.mem.trimRight(u8, stdout, &std.ascii.spaces);
-                    //return Value{
-                    //.inner = .{
-                    //.string = try self.ally.dupe(u8, string),
-                    //},
-                    //};
                 }
             }
         }
