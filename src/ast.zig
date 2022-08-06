@@ -122,8 +122,8 @@ pub const Loop = union(LoopKind) {
 
     // for in loop
     pub const ForInLoop = struct {
-        iterator: Token,
-        iterable: Variable,
+        iterator: Identifier,
+        iterable: Expr,
         token: *const Token,
         scope: Scope,
     };
@@ -133,11 +133,14 @@ pub const Loop = union(LoopKind) {
 
     fn deinit(self: *const Loop, ally: std.mem.Allocator) void {
         switch (self.*) {
-            .while_loop => |while_loop| {
+            .while_loop => |*while_loop| {
                 while_loop.condition.deinit(ally);
                 while_loop.scope.deinit(ally);
             },
-            .for_in_loop => {},
+            .for_in_loop => |*for_in_loop| {
+                for_in_loop.iterable.deinit(ally);
+                for_in_loop.scope.deinit(ally);
+            },
         }
     }
 };
@@ -1021,7 +1024,40 @@ pub const Parser = struct {
 
     fn parseForInLoop(self: *Parser) !?Loop.ForInLoop {
         _ = self;
-        return null;
+        const token = self.getIf(Token.Kind.For);
+        if (token == null) {
+            return null;
+        }
+
+        var identifier = self.parseIdentifier();
+        if (identifier == null) {
+            self.expectedToken(.Identifier);
+            return null;
+        }
+
+        if (self.getIf(.In) == null) {
+            self.expectedToken(.In);
+            return null;
+        }
+
+        var iterable = try self.parseExpr();
+        if (iterable == null) {
+            self.expected(.iterable);
+            return null;
+        }
+
+        var scope = try self.parseScope(.{});
+        if (scope == null) {
+            self.expected(.scope);
+            return null;
+        }
+
+        return Loop.ForInLoop{
+            .iterator = identifier.?,
+            .iterable = iterable.?,
+            .token = token.?,
+            .scope = scope.?,
+        };
     }
 
     const ParseScopeOptions = struct {

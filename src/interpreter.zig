@@ -148,6 +148,7 @@ pub const Interpreter = struct {
         for (fn_decl.scope.statements) |*stmnt| {
             try self.handleStatement(stmnt);
             if (self.return_just_handled) {
+                self.return_just_handled = false;
                 return self.collected_return;
             }
         }
@@ -200,7 +201,7 @@ pub const Interpreter = struct {
 
         switch (loop.*) {
             .while_loop => |*while_loop| try self.whileLoop(while_loop),
-            .for_in_loop => unreachable,
+            .for_in_loop => |*for_in_loop| try self.forInLoop(for_in_loop),
         }
     }
 
@@ -398,6 +399,28 @@ pub const Interpreter = struct {
             try self.handleScope(&loop.scope);
             if (self.return_just_handled) {
                 return;
+            }
+        }
+    }
+
+    fn forInLoop(self: *Interpreter, loop: *const ast.Loop.ForInLoop) anyerror!void {
+        const maybe_iterable = try self.handleExpr(&loop.iterable);
+        assert(maybe_iterable != null);
+        const iterable = maybe_iterable.?;
+        assert(@as(Value.Kind, iterable.inner) == .array);
+        defer iterable.deinit(self.ally);
+
+        const iterator_name = loop.iterator.token.value;
+        try self.sym_table.addScope();
+        defer self.sym_table.dropScope();
+
+        for (iterable.inner.array.items) |*value| {
+            try self.sym_table.put(iterator_name, value);
+            for (loop.scope.statements) |*stmnt| {
+                try self.handleStatement(stmnt);
+                if (self.return_just_handled) {
+                    return;
+                }
             }
         }
     }

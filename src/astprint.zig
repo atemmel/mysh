@@ -142,8 +142,8 @@ const Printer = struct {
             .while_loop => |*while_loop| {
                 self.printWhileLoop(while_loop);
             },
-            .for_in_loop => {
-                unreachable;
+            .for_in_loop => |*for_in_loop| {
+                self.printForInLoop(for_in_loop);
             },
         }
     }
@@ -153,6 +153,17 @@ const Printer = struct {
         printImpl("WhileLoopNode:\n", .{});
         self.depth += 1;
         self.printExpr(&node.condition);
+        self.depth += 1;
+        self.printScope(&node.scope);
+        self.depth -= 2;
+    }
+
+    pub fn printForInLoop(self: *Printer, node: *const ast.Loop.ForInLoop) void {
+        self.pad();
+        printImpl("ForInLoopNode:\n", .{});
+        self.depth += 1;
+        self.printIdentifier(&node.iterator);
+        self.printExpr(&node.iterable);
         self.depth += 1;
         self.printScope(&node.scope);
         self.depth -= 2;
