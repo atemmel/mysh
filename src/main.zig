@@ -95,4 +95,5 @@ pub fn main() anyerror!u8 {
 comptime {
     _ = @import("spawn.zig");
     _ = @import("interpolate.zig");
+    _ = @import("escape.zig");
 }

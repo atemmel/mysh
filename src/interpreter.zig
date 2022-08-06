@@ -5,6 +5,7 @@ const Value = @import("symtable.zig").Value;
 const ValueArray = @import("symtable.zig").ValueArray;
 const spawn = @import("spawn.zig");
 const interpolate = @import("interpolate.zig");
+const escape = @import("escape.zig");
 const mysh_builtins = @import("builtins.zig");
 const assert = std.debug.assert;
 const print = std.debug.print;
@@ -244,17 +245,28 @@ pub const Interpreter = struct {
     }
 
     fn handleStringLiteral(self: *Interpreter, string: *const ast.StringLiteral) !Value {
-        if (try interpolate.maybe(self.ally, string.token.value, &self.sym_table)) |interpolated| {
-            return Value{ .inner = .{
-                .string = interpolated,
-            } };
+        var final_string = string.token.value;
+        var may_free = false;
+
+        if (try interpolate.maybe(self.ally, final_string, &self.sym_table)) |interpolated| {
+            final_string = interpolated;
+            may_free = true;
+        }
+
+        if (try escape.maybe(self.ally, final_string)) |escaped| {
+            if (may_free) {
+                self.ally.free(final_string);
+            }
+
+            final_string = escaped;
+            may_free = true;
         }
 
         return Value{
             .inner = .{
-                .string = string.token.value,
+                .string = final_string,
             },
-            .may_free = false,
+            .may_free = may_free,
         };
     }
 
