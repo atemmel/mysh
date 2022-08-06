@@ -356,7 +356,7 @@ pub const Tokenizer = struct {
         }
 
         const upcoming = self.source[self.current .. self.current + 1];
-        if (token.isOperator(upcoming)) {
+        if (token.isSymbol(upcoming)) {
             return true;
         }
 
@@ -373,14 +373,14 @@ pub const Tokenizer = struct {
         const old_row = self.current_row;
 
         const upcoming = self.source[self.current .. self.current + 1];
-        var index: usize = Token.operator_begin;
-        while (index < Token.operator_end) : (index += 1) {
+        var index: usize = Token.symbol_begin;
+        while (index < Token.symbol_end) : (index += 1) {
             if (std.mem.eql(u8, upcoming, Token.strings[index])) {
                 break;
             }
         }
 
-        if (index == Token.operator_end) {
+        if (index == Token.symbol_end) {
             return false;
         }
 

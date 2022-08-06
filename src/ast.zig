@@ -184,13 +184,16 @@ pub const UnaryOperator = struct {
 
 pub const FunctionCall = struct {
     token: *const Token,
+    name: *const Expr,
     args: []const Expr,
 
     fn deinit(self: *const FunctionCall, ally: std.mem.Allocator) void {
+        self.name.deinit(ally);
         for (self.args) |arg| {
             arg.deinit(ally);
         }
         ally.free(self.args);
+        ally.destroy(self.name);
     }
 };
 
@@ -333,6 +336,7 @@ pub const Parser = struct {
             .token_we_wanted = Token.Kind.NTokens,
             .thing_we_wanted = Expectable.n_expectables,
             .token_we_got = null,
+            .inside_fn_call_expr = false,
         };
     }
 
@@ -440,6 +444,10 @@ pub const Parser = struct {
             };
         }
 
+        if (self.encounteredError()) {
+            return null;
+        }
+
         if (try self.parseExprMaybeTrailingNewline(true)) |expr| {
             return Statement{
                 .expr = expr,
@@ -450,9 +458,22 @@ pub const Parser = struct {
     }
 
     fn parseFunctionCall(self: *Parser) anyerror!?Expr {
+        var name: Expr = undefined;
         var token = self.getIf(Token.Kind.Identifier);
-        if (token == null) {
+        if (token == null and !self.inside_fn_call_expr) {
             return null;
+        } else if (token == null and self.inside_fn_call_expr) {
+            token = self.getIf(Token.Kind.StringLiteral);
+            if (token == null) {
+                return null;
+            }
+            name = .{ .string_literal = .{
+                .token = token.?,
+            } };
+        } else {
+            name = .{ .identifier = .{
+                .token = token.?,
+            } };
         }
 
         self.may_read_pipe = false;
@@ -467,6 +488,9 @@ pub const Parser = struct {
         while (try self.parseExpr()) |expr| {
             try children.append(expr);
         }
+
+        var name_expr = try self.ally.create(Expr);
+        name_expr.* = name;
 
         self.may_read_pipe = true;
 
@@ -483,6 +507,7 @@ pub const Parser = struct {
             lhs.* = Expr{
                 .call = FunctionCall{
                     .token = token.?,
+                    .name = name_expr,
                     .args = children.toOwnedSlice(),
                 },
             };
@@ -503,6 +528,7 @@ pub const Parser = struct {
         return Expr{
             .call = FunctionCall{
                 .token = token.?,
+                .name = name_expr,
                 .args = children.toOwnedSlice(),
             },
         };
@@ -514,6 +540,9 @@ pub const Parser = struct {
         if (token == null) {
             return null;
         }
+
+        self.inside_fn_call_expr = true;
+        defer self.inside_fn_call_expr = false;
 
         const call = try self.parseFunctionCall();
         if (call == null) {
@@ -882,7 +911,8 @@ pub const Parser = struct {
         if (!self.eot()) {
             var i = @enumToInt(self.get().kind);
 
-            // if next token is operator
+            // if next token is symbol
+            //if (i >= Token.symbol_begin and i < Token.symbol_end) {
             if (i >= Token.operator_begin and i < Token.operator_end) {
                 // if we can't look two tokens backwards
                 if (self.current < 2) {
@@ -893,7 +923,9 @@ pub const Parser = struct {
             }
 
             // look two tokens backwards
-            i = @enumToInt(self.tokens[self.current - 2].kind);
+            const prior_token = self.tokens[self.current - 2];
+            i = @enumToInt(prior_token.kind);
+            //if (i >= Token.symbol_begin and i < Token.symbol_end) {
             if (i >= Token.operator_begin and i < Token.operator_end) {
                 // fail the parse
                 self.current = checkpoint;
@@ -934,7 +966,9 @@ pub const Parser = struct {
             return null;
         }
 
-        var expr = try self.parseExpr();
+        var expr = (try self.parseFunctionCall()) orelse try self.parseExpr();
+
+        //var expr = try self.parseExpr();
         if (expr == null) {
             self.expected(Expectable.expression);
             return null;
@@ -1332,4 +1366,5 @@ pub const Parser = struct {
     token_we_wanted: Token.Kind = undefined,
     thing_we_wanted: Expectable = undefined,
     token_we_got: ?*const Token = undefined,
+    inside_fn_call_expr: bool = false,
 };

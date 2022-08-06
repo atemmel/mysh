@@ -150,11 +150,17 @@ pub const Interpreter = struct {
             try self.handleStatement(stmnt);
             if (self.return_just_handled) {
                 self.return_just_handled = false;
-                return self.collected_return;
+                const return_copy = self.collected_return;
+                self.collected_return = null;
+                return return_copy;
             }
         }
 
-        return null;
+        self.return_just_handled = false;
+        const return_copy = self.collected_return;
+        self.collected_return = null;
+
+        return return_copy;
     }
 
     fn handleReturn(self: *Interpreter, ret: *const ast.Return) !void {
@@ -362,7 +368,12 @@ pub const Interpreter = struct {
     }
 
     fn handleCall(self: *Interpreter, call: *const ast.FunctionCall) !?Value {
-        const name = call.token.value;
+        const maybe_name_value = try self.handleExpr(call.name);
+        assert(maybe_name_value != null);
+        assert(@as(Value.Kind, maybe_name_value.?.inner) == .string);
+        defer maybe_name_value.?.deinit(self.ally);
+        const name = maybe_name_value.?.inner.string;
+
         const has_stdin_arg = self.piped_value != null;
         const n_args = if (has_stdin_arg)
             call.args.len + 1
@@ -712,7 +723,7 @@ pub const Interpreter = struct {
         return .{
             .inner = .{
                 .boolean = switch (lhs_kind) {
-                    .integer => lhs.inner.integer <= rhs.inner.integer,
+                    .integer => lhs.inner.integer >= rhs.inner.integer,
                     .string => switch (std.mem.order(u8, lhs.inner.string, rhs.inner.string)) {
                         .gt, .eq => true,
                         .lt => false,

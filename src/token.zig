@@ -172,8 +172,10 @@ pub const Token = struct {
 
     pub const keyword_begin = 1;
     pub const keyword_end = 11;
+    pub const symbol_begin = 11;
+    pub const symbol_end = 34;
     pub const operator_begin = 11;
-    pub const operator_end = 34;
+    pub const operator_end = 28;
 
     pub fn precedence(self: *const Token) u32 {
         const idx: usize = @enumToInt(self.kind);
@@ -205,9 +207,9 @@ pub const Token = struct {
     row: usize,
 };
 
-pub fn isOperator(slice: []const u8) bool {
-    var i: usize = Token.operator_begin;
-    while (i < Token.operator_end) : (i += 1) {
+pub fn isSymbol(slice: []const u8) bool {
+    var i: usize = Token.symbol_begin;
+    while (i < Token.symbol_end) : (i += 1) {
         const op = Token.strings[i];
         if (std.mem.eql(u8, op, slice)) {
             return true;
