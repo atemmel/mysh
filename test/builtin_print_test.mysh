@@ -1,4 +1,4 @@
-#!../build/mysh
+#!../zig-out/bin/mysh
 var str = "String"
 var boolean = true
 print Hello world

@@ -1,0 +1,29 @@
+#!../zig-out/bin/mysh
+
+fn isAdult age {
+	return $age >= 18
+}
+
+if isAdult 21 {
+	print This should print
+} 
+
+checkAge [17 18 19]
+
+check [17 18 19] isAdult
+
+fn checkAge array {
+	for e in $array {
+		if isAdult $e {
+			print $e is an adult age
+		}
+	}
+}
+
+fn check array predicate {
+	for e in $array {
+		if ("$predicate" $e) {
+			print $e satisfies the condition
+		}
+	}
+}
