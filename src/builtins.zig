@@ -90,3 +90,30 @@ pub fn filter(interp: *Interpreter, args: []const Value) !?Value {
         },
     };
 }
+
+pub fn len(interp: *Interpreter, args: []const Value) !?Value {
+    _ = interp;
+    assert(args.len >= 1);
+
+    var length_sum: i64 = 0;
+
+    for (args) |*arg| {
+        switch (arg.inner) {
+            .boolean, .integer => {
+                assert(false);
+            },
+            .string => |string| {
+                length_sum += @intCast(i64, string.len);
+            },
+            .array => |*array| {
+                length_sum += @intCast(i64, array.items.len);
+            },
+        }
+    }
+
+    return Value{
+        .inner = .{
+            .integer = length_sum,
+        },
+    };
+}

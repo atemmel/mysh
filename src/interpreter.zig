@@ -725,4 +725,5 @@ const builtins_array = .{
     .{ "print", mysh_builtins.print },
     .{ "append", mysh_builtins.append },
     .{ "filter", mysh_builtins.filter },
+    .{ "len", mysh_builtins.len },
 };
