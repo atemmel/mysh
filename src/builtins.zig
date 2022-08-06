@@ -41,7 +41,7 @@ pub fn append(interp: *Interpreter, args: []const Value) !?Value {
     assert(args.len >= 2);
     assert(@as(Value.Kind, args[0].inner) == .array);
 
-    var original_array = &args[0].inner.array;
+    const original_array = &args[0].inner.array;
     const total_new_length = original_array.items.len + args.len - 1;
     var modified_array = try ValueArray.initCapacity(interp.ally, total_new_length);
 
@@ -56,6 +56,34 @@ pub fn append(interp: *Interpreter, args: []const Value) !?Value {
         const element = &args[idx];
         try modified_array.append(try element.clone(interp.ally));
     }
+    return Value{
+        .inner = .{
+            .array = modified_array,
+        },
+    };
+}
+
+pub fn filter(interp: *Interpreter, args: []const Value) !?Value {
+    assert(args.len == 2);
+    assert(@as(Value.Kind, args[0].inner) == .array);
+    //TODO: this should be some sort of function/lambda type
+    assert(@as(Value.Kind, args[1].inner) == .string);
+
+    const original_array = &args[0].inner.array;
+    const fn_name = args[1].inner.string;
+    var modified_array = try ValueArray.initCapacity(interp.ally, original_array.items.len / 2);
+
+    for (original_array.items) |*element| {
+        const fn_args: []const Value = &[_]Value{element.*};
+        const fn_result = try interp.executeFunction(fn_name, fn_args, false);
+        assert(fn_result != null);
+        assert(@as(Value.Kind, fn_result.?.inner) == .boolean);
+
+        if (fn_result.?.inner.boolean) {
+            try modified_array.append(try element.clone(interp.ally));
+        }
+    }
+
     return Value{
         .inner = .{
             .array = modified_array,

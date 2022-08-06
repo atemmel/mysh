@@ -97,7 +97,7 @@ pub const Interpreter = struct {
                         const value_array = [_]Value{
                             value,
                         };
-                        _ = try builtinPrint(self, &value_array);
+                        _ = try mysh_builtins.print(self, &value_array);
                     }
                 } else |err| {
                     return err;
@@ -423,7 +423,7 @@ pub const Interpreter = struct {
         return self.handleExpr(next);
     }
 
-    fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, has_stdin_arg: bool) !?Value {
+    pub fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, has_stdin_arg: bool) !?Value {
         if (self.builtins.get(name)) |func| {
             return try func(self, args);
         } else {
@@ -724,32 +724,5 @@ const builtin_signature = fn (interp: *Interpreter, args: []const Value) anyerro
 const builtins_array = .{
     .{ "print", mysh_builtins.print },
     .{ "append", mysh_builtins.append },
+    .{ "filter", mysh_builtins.filter },
 };
-
-fn builtinPrint(interp: *Interpreter, args: []const Value) !?Value {
-    _ = interp;
-    for (args) |*arg, idx| {
-        print("{}", .{arg.*});
-        if (idx != args.len - 1) {
-            print(" ", .{});
-        }
-    }
-
-    // trailing newline check
-    if (args.len > 0) {
-        const last_arg = args[args.len - 1];
-        switch (last_arg.inner) {
-            .string => |string| {
-                if (string.len > 0) {
-                    const last_byte = string[string.len - 1];
-                    if (last_byte == '\n') {
-                        return null;
-                    }
-                }
-            },
-            else => {},
-        }
-    }
-    print("\n", .{});
-    return null;
-}
