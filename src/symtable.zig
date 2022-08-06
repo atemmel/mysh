@@ -21,6 +21,37 @@ pub const Value = struct {
     owned: bool = false,
     may_free: bool = true,
 
+    pub fn clone(self: *const Value, ally: std.mem.Allocator) std.mem.Allocator.Error!Value {
+        switch (self.inner) {
+            .string => |string| {
+                if (!self.may_free) {
+                    return self.*;
+                }
+                return Value{
+                    .inner = .{
+                        .string = try ally.dupe(u8, string),
+                    },
+                };
+            },
+            .boolean => return self.*,
+            .integer => return self.*,
+            .array => |array| {
+                if (!self.may_free) {
+                    return self.*;
+                }
+                var new_array = try ValueArray.initCapacity(ally, array.items.len);
+                for (new_array.items) |*element, i| {
+                    element.* = try array.items[i].clone(ally);
+                }
+                return Value{
+                    .inner = .{
+                        .array = new_array,
+                    },
+                };
+            },
+        }
+    }
+
     pub fn byConversion(original_str: []const u8) Value {
         const str = std.mem.trimRight(u8, original_str, &std.ascii.spaces);
 
@@ -100,7 +131,11 @@ pub const Value = struct {
                 try writer.print("{}", .{integer});
             },
             .array => |*array| {
-                try writer.print("{any}", .{array.items});
+                try writer.writeAll("[ ");
+                for (array.items) |*element| {
+                    try writer.print("{} ", .{element});
+                }
+                try writer.writeAll("]");
             },
         }
     }

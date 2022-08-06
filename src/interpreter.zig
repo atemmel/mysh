@@ -5,12 +5,13 @@ const Value = @import("symtable.zig").Value;
 const ValueArray = @import("symtable.zig").ValueArray;
 const spawn = @import("spawn.zig");
 const interpolate = @import("interpolate.zig");
+const mysh_builtins = @import("builtins.zig");
 const assert = std.debug.assert;
 const print = std.debug.print;
 const math = std.math;
 
 pub const Interpreter = struct {
-    const Builtins = std.StringHashMap(builtin_signature);
+    const Builtins = std.StringHashMap(mysh_builtins.Signature);
 
     ally: std.mem.Allocator = undefined,
     root_node: *ast.Root = undefined,
@@ -217,7 +218,7 @@ pub const Interpreter = struct {
             .string_literal => |*string| try self.handleStringLiteral(string),
             .boolean_literal => |*boolean| self.handleBoolLiteral(boolean),
             .integer_literal => |*integer| self.handleIntegerLiteral(integer),
-            .array_literal => unreachable,
+            .array_literal => |*array| try self.handleArrayLiteral(array),
             .variable => |*variable| try self.handleVariable(variable),
             .binary_operator => |*binary| try self.handleBinaryOperator(binary),
             .unary_operator => |*unary| try self.handleUnaryOperator(unary),
@@ -266,6 +267,28 @@ pub const Interpreter = struct {
         return .{ .inner = .{
             .integer = integer.value,
         } };
+    }
+
+    fn handleArrayLiteral(self: *Interpreter, array: *const ast.ArrayLiteral) !Value {
+        var value = try ValueArray.initCapacity(self.ally, array.value.len);
+
+        for (array.value) |*element| {
+            const err_maybe_val = self.handleExpr(element);
+            if (err_maybe_val) |maybe_val| {
+                assert(maybe_val != null);
+                value.appendAssumeCapacity(maybe_val.?);
+            } else |err| {
+                return err;
+            }
+        }
+
+        assert(value.items.len == array.value.len);
+
+        return Value{
+            .inner = .{
+                .array = value,
+            },
+        };
     }
 
     fn handleVariable(self: *Interpreter, variable: *const ast.Variable) !Value {
@@ -699,7 +722,8 @@ pub const Interpreter = struct {
 const builtin_signature = fn (interp: *Interpreter, args: []const Value) anyerror!?Value;
 
 const builtins_array = .{
-    .{ "print", builtinPrint },
+    .{ "print", mysh_builtins.print },
+    .{ "append", mysh_builtins.append },
 };
 
 fn builtinPrint(interp: *Interpreter, args: []const Value) !?Value {
