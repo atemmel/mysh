@@ -208,7 +208,7 @@ pub const Interpreter = struct {
 
     fn handleExpr(self: *Interpreter, expr: *const ast.Expr) anyerror!?Value {
         return switch (expr.*) {
-            .bareword => unreachable,
+            .bareword => |*bareword| try self.handleBareword(bareword),
             .identifier => |*identifier| try self.handleIdentifier(identifier),
             .string_literal => |*string| try self.handleStringLiteral(string),
             .boolean_literal => |*boolean| self.handleBoolLiteral(boolean),
@@ -219,6 +219,12 @@ pub const Interpreter = struct {
             .unary_operator => |*unary| try self.handleUnaryOperator(unary),
             .call => |*call| try self.handleCall(call),
         };
+    }
+
+    fn handleBareword(self: *Interpreter, bareword: *const ast.Bareword) !Value {
+        return Value{ .inner = .{
+            .string = try self.ally.dupe(u8, bareword.token.value),
+        } };
     }
 
     fn handleIdentifier(self: *Interpreter, identifier: *const ast.Identifier) !Value {
@@ -369,10 +375,6 @@ pub const Interpreter = struct {
     }
 
     fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, has_stdin_arg: bool) !?Value {
-
-        //TODO: external cmd piping
-        _ = has_stdin_arg;
-
         if (self.builtins.get(name)) |func| {
             return try func(self, args);
         } else {
@@ -410,14 +412,19 @@ pub const Interpreter = struct {
                 const result = try spawn.cmd(self.ally, stringified_args, opts);
 
                 if (result.stdout) |stdout| {
-                    defer self.ally.free(stdout);
-                    const string = std.mem.trimRight(u8, stdout, &std.ascii.spaces);
                     return Value{
                         .inner = .{
-                            .string = try self.ally.dupe(u8, string),
-                            //.string = stdout,
+                            .string = stdout,
                         },
                     };
+                    //TODO: consider this
+                    //defer self.ally.free(stdout);
+                    //const string = std.mem.trimRight(u8, stdout, &std.ascii.spaces);
+                    //return Value{
+                    //.inner = .{
+                    //.string = try self.ally.dupe(u8, string),
+                    //},
+                    //};
                 }
             }
         }
@@ -675,8 +682,11 @@ const builtins_array = .{
 
 fn builtinPrint(interp: *Interpreter, args: []const Value) !?Value {
     _ = interp;
-    for (args) |*arg| {
-        print("{} ", .{arg.*});
+    for (args) |*arg, idx| {
+        print("{}", .{arg.*});
+        if (idx != args.len - 1) {
+            print(" ", .{});
+        }
     }
 
     // trailing newline check
