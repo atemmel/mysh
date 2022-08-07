@@ -1,5 +1,6 @@
 const std = @import("std");
 const ast = @import("ast.zig");
+const Token = @import("token.zig").Token;
 const SymTable = @import("symtable.zig").SymTable;
 const Value = @import("symtable.zig").Value;
 const ValueArray = @import("symtable.zig").ValueArray;
@@ -7,14 +8,53 @@ const spawn = @import("spawn.zig");
 const interpolate = @import("interpolate.zig");
 const escape = @import("escape.zig");
 const mysh_builtins = @import("builtins.zig");
+const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
+const todo = std.debug.todo;
 const print = std.debug.print;
 const math = std.math;
+
+const InterpreterError = error{
+    RuntimeError,
+};
 
 pub const Interpreter = struct {
     const Builtins = std.StringHashMap(mysh_builtins.Signature);
 
-    ally: std.mem.Allocator = undefined,
+    const ErrorInfo = union(Kind) {
+        const Kind = enum {
+            valueless_expression,
+            type_mismatch,
+            argument_count_mismatch,
+        };
+
+        const ValuelessExpression = struct {
+            // token which caused the error
+            token: *const Token = undefined,
+            // expected type
+            expected_type: Value.Kind = undefined,
+        };
+
+        const TypeMismatch = struct {
+            // token which caused the error
+            token: *const Token = undefined,
+            expected_type: Value.Kind = undefined,
+            found_type: Value.Kind = undefined,
+        };
+
+        const ArgumentCountMismatch = struct {
+            // token which caused the error
+            token: *const Token = undefined,
+            expected_argument_count: usize = undefined,
+            found_argument_count: usize = undefined,
+        };
+
+        valueless_expression: ValuelessExpression,
+        type_mismatch: TypeMismatch,
+        argument_count_mismatch: ArgumentCountMismatch,
+    };
+
+    ally: Allocator = undefined,
     root_node: *ast.Root = undefined,
     collected_value: ?Value = null,
     return_just_handled: bool = false,
@@ -25,8 +65,9 @@ pub const Interpreter = struct {
     piped_value: ?Value = null,
     is_piping: bool = false,
     builtins: Builtins = undefined,
+    error_info: ?ErrorInfo = null,
 
-    pub fn init(ally: std.mem.Allocator) !Interpreter {
+    pub fn init(ally: Allocator) !Interpreter {
         var builtins = Builtins.init(ally);
 
         inline for (builtins_array) |builtin| {
@@ -49,17 +90,88 @@ pub const Interpreter = struct {
         self.builtins.deinit();
     }
 
-    pub fn interpret(self: *Interpreter, root_node: *ast.Root) !bool {
+    pub fn interpret(self: *Interpreter, root_node: *ast.Root) !void {
         self.root_node = root_node;
         try self.sym_table.addScope();
+        defer self.sym_table.dropScope();
         try self.handleRoot();
-        self.sym_table.dropScope();
-        return true;
     }
 
     pub fn reportError(self: *Interpreter) void {
-        _ = self;
-        print("Reporting errors :)))\n", .{});
+        if (self.error_info) |*error_info| {
+            switch (error_info.*) {
+                .valueless_expression => {
+                    todo("Handle valueless_expression error");
+                },
+                .type_mismatch => |*mismatch| {
+                    //TODO: fix the error msg ordering
+                    print("Type mismatch, expected: {}, found: {}\n", .{
+                        mismatch.expected_type,
+                        mismatch.found_type,
+                    });
+                    self.reportTokenCausingError(mismatch.token);
+                },
+                .argument_count_mismatch => {
+                    todo("Handle argument_count_mismatch error");
+                },
+            }
+        }
+    }
+
+    fn reportTokenCausingError(self: *Interpreter, token: *const Token) void {
+        //TODO: clean this mess up
+        const tokens = self.root_node.tokens;
+        const source = self.root_node.source;
+        const first = @ptrToInt(tokens.ptr);
+        const needle = @ptrToInt(token);
+        const token_struct_size = @sizeOf(Token);
+        const idx = (needle - first) / token_struct_size;
+
+        var look_behind: usize = idx;
+        var look_ahead: usize = idx;
+        while (look_behind > 0) : (look_behind -= 1) {
+            if (tokens[look_behind].kind == .Newline) {
+                look_behind += 1;
+                break;
+            }
+        }
+
+        while (look_ahead < tokens.len) : (look_ahead += 1) {
+            if (tokens[look_ahead].kind == .Newline) {
+                break;
+            }
+        }
+
+        const source_begin = tokens[look_behind].value;
+        const source_end = tokens[look_ahead].value;
+        const source_begin_addr = @ptrToInt(source_begin.ptr);
+        const source_end_addr = @ptrToInt(source_end.ptr);
+
+        const source_ptr_addr = @ptrToInt(source.ptr);
+
+        const source_begin_idx = (source_begin_addr - source_ptr_addr) / @sizeOf(u8);
+        const source_end_idx = (source_end_addr - source_ptr_addr) / @sizeOf(u8);
+
+        const source_slice = source[source_begin_idx..source_end_idx];
+
+        const bad_source_begin_addr = @ptrToInt(token.value.ptr);
+        const bad_source_begin_idx = (bad_source_begin_addr - source_ptr_addr) / @sizeOf(u8);
+        const bad_source_end_idx = bad_source_begin_idx + token.value.len;
+
+        print("row: {}, column:{} \x1b[31merror:\x1b[0m ", .{ token.row, token.column });
+        print("Token no. {} was bad blablabla\n", .{idx});
+        print("{s}\n", .{source_slice});
+
+        var left = source_begin_idx;
+        var right = source_end_idx;
+        while (left < right) : (left += 1) {
+            if (left + 1 >= bad_source_begin_idx and left <= bad_source_end_idx) {
+                print("\x1b[32m^", .{});
+            } else {
+                print("\x1b[0m ", .{});
+            }
+        }
+        print("\n", .{});
     }
 
     fn handleRoot(self: *Interpreter) !void {
@@ -111,6 +223,7 @@ pub const Interpreter = struct {
         const var_name = var_decl.decl;
         var var_value: Value = undefined;
 
+        //TODO: Consider this, likely not useful
         assert(var_decl.expr != null);
         const err_maybe_value = self.handleExpr(&var_decl.expr.?);
         if (err_maybe_value) |maybe_value| {
@@ -235,9 +348,12 @@ pub const Interpreter = struct {
     }
 
     fn handleBareword(self: *Interpreter, bareword: *const ast.Bareword) !Value {
-        return Value{ .inner = .{
-            .string = try self.ally.dupe(u8, bareword.token.value),
-        } };
+        return Value{
+            .inner = .{
+                .string = try self.ally.dupe(u8, bareword.token.value),
+            },
+            .origin = bareword.token,
+        };
     }
 
     fn handleIdentifier(self: *Interpreter, identifier: *const ast.Identifier) Value {
@@ -247,6 +363,7 @@ pub const Interpreter = struct {
                 .string = identifier.token.value,
             },
             .may_free = false,
+            .origin = identifier.token,
         };
     }
 
@@ -273,19 +390,26 @@ pub const Interpreter = struct {
                 .string = final_string,
             },
             .may_free = may_free,
+            .origin = string.token,
         };
     }
 
     fn handleBoolLiteral(_: *Interpreter, boolean: *const ast.BoolLiteral) Value {
-        return .{ .inner = .{
-            .boolean = boolean.value,
-        } };
+        return .{
+            .inner = .{
+                .boolean = boolean.value,
+            },
+            .origin = boolean.token,
+        };
     }
 
     fn handleIntegerLiteral(_: *Interpreter, integer: *const ast.IntegerLiteral) Value {
-        return .{ .inner = .{
-            .integer = integer.value,
-        } };
+        return .{
+            .inner = .{
+                .integer = integer.value,
+            },
+            .origin = integer.token,
+        };
     }
 
     fn handleArrayLiteral(self: *Interpreter, array: *const ast.ArrayLiteral) !Value {
@@ -307,6 +431,7 @@ pub const Interpreter = struct {
             .inner = .{
                 .array = value,
             },
+            .origin = array.token,
         };
     }
 
@@ -340,7 +465,7 @@ pub const Interpreter = struct {
         }
 
         return switch (binary.token.kind) {
-            .Add => self.addValues(&lhs, &rhs),
+            .Add => self.addValues(&lhs, &rhs, binary.token) catch |err| return err,
             .Subtract => self.subtractValues(&lhs, &rhs),
             .Multiply => self.multiplyValues(&lhs, &rhs),
             .Divide => try self.divideValues(&lhs, &rhs),
@@ -523,14 +648,19 @@ pub const Interpreter = struct {
         return null;
     }
 
-    fn addValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        assert(@as(Value.Kind, lhs.inner) == .integer);
-        assert(@as(Value.Kind, rhs.inner) == .integer);
+    fn addValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        //assert(@as(Value.Kind, lhs.inner) == .integer);
+        //assert(@as(Value.Kind, rhs.inner) == .integer);
+        //try self.assertExpectedType(lhs.getKind(), .integer, lhs.origin orelse backup_token);
+        try self.assertExpectedType(lhs, .integer, backup_token);
+        try self.assertExpectedType(rhs, .integer, backup_token);
 
-        return .{ .inner = .{
-            .integer = lhs.inner.integer + rhs.inner.integer,
-        } };
+        return Value{
+            .inner = .{
+                .integer = lhs.inner.integer + rhs.inner.integer,
+            },
+            .origin = null,
+        };
     }
 
     fn subtractValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
@@ -538,18 +668,24 @@ pub const Interpreter = struct {
         assert(@as(Value.Kind, lhs.inner) == .integer);
         assert(@as(Value.Kind, rhs.inner) == .integer);
 
-        return .{ .inner = .{
-            .integer = lhs.inner.integer - rhs.inner.integer,
-        } };
+        return .{
+            .inner = .{
+                .integer = lhs.inner.integer - rhs.inner.integer,
+            },
+            .origin = null,
+        };
     }
 
     fn negateValue(self: *Interpreter, value: *const Value) Value {
         _ = self;
         assert(@as(Value.Kind, value.inner) == .integer);
 
-        return .{ .inner = .{
-            .integer = -value.inner.integer,
-        } };
+        return .{
+            .inner = .{
+                .integer = -value.inner.integer,
+            },
+            .origin = null,
+        };
     }
 
     fn multiplyValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
@@ -557,9 +693,12 @@ pub const Interpreter = struct {
         assert(@as(Value.Kind, lhs.inner) == .integer);
         assert(@as(Value.Kind, rhs.inner) == .integer);
 
-        return .{ .inner = .{
-            .integer = lhs.inner.integer * rhs.inner.integer,
-        } };
+        return .{
+            .inner = .{
+                .integer = lhs.inner.integer * rhs.inner.integer,
+            },
+            .origin = null,
+        };
     }
 
     fn divideValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) !Value {
@@ -567,9 +706,12 @@ pub const Interpreter = struct {
         assert(@as(Value.Kind, lhs.inner) == .integer);
         assert(@as(Value.Kind, rhs.inner) == .integer);
 
-        return Value{ .inner = .{
-            .integer = try math.divTrunc(i64, lhs.inner.integer, rhs.inner.integer),
-        } };
+        return Value{
+            .inner = .{
+                .integer = try math.divTrunc(i64, lhs.inner.integer, rhs.inner.integer),
+            },
+            .origin = null,
+        };
     }
 
     fn moduloValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) !Value {
@@ -577,9 +719,12 @@ pub const Interpreter = struct {
         assert(@as(Value.Kind, lhs.inner) == .integer);
         assert(@as(Value.Kind, rhs.inner) == .integer);
 
-        return Value{ .inner = .{
-            .integer = try math.mod(i64, lhs.inner.integer, rhs.inner.integer),
-        } };
+        return Value{
+            .inner = .{
+                .integer = try math.mod(i64, lhs.inner.integer, rhs.inner.integer),
+            },
+            .origin = null,
+        };
     }
 
     fn lessValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
@@ -603,6 +748,7 @@ pub const Interpreter = struct {
                     },
                 },
             },
+            .origin = null,
         };
     }
 
@@ -627,6 +773,7 @@ pub const Interpreter = struct {
                     },
                 },
             },
+            .origin = null,
         };
     }
 
@@ -637,6 +784,7 @@ pub const Interpreter = struct {
             .inner = .{
                 .boolean = !value.inner.boolean,
             },
+            .origin = null,
         };
     }
 
@@ -661,6 +809,7 @@ pub const Interpreter = struct {
                     },
                 },
             },
+            .origin = null,
         };
     }
 
@@ -685,6 +834,7 @@ pub const Interpreter = struct {
                     },
                 },
             },
+            .origin = null,
         };
     }
 
@@ -712,6 +862,7 @@ pub const Interpreter = struct {
                     },
                 },
             },
+            .origin = null,
         };
     }
 
@@ -739,6 +890,7 @@ pub const Interpreter = struct {
                     },
                 },
             },
+            .origin = null,
         };
     }
 
@@ -750,6 +902,7 @@ pub const Interpreter = struct {
             .inner = .{
                 .boolean = lhs.inner.boolean and rhs.inner.boolean,
             },
+            .origin = null,
         };
     }
 
@@ -761,7 +914,21 @@ pub const Interpreter = struct {
             .inner = .{
                 .boolean = lhs.inner.boolean or rhs.inner.boolean,
             },
+            .origin = null,
         };
+    }
+
+    fn assertExpectedType(self: *Interpreter, value: *const Value, expected: Value.Kind, fallback: *const Token) !void {
+        if (value.getKind() != expected) {
+            self.error_info = ErrorInfo{
+                .type_mismatch = .{
+                    .token = value.origin orelse fallback,
+                    .expected_type = expected,
+                    .found_type = value.getKind(),
+                },
+            };
+            return InterpreterError.RuntimeError;
+        }
     }
 };
 

@@ -1,4 +1,5 @@
 const std = @import("std");
+const Token = @import("token.zig").Token;
 
 pub const ValueArray = std.ArrayList(Value);
 
@@ -8,6 +9,31 @@ pub const Value = struct {
         boolean,
         integer,
         array,
+
+        pub fn format(
+            self: *const Kind,
+            comptime fmt: []const u8,
+            options: std.fmt.FormatOptions,
+            writer: anytype,
+        ) !void {
+            _ = fmt;
+            _ = options;
+
+            switch (self.*) {
+                .string => {
+                    try writer.writeAll("string");
+                },
+                .boolean => {
+                    try writer.writeAll("bool");
+                },
+                .integer => {
+                    try writer.writeAll("int");
+                },
+                .array => {
+                    try writer.writeAll("[]");
+                },
+            }
+        }
     };
 
     pub const Inner = union(Kind) {
@@ -18,6 +44,7 @@ pub const Value = struct {
     };
 
     inner: Inner = undefined,
+    origin: ?*const Token = undefined,
     owned: bool = false,
     may_free: bool = true,
 
@@ -109,6 +136,10 @@ pub const Value = struct {
                 array.deinit();
             },
         }
+    }
+
+    pub fn getKind(self: *const Value) Kind {
+        return @as(Value.Kind, self.inner);
     }
 
     pub fn format(

@@ -29,7 +29,7 @@ pub fn doEverything(source: []const u8) !bool {
     }
 
     var parser = ast.Parser.init(ally);
-    var maybe_root = try parser.parse(tokens);
+    var maybe_root = try parser.parse(tokens, source);
 
     if (maybe_root == null) {
         try stderr.print("Parse failed, no root!\n", .{});
@@ -49,10 +49,10 @@ pub fn doEverything(source: []const u8) !bool {
     var interpreter = try Interpreter.init(ally);
     defer interpreter.deinit();
 
-    if (!try interpreter.interpret(&root)) {
+    interpreter.interpret(&root) catch {
         interpreter.reportError();
         return false;
-    }
+    };
     return true;
 }
 
