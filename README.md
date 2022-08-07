@@ -4,21 +4,24 @@
 
 * astgen
   * binary operators ~~add~~ ~~subtract~~ ~~multiply~~ ~~divide~~ `+=` `-=` `*=` `/=`
-  * type conversions `newtype($variable)`(?)
-  
 
 * interpreter
   * binary operators ~~add~~ ~~subtract~~ ~~multiply~~ ~~divide~~ `+=` `-=` `*=` `/=`
-  * type conversions `newtype($variable)`
   * type system
     * ~~string~~
     * ~~bool~~
     * ~~int~~
     * float
     * list/array ~~literal~~ ~~append~~
-    * table/dict
-    * null/nil/none-esque(?)
-  * ~~code block~~
-  * ~~branch~~
+    * struct/table/dict
   * proper error messages
-  * ~~function call as expression~~
+
+### to have:
+ * type conversions `(newtype $variable)`(?)
+ * repl-like functionality
+ * type annotations
+ * (some) semantic analysis
+
+### to maybe have:
+ * null/nil/none-esque(?)
+ * `fn` type: `var func = &print`(?)
