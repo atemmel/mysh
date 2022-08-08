@@ -1,0 +1,2 @@
+#!../../zig-out/bin/mysh
+0 == "hello"

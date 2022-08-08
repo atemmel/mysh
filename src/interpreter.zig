@@ -8,6 +8,7 @@ const spawn = @import("spawn.zig");
 const interpolate = @import("interpolate.zig");
 const escape = @import("escape.zig");
 const mysh_builtins = @import("builtins.zig");
+const ptr = @import("ptr.zig");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 const todo = std.debug.todo;
@@ -24,15 +25,19 @@ pub const Interpreter = struct {
     const ErrorInfo = union(Kind) {
         const Kind = enum {
             valueless_expression,
-            type_mismatch,
+            type_operation_mismatch,
+            type_equality_mismatch,
             argument_count_mismatch,
+
+            //division_error
+            //modulo_error
         };
 
         const ValuelessExpression = struct {
             // token which caused the error
-            token: *const Token = undefined,
-            // expected type
-            expected_type: Value.Kind = undefined,
+            problem_token: *const Token = undefined,
+            // token which requested the value
+            reporting_token: *const Token = undefined,
         };
 
         const TypeMismatch = struct {
@@ -50,7 +55,8 @@ pub const Interpreter = struct {
         };
 
         valueless_expression: ValuelessExpression,
-        type_mismatch: TypeMismatch,
+        type_operation_mismatch: TypeMismatch,
+        type_equality_mismatch: TypeMismatch,
         argument_count_mismatch: ArgumentCountMismatch,
     };
 
@@ -66,6 +72,7 @@ pub const Interpreter = struct {
     is_piping: bool = false,
     builtins: Builtins = undefined,
     error_info: ?ErrorInfo = null,
+    calling_token: *const Token = undefined,
 
     pub fn init(ally: Allocator) !Interpreter {
         var builtins = Builtins.init(ally);
@@ -100,12 +107,26 @@ pub const Interpreter = struct {
     pub fn reportError(self: *Interpreter) void {
         if (self.error_info) |*error_info| {
             switch (error_info.*) {
-                .valueless_expression => {
-                    todo("Handle valueless_expression error");
+                .valueless_expression => |*valueless| {
+                    self.reportErrorLocation(valueless.problem_token);
+                    print("{s} expects an expression creating a value, found: {s}\n\n", .{
+                        valueless.reporting_token.value,
+                        valueless.problem_token.value,
+                    });
+                    self.reportTokenCausingError(valueless.problem_token);
                 },
-                .type_mismatch => |*mismatch| {
-                    //TODO: fix the error msg ordering
-                    print("Type mismatch, expected: {}, found: {}\n", .{
+                .type_operation_mismatch => |*mismatch| {
+                    self.reportErrorLocation(mismatch.token);
+                    print("Type mismatch for operation, expected: {}, found: {}\n\n", .{
+                        mismatch.expected_type,
+                        mismatch.found_type,
+                    });
+                    self.reportTokenCausingError(mismatch.token);
+                },
+                .type_equality_mismatch => |*mismatch| {
+                    self.reportErrorLocation(mismatch.token);
+                    print("Type mismatch for operation, expected two {}s, found one {} and one {}\n\n", .{
+                        mismatch.expected_type,
                         mismatch.expected_type,
                         mismatch.found_type,
                     });
@@ -116,6 +137,11 @@ pub const Interpreter = struct {
                 },
             }
         }
+    }
+
+    fn reportErrorLocation(self: *Interpreter, token: *const Token) void {
+        const path = self.root_node.path;
+        print("{s}:{}:{}\n\x1b[31merror:\x1b[0m ", .{ path, token.row, token.column });
     }
 
     fn reportTokenCausingError(self: *Interpreter, token: *const Token) void {
@@ -158,20 +184,18 @@ pub const Interpreter = struct {
         const bad_source_begin_idx = (bad_source_begin_addr - source_ptr_addr) / @sizeOf(u8);
         const bad_source_end_idx = bad_source_begin_idx + token.value.len;
 
-        print("row: {}, column:{} \x1b[31merror:\x1b[0m ", .{ token.row, token.column });
-        print("Token no. {} was bad blablabla\n", .{idx});
         print("{s}\n", .{source_slice});
 
         var left = source_begin_idx;
         var right = source_end_idx;
         while (left < right) : (left += 1) {
-            if (left + 1 >= bad_source_begin_idx and left <= bad_source_end_idx) {
+            if (left >= bad_source_begin_idx and left < bad_source_end_idx) {
                 print("\x1b[32m^", .{});
             } else {
                 print("\x1b[0m ", .{});
             }
         }
-        print("\n", .{});
+        print("\x1b[0m\n", .{});
     }
 
     fn handleRoot(self: *Interpreter) !void {
@@ -221,24 +245,17 @@ pub const Interpreter = struct {
 
     fn handleVarDeclaration(self: *Interpreter, var_decl: *const ast.VarDeclaration) !void {
         const var_name = var_decl.decl;
-        var var_value: Value = undefined;
 
         //TODO: Consider this, likely not useful
         assert(var_decl.expr != null);
-        const err_maybe_value = self.handleExpr(&var_decl.expr.?);
-        if (err_maybe_value) |maybe_value| {
-            if (maybe_value) |value| {
-                var_value = value;
-            } else {
-                unreachable;
-            }
-        } else |err| {
-            return err;
-        }
+        var maybe_value = self.handleExpr(&var_decl.expr.?) catch |err| return err;
+
+        const eq_token = ptr.next(Token, ptr.next(Token, var_decl.token));
+        var value = try self.assertHasValue(maybe_value, eq_token);
 
         //TODO: redeclaration check
         assert(self.sym_table.get(var_name) == null);
-        try self.sym_table.put(var_name, &var_value);
+        try self.sym_table.put(var_name, &value);
     }
 
     fn handleFnDeclaration(self: *Interpreter, fn_decl: *const ast.FnDeclaration, args: []const Value) !?Value {
@@ -304,9 +321,8 @@ pub const Interpreter = struct {
         }
 
         const maybe_condition = try self.handleExpr(&branch.condition.?);
-        assert(maybe_condition != null);
-        const condition = maybe_condition.?;
-        assert(@as(Value.Kind, condition.inner) == .boolean);
+        const condition = try self.assertHasValue(maybe_condition, branch.token);
+        try self.assertExpectedType(&condition, .boolean, branch.token);
 
         if (condition.inner.boolean) {
             try self.handleScope(&branch.scope);
@@ -328,8 +344,8 @@ pub const Interpreter = struct {
     fn handleAssignment(self: *Interpreter, assign: *const ast.Assignment) !void {
         const name = assign.variable.name;
         const maybe_value = try self.handleExpr(&assign.expr);
-        assert(maybe_value != null);
-        try self.sym_table.put(name, &maybe_value.?);
+        const value = try self.assertHasValue(maybe_value, assign.token);
+        try self.sym_table.put(name, &value);
     }
 
     fn handleExpr(self: *Interpreter, expr: *const ast.Expr) anyerror!?Value {
@@ -416,13 +432,9 @@ pub const Interpreter = struct {
         var value = try ValueArray.initCapacity(self.ally, array.value.len);
 
         for (array.value) |*element| {
-            const err_maybe_val = self.handleExpr(element);
-            if (err_maybe_val) |maybe_val| {
-                assert(maybe_val != null);
-                value.appendAssumeCapacity(maybe_val.?);
-            } else |err| {
-                return err;
-            }
+            const maybe_val = self.handleExpr(element) catch |err| return err;
+            const val = try self.assertHasValue(maybe_val, array.token);
+            value.appendAssumeCapacity(val);
         }
 
         assert(value.items.len == array.value.len);
@@ -437,15 +449,14 @@ pub const Interpreter = struct {
 
     fn handleVariable(self: *Interpreter, variable: *const ast.Variable) !Value {
         const name = variable.name;
-        const maybe_value = self.sym_table.get(name);
+        var maybe_value = self.sym_table.get(name);
         //TODO: this is looking up a variable that does not exist, should be an error message
         assert(maybe_value != null);
+        maybe_value.?.origin = variable.token;
         return maybe_value.?;
     }
 
     fn handleBinaryOperator(self: *Interpreter, binary: *const ast.BinaryOperator) !?Value {
-        assert(binary.lhs != null);
-        assert(binary.rhs != null);
         const expr_lhs = binary.lhs.?;
         const expr_rhs = binary.rhs.?;
 
@@ -466,18 +477,18 @@ pub const Interpreter = struct {
 
         return switch (binary.token.kind) {
             .Add => self.addValues(&lhs, &rhs, binary.token) catch |err| return err,
-            .Subtract => self.subtractValues(&lhs, &rhs),
-            .Multiply => self.multiplyValues(&lhs, &rhs),
-            .Divide => try self.divideValues(&lhs, &rhs),
-            .Modulo => try self.moduloValues(&lhs, &rhs),
-            .Less => self.lessValues(&lhs, &rhs),
-            .Greater => self.greaterValues(&lhs, &rhs),
-            .Equals => self.equalsValues(&lhs, &rhs),
-            .NotEquals => self.notEqualsValues(&lhs, &rhs),
-            .LessEquals => self.lessEqualsValues(&lhs, &rhs),
-            .GreaterEquals => self.greaterEqualsValues(&lhs, &rhs),
-            .LogicalAnd => self.logicalAndValues(&lhs, &rhs),
-            .LogicalOr => self.logicalOrValues(&lhs, &rhs),
+            .Subtract => self.subtractValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .Multiply => self.multiplyValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .Divide => self.divideValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .Modulo => self.moduloValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .Less => self.lessValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .Greater => self.greaterValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .Equals => self.equalsValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .NotEquals => self.notEqualsValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .LessEquals => self.lessEqualsValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .GreaterEquals => self.greaterEqualsValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .LogicalAnd => self.logicalAndValues(&lhs, &rhs, binary.token) catch |err| return err,
+            .LogicalOr => self.logicalOrValues(&lhs, &rhs, binary.token) catch |err| return err,
             else => unreachable,
         };
     }
@@ -485,19 +496,19 @@ pub const Interpreter = struct {
     fn handleUnaryOperator(self: *Interpreter, unary: *const ast.UnaryOperator) !Value {
         var value = (try self.handleExpr(unary.expr)) orelse unreachable;
 
-        return switch (unary.token.kind) {
-            .Subtract => self.negateValue(&value),
-            .Bang => self.notValue(&value),
+        return try switch (unary.token.kind) {
+            .Subtract => self.negateValue(&value, unary.token),
+            .Bang => self.notValue(&value, unary.token),
             else => unreachable,
         };
     }
 
     fn handleCall(self: *Interpreter, call: *const ast.FunctionCall) !?Value {
         const maybe_name_value = try self.handleExpr(call.name);
-        assert(maybe_name_value != null);
-        assert(@as(Value.Kind, maybe_name_value.?.inner) == .string);
-        defer maybe_name_value.?.deinit(self.ally);
-        const name = maybe_name_value.?.inner.string;
+        const name_value = try self.assertHasValue(maybe_name_value, call.token);
+        try self.assertExpectedType(&name_value, .string, call.token);
+        defer name_value.deinit(self.ally);
+        const name = name_value.inner.string;
 
         const has_stdin_arg = self.piped_value != null;
         const n_args = if (has_stdin_arg)
@@ -519,26 +530,24 @@ pub const Interpreter = struct {
         }
 
         for (call.args) |*arg| {
-            const err_maybe_arg = self.handleExpr(arg);
-            if (err_maybe_arg) |maybe_arg| {
-                assert(maybe_arg != null);
-                args_array.appendAssumeCapacity(maybe_arg.?);
-            } else |err| {
-                return err;
-            }
+            const maybe_arg = self.handleExpr(arg) catch |err| return err;
+            const good_arg = try self.assertHasValue(maybe_arg, call.token);
+            args_array.appendAssumeCapacity(good_arg);
         }
 
         assert(args_array.items.len == n_args);
 
+        self.calling_token = call.token;
         return try self.executeFunction(name, args_array.items, has_stdin_arg);
     }
 
     fn whileLoop(self: *Interpreter, loop: *const ast.Loop.WhileLoop) !void {
         while (true) {
             var maybe_value = try self.handleExpr(&loop.condition);
-            assert(maybe_value != null);
-            var inner = maybe_value.?.inner;
+            const value = try self.assertHasValue(maybe_value, loop.token);
+            var inner = value.inner;
             assert(@as(Value.Kind, inner) == .boolean);
+            try self.assertExpectedType(&value, .boolean, loop.token);
 
             if (!inner.boolean) {
                 return;
@@ -553,10 +562,9 @@ pub const Interpreter = struct {
 
     fn forInLoop(self: *Interpreter, loop: *const ast.Loop.ForInLoop) anyerror!void {
         const maybe_iterable = try self.handleExpr(&loop.iterable);
-        assert(maybe_iterable != null);
-        const iterable = maybe_iterable.?;
-        assert(@as(Value.Kind, iterable.inner) == .array);
+        const iterable = try self.assertHasValue(maybe_iterable, loop.token);
         defer iterable.deinit(self.ally);
+        try self.assertExpectedType(&iterable, .array, loop.token);
 
         const iterator_name = loop.iterator.token.value;
         try self.sym_table.addScope();
@@ -649,9 +657,6 @@ pub const Interpreter = struct {
     }
 
     fn addValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
-        //assert(@as(Value.Kind, lhs.inner) == .integer);
-        //assert(@as(Value.Kind, rhs.inner) == .integer);
-        //try self.assertExpectedType(lhs.getKind(), .integer, lhs.origin orelse backup_token);
         try self.assertExpectedType(lhs, .integer, backup_token);
         try self.assertExpectedType(rhs, .integer, backup_token);
 
@@ -663,12 +668,11 @@ pub const Interpreter = struct {
         };
     }
 
-    fn subtractValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        assert(@as(Value.Kind, lhs.inner) == .integer);
-        assert(@as(Value.Kind, rhs.inner) == .integer);
+    fn subtractValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertExpectedType(lhs, .integer, backup_token);
+        try self.assertExpectedType(rhs, .integer, backup_token);
 
-        return .{
+        return Value{
             .inner = .{
                 .integer = lhs.inner.integer - rhs.inner.integer,
             },
@@ -676,11 +680,10 @@ pub const Interpreter = struct {
         };
     }
 
-    fn negateValue(self: *Interpreter, value: *const Value) Value {
-        _ = self;
-        assert(@as(Value.Kind, value.inner) == .integer);
+    fn negateValue(self: *Interpreter, value: *const Value, backup_token: *const Token) !Value {
+        try self.assertExpectedType(value, .integer, backup_token);
 
-        return .{
+        return Value{
             .inner = .{
                 .integer = -value.inner.integer,
             },
@@ -688,12 +691,11 @@ pub const Interpreter = struct {
         };
     }
 
-    fn multiplyValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        assert(@as(Value.Kind, lhs.inner) == .integer);
-        assert(@as(Value.Kind, rhs.inner) == .integer);
+    fn multiplyValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertExpectedType(lhs, .integer, backup_token);
+        try self.assertExpectedType(rhs, .integer, backup_token);
 
-        return .{
+        return Value{
             .inner = .{
                 .integer = lhs.inner.integer * rhs.inner.integer,
             },
@@ -701,10 +703,9 @@ pub const Interpreter = struct {
         };
     }
 
-    fn divideValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) !Value {
-        _ = self;
-        assert(@as(Value.Kind, lhs.inner) == .integer);
-        assert(@as(Value.Kind, rhs.inner) == .integer);
+    fn divideValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertExpectedType(lhs, .integer, backup_token);
+        try self.assertExpectedType(rhs, .integer, backup_token);
 
         return Value{
             .inner = .{
@@ -714,10 +715,9 @@ pub const Interpreter = struct {
         };
     }
 
-    fn moduloValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) !Value {
-        _ = self;
-        assert(@as(Value.Kind, lhs.inner) == .integer);
-        assert(@as(Value.Kind, rhs.inner) == .integer);
+    fn moduloValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertExpectedType(lhs, .integer, backup_token);
+        try self.assertExpectedType(rhs, .integer, backup_token);
 
         return Value{
             .inner = .{
@@ -727,14 +727,11 @@ pub const Interpreter = struct {
         };
     }
 
-    fn lessValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        const lhs_kind = @as(Value.Kind, lhs.inner);
-        const rhs_kind = @as(Value.Kind, rhs.inner);
-        assert(lhs_kind == rhs_kind);
-        return .{
+    fn lessValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertTypeEquality(lhs, rhs, backup_token);
+        return Value{
             .inner = .{
-                .boolean = switch (lhs_kind) {
+                .boolean = switch (lhs.getKind()) {
                     .integer => lhs.inner.integer < rhs.inner.integer,
                     .string => std.mem.lessThan(u8, lhs.inner.string, rhs.inner.string),
                     .array => {
@@ -752,14 +749,11 @@ pub const Interpreter = struct {
         };
     }
 
-    fn greaterValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        const lhs_kind = @as(Value.Kind, lhs.inner);
-        const rhs_kind = @as(Value.Kind, rhs.inner);
-        assert(lhs_kind == rhs_kind);
-        return .{
+    fn greaterValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertTypeEquality(lhs, rhs, backup_token);
+        return Value{
             .inner = .{
-                .boolean = switch (lhs_kind) {
+                .boolean = switch (lhs.getKind()) {
                     .integer => lhs.inner.integer > rhs.inner.integer,
                     .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .gt,
                     .array => {
@@ -777,10 +771,9 @@ pub const Interpreter = struct {
         };
     }
 
-    fn notValue(self: *Interpreter, value: *const Value) Value {
-        _ = self;
-        assert(@as(Value.Kind, value.inner) == .boolean);
-        return .{
+    fn notValue(self: *Interpreter, value: *const Value, backup_token: *const Token) !Value {
+        try self.assertExpectedType(value, .boolean, backup_token);
+        return Value{
             .inner = .{
                 .boolean = !value.inner.boolean,
             },
@@ -788,14 +781,11 @@ pub const Interpreter = struct {
         };
     }
 
-    fn equalsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        const lhs_kind = @as(Value.Kind, lhs.inner);
-        const rhs_kind = @as(Value.Kind, rhs.inner);
-        assert(lhs_kind == rhs_kind);
-        return .{
+    fn equalsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertTypeEquality(lhs, rhs, backup_token);
+        return Value{
             .inner = .{
-                .boolean = switch (lhs_kind) {
+                .boolean = switch (lhs.getKind()) {
                     .integer => lhs.inner.integer == rhs.inner.integer,
                     .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .eq,
                     .array => {
@@ -813,14 +803,11 @@ pub const Interpreter = struct {
         };
     }
 
-    fn notEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        const lhs_kind = @as(Value.Kind, lhs.inner);
-        const rhs_kind = @as(Value.Kind, rhs.inner);
-        assert(lhs_kind == rhs_kind);
-        return .{
+    fn notEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertTypeEquality(lhs, rhs, backup_token);
+        return Value{
             .inner = .{
-                .boolean = switch (lhs_kind) {
+                .boolean = switch (lhs.getKind()) {
                     .integer => lhs.inner.integer != rhs.inner.integer,
                     .string => !std.mem.eql(u8, lhs.inner.string, rhs.inner.string),
                     .array => {
@@ -838,14 +825,11 @@ pub const Interpreter = struct {
         };
     }
 
-    fn lessEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        const lhs_kind = @as(Value.Kind, lhs.inner);
-        const rhs_kind = @as(Value.Kind, rhs.inner);
-        assert(lhs_kind == rhs_kind);
-        return .{
+    fn lessEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertTypeEquality(lhs, rhs, backup_token);
+        return Value{
             .inner = .{
-                .boolean = switch (lhs_kind) {
+                .boolean = switch (lhs.getKind()) {
                     .integer => lhs.inner.integer <= rhs.inner.integer,
                     .string => switch (std.mem.order(u8, lhs.inner.string, rhs.inner.string)) {
                         .lt, .eq => true,
@@ -866,14 +850,11 @@ pub const Interpreter = struct {
         };
     }
 
-    fn greaterEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        const lhs_kind = @as(Value.Kind, lhs.inner);
-        const rhs_kind = @as(Value.Kind, rhs.inner);
-        assert(lhs_kind == rhs_kind);
-        return .{
+    fn greaterEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertTypeEquality(lhs, rhs, backup_token);
+        return Value{
             .inner = .{
-                .boolean = switch (lhs_kind) {
+                .boolean = switch (lhs.getKind()) {
                     .integer => lhs.inner.integer >= rhs.inner.integer,
                     .string => switch (std.mem.order(u8, lhs.inner.string, rhs.inner.string)) {
                         .gt, .eq => true,
@@ -894,11 +875,10 @@ pub const Interpreter = struct {
         };
     }
 
-    fn logicalAndValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        assert(@as(Value.Kind, lhs.inner) == .boolean);
-        assert(@as(Value.Kind, rhs.inner) == .boolean);
-        return .{
+    pub fn logicalAndValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertExpectedType(lhs, .boolean, backup_token);
+        try self.assertExpectedType(rhs, .boolean, backup_token);
+        return Value{
             .inner = .{
                 .boolean = lhs.inner.boolean and rhs.inner.boolean,
             },
@@ -906,11 +886,10 @@ pub const Interpreter = struct {
         };
     }
 
-    fn logicalOrValues(self: *Interpreter, lhs: *const Value, rhs: *const Value) Value {
-        _ = self;
-        assert(@as(Value.Kind, lhs.inner) == .boolean);
-        assert(@as(Value.Kind, rhs.inner) == .boolean);
-        return .{
+    pub fn logicalOrValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
+        try self.assertExpectedType(lhs, .boolean, backup_token);
+        try self.assertExpectedType(rhs, .boolean, backup_token);
+        return Value{
             .inner = .{
                 .boolean = lhs.inner.boolean or rhs.inner.boolean,
             },
@@ -918,13 +897,42 @@ pub const Interpreter = struct {
         };
     }
 
-    fn assertExpectedType(self: *Interpreter, value: *const Value, expected: Value.Kind, fallback: *const Token) !void {
+    pub fn assertHasValue(self: *Interpreter, maybe_value: ?Value, reporter: *const Token) !Value {
+        if (maybe_value) |value| {
+            return value;
+        }
+
+        var next_token_addr = @intToPtr(*const Token, @ptrToInt(reporter) + @sizeOf(Token));
+
+        self.error_info = ErrorInfo{
+            .valueless_expression = .{
+                .problem_token = next_token_addr,
+                .reporting_token = reporter,
+            },
+        };
+        return InterpreterError.RuntimeError;
+    }
+
+    pub fn assertExpectedType(self: *Interpreter, value: *const Value, expected: Value.Kind, fallback: *const Token) !void {
         if (value.getKind() != expected) {
             self.error_info = ErrorInfo{
-                .type_mismatch = .{
+                .type_operation_mismatch = .{
                     .token = value.origin orelse fallback,
                     .expected_type = expected,
                     .found_type = value.getKind(),
+                },
+            };
+            return InterpreterError.RuntimeError;
+        }
+    }
+
+    pub fn assertTypeEquality(self: *Interpreter, a: *const Value, b: *const Value, fallback: *const Token) !void {
+        if (a.getKind() != b.getKind()) {
+            self.error_info = ErrorInfo{
+                .type_equality_mismatch = .{
+                    .token = b.origin orelse fallback,
+                    .expected_type = a.getKind(),
+                    .found_type = b.getKind(),
                 },
             };
             return InterpreterError.RuntimeError;

@@ -1,0 +1,2 @@
+#!../../zig-out/bin/mysh
+var x = print Hello

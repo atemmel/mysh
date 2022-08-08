@@ -300,13 +300,14 @@ pub const Statement = union(StatementKind) {
 pub const Root = struct {
     pub const FnTable = std.StringHashMap(FnDeclaration);
 
-    pub fn init(ally: std.mem.Allocator, tokens: []const Token, source: []const u8) Root {
+    pub fn init(ally: std.mem.Allocator, tokens: []const Token, source: []const u8, path: []const u8) Root {
         return .{
             .ally = ally,
             .fn_table = FnTable.init(ally),
             .statements = &.{},
             .tokens = tokens,
             .source = source,
+            .path = path,
         };
     }
 
@@ -328,6 +329,7 @@ pub const Root = struct {
     statements: []Statement,
     tokens: []const Token,
     source: []const u8,
+    path: []const u8,
 };
 
 pub const Parser = struct {
@@ -344,10 +346,10 @@ pub const Parser = struct {
         };
     }
 
-    pub fn parse(self: *Parser, tokens: []const Token, source: []const u8) !?Root {
+    pub fn parse(self: *Parser, tokens: []const Token, source: []const u8, path: []const u8) !?Root {
         self.tokens = tokens;
         self.current = 0;
-        var root = Root.init(self.ally, tokens, source);
+        var root = Root.init(self.ally, tokens, source, path);
 
         var statements = std.ArrayList(Statement).init(self.ally);
 

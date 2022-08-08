@@ -15,10 +15,12 @@ fn doEverythingWithPath(path: []const u8) !bool {
         return false;
     };
     defer ally.free(source);
-    return doEverything(source);
+    const canonical_path = try std.fs.path.resolve(ally, &[_][]const u8{path});
+    defer ally.free(canonical_path);
+    return doEverything(source, canonical_path);
 }
 
-pub fn doEverything(source: []const u8) !bool {
+pub fn doEverything(source: []const u8, canonical_path: []const u8) !bool {
     var tokenizer = Tokenizer.init(ally);
     var tokens = try tokenizer.tokenize(source);
     defer ally.free(tokens);
@@ -29,7 +31,7 @@ pub fn doEverything(source: []const u8) !bool {
     }
 
     var parser = ast.Parser.init(ally);
-    var maybe_root = try parser.parse(tokens, source);
+    var maybe_root = try parser.parse(tokens, source, canonical_path);
 
     if (maybe_root == null) {
         try stderr.print("Parse failed, no root!\n", .{});

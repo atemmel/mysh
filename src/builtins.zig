@@ -1,4 +1,5 @@
 const std = @import("std");
+const Token = @import("token.zig").Token;
 const Interpreter = @import("interpreter.zig").Interpreter;
 const Value = @import("symtable.zig").Value;
 const ValueArray = @import("symtable.zig").ValueArray;
@@ -38,8 +39,9 @@ pub fn print(interp: *Interpreter, args: []const Value) !?Value {
 }
 
 pub fn append(interp: *Interpreter, args: []const Value) !?Value {
+    //TODO: proper error
     assert(args.len >= 2);
-    assert(@as(Value.Kind, args[0].inner) == .array);
+    try interp.assertExpectedType(&args[0], .array, interp.calling_token);
 
     const original_array = &args[0].inner.array;
     const total_new_length = original_array.items.len + args.len - 1;
@@ -64,10 +66,11 @@ pub fn append(interp: *Interpreter, args: []const Value) !?Value {
 }
 
 pub fn filter(interp: *Interpreter, args: []const Value) !?Value {
+    //TODO: proper error handling
     assert(args.len == 2);
-    assert(@as(Value.Kind, args[0].inner) == .array);
+    try interp.assertExpectedType(&args[0], .array, interp.calling_token);
     //TODO: this should be some sort of function/lambda type
-    assert(@as(Value.Kind, args[1].inner) == .string);
+    try interp.assertExpectedType(&args[1], .string, interp.calling_token);
 
     const original_array = &args[0].inner.array;
     const fn_name = args[1].inner.string;

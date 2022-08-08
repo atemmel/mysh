@@ -1,0 +1,3 @@
+#!../../zig-out/bin/mysh
+
+print (print Hello)
