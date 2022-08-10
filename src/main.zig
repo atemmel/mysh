@@ -98,4 +98,5 @@ comptime {
     _ = @import("spawn.zig");
     _ = @import("interpolate.zig");
     _ = @import("escape.zig");
+    _ = @import("tokenizer.zig");
 }

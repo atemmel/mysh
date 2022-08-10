@@ -440,3 +440,29 @@ pub const Tokenizer = struct {
     current_column: usize = undefined,
     current_row: usize = undefined,
 };
+
+const expectEqual = std.testing.expectEqual;
+const expectEqualSlices = std.testing.expectEqualSlices;
+
+test "tokenize basic commands" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+
+    {
+        var tokens = try tokenizer.tokenize("ls -l");
+        defer ally.free(tokens);
+
+        try expectEqual(tokens.len, 2);
+        try expectEqual(tokens[0].kind, .Identifier);
+        try expectEqual(tokens[0].column, 1);
+        try expectEqual(tokens[0].row, 1);
+        try expectEqualSlices(u8, tokens[0].value, "ls");
+
+        try expectEqual(tokens[1].kind, .Bareword);
+        try expectEqual(tokens[1].column, 4);
+        try expectEqual(tokens[1].row, 1);
+        try expectEqualSlices(u8, tokens[1].value, "-l");
+    }
+}
+
+//TODO: move various text examples in here
