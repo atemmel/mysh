@@ -62,7 +62,7 @@ pub const Interpreter = struct {
 
     ally: Allocator = undefined,
     root_node: *ast.Root = undefined,
-    collected_value: ?Value = null,
+    collected_statement_value: ?Value = null,
     return_just_handled: bool = false,
     call_args: ValueArray = undefined,
     collected_return: ?Value = null,
@@ -101,7 +101,17 @@ pub const Interpreter = struct {
         self.root_node = root_node;
         try self.sym_table.addScope();
         defer self.sym_table.dropScope();
-        try self.handleRoot();
+        _ = try self.handleRoot();
+    }
+
+    pub fn beginRepl(self: *Interpreter) !void {
+        try self.sym_table.addScope();
+    }
+
+    pub fn interpretLine(self: *Interpreter, root_node: *ast.Root) !?Value {
+        self.root_node = root_node;
+        //TODO: CLone interpreted function (if any)
+        return self.handleRoot();
     }
 
     pub fn reportError(self: *Interpreter) void {
@@ -201,11 +211,11 @@ pub const Interpreter = struct {
     fn handleRoot(self: *Interpreter) !void {
         var root = self.root_node;
         for (root.statements) |*stmnt| {
-            try self.handleStatement(stmnt);
+            _ = try self.handleStatement(stmnt, false);
         }
     }
 
-    fn handleStatement(self: *Interpreter, stmnt: *const ast.Statement) !void {
+    fn handleStatement(self: *Interpreter, stmnt: *const ast.Statement, may_collect: bool) !?Value {
         switch (stmnt.*) {
             .var_decl => |*var_decl| {
                 try self.handleVarDeclaration(var_decl);
@@ -230,17 +240,24 @@ pub const Interpreter = struct {
                 const err_maybe_value = self.handleExpr(expr);
                 if (err_maybe_value) |maybe_value| {
                     if (maybe_value) |value| {
-                        defer value.deinit(self.ally);
-                        const value_array = [_]Value{
-                            value,
-                        };
-                        _ = try mysh_builtins.print(self, &value_array);
+                        if (may_collect) {
+                            return value;
+                        } else {
+                            value.deinit(self.ally);
+                        }
+                        //defer value.deinit(self.ally);
+                        //const value_array = [_]Value{
+                        //value,
+                        //};
+                        //_ = try mysh_builtins.print(self, &value_array);
+                        //
                     }
                 } else |err| {
                     return err;
                 }
             },
         }
+        return null;
     }
 
     fn handleVarDeclaration(self: *Interpreter, var_decl: *const ast.VarDeclaration) !void {
@@ -277,7 +294,7 @@ pub const Interpreter = struct {
         self.return_just_handled = false;
 
         for (fn_decl.scope.statements) |*stmnt| {
-            try self.handleStatement(stmnt);
+            _ = try self.handleStatement(stmnt, false);
             if (self.return_just_handled) {
                 self.return_just_handled = false;
                 const return_copy = self.collected_return;
@@ -306,7 +323,7 @@ pub const Interpreter = struct {
         defer self.sym_table.dropScope();
 
         for (scope.statements) |*stmnt| {
-            try self.handleStatement(stmnt);
+            _ = try self.handleStatement(stmnt, false);
             if (self.return_just_handled) {
                 return;
             }
@@ -573,7 +590,7 @@ pub const Interpreter = struct {
         for (iterable.inner.array.items) |*value| {
             try self.sym_table.put(iterator_name, value);
             for (loop.scope.statements) |*stmnt| {
-                try self.handleStatement(stmnt);
+                _ = try self.handleStatement(stmnt, false);
                 if (self.return_just_handled) {
                     return;
                 }
