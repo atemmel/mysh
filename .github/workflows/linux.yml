@@ -27,5 +27,4 @@ jobs:
         run: zig build test
 
       - name: Tests (standalone scripts)
-        run: ./test_all.sh
-        working-directory: ../tests
+        run: cd tests && ./test_all.sh
