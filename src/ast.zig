@@ -1307,6 +1307,7 @@ pub const Parser = struct {
 
         if (self.getIf(Token.Kind.RightBrack) == null) {
             self.expectedToken(Token.Kind.RightBrack);
+            exprs.deinit();
             return null;
         }
 

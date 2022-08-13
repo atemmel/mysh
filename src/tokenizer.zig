@@ -260,11 +260,11 @@ pub const Tokenizer = struct {
 
         while (!self.eof()) : (self.next()) {
             c = self.peek();
-            if (isSpace(c)) {
+            if (isSpace(c) or c == '(' or c == ')') {
                 break;
             }
             //TODO: handle forward slashes
-            // \n, \t, etc...
+            // \n, \t, \( etc...
         }
 
         try self.tokens.append(.{
@@ -400,21 +400,30 @@ pub const Tokenizer = struct {
                 const k_current_column = self.current_column;
                 const k_current_row = self.current_row;
 
-                // look ahead
-                self.skipWhitespace();
+                if (false) {
+                    // look ahead
+                    self.skipWhitespace();
 
-                // if end after looking ahead
-                if (self.eof()) {
-                    // can't end on a binary operator, it's a bareword
-                    self.current = old_current;
-                    self.current_column = old_column;
-                    self.current_row = old_row;
-                    return false;
+                    // if end after looking ahead
+                    if (self.eof()) {
+                        // can't end on a binary operator, it's a bareword
+                        self.current = old_current;
+                        self.current_column = old_column;
+                        self.current_row = old_row;
+                        return false;
+                    }
+
+                    // if not a possibly mathematical expression
+                    if (self.peek() != '$' and !isDigit(self.peek())) {
+                        // it's a bareword
+                        self.current = old_current;
+                        self.current_column = old_column;
+                        self.current_row = old_row;
+                        return false;
+                    }
                 }
 
-                // if not a possibly mathematical expression
-                if (self.peek() != '$' and !isDigit(self.peek())) {
-                    // it's a bareword
+                if (!self.isMathCheck()) {
                     self.current = old_current;
                     self.current_column = old_column;
                     self.current_row = old_row;
@@ -460,6 +469,36 @@ pub const Tokenizer = struct {
             .row = old_row,
         });
         return true;
+    }
+
+    fn isMathCheck(self: *Tokenizer) bool {
+        switch (self.peek()) {
+            '+', '-', '/', '*' => {},
+            else => {
+                return true;
+            },
+        }
+
+        // look ahead
+        self.skipWhitespace();
+
+        // if end after looking ahead
+        if (self.eof()) {
+            // can't end on a binary operator, it's a bareword
+            return false;
+        }
+
+        // if not a possibly mathematical expression
+        if (self.peek() != '$' and !isDigit(self.peek())) {
+            // it's a bareword
+            return false;
+        }
+
+        // check unary operators
+        return switch (self.peek()) {
+            '-' => self.isMathCheck(),
+            else => true,
+        };
     }
 
     tokens: Tokens = undefined,

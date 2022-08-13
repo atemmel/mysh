@@ -15,4 +15,4 @@ print This should print "5"
 print $a
 
 print This should print "-6"
-print - 1 - - - 5
+print - 1 - - - - - - - 5 - -0
