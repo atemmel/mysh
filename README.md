@@ -25,3 +25,8 @@
 ### to maybe have:
  * null/nil/none-esque(?)
  * `fn` type: `var func = &print`(?)
+
+### tofix:
+ * `ls --color`
+ * `ls --color=auto`
+ * `ls /`
