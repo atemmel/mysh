@@ -4,6 +4,7 @@
 
 * astgen
   * binary operators ~~add~~ ~~subtract~~ ~~multiply~~ ~~divide~~ `+=` `-=` `*=` `/=`
+  * indexing + slicing
 
 * interpreter
   * binary operators ~~add~~ ~~subtract~~ ~~multiply~~ ~~divide~~ `+=` `-=` `*=` `/=`
@@ -15,19 +16,18 @@
     * list/array ~~literal~~ ~~append~~
     * struct/table/dict
   * proper error messages
+  * indexing + slicing
 
 ### to have:
  * type conversions `(newtype $variable)`(?)
- * type annotations
- * (some) semantic analysis
+ * repl highlighting
 
 ### to maybe have:
  * null/nil/none-esque(?)
- * `fn` type: `var func = &print`(?)
+ * `fn` type: `var func = $print`(?)
+ * type annotations
+ * (some) semantic analysis
 
 ### tofix:
- * `ls --color`
- * `ls --color=auto`
- * `ls /`
  * repl symtable
  * better repl reader (history, search)
