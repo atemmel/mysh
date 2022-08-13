@@ -193,9 +193,9 @@ pub const Token = struct {
 
         if (self.value.len > 0) {
             if (self.kind == .Newline) {
-                printImpl("Value: \\n", .{});
+                printImpl(" Value: \\n", .{});
             } else {
-                printImpl("Value: {s}", .{self.value});
+                printImpl(" Value: {s}", .{self.value});
             }
         }
         printImpl("\n", .{});

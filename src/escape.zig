@@ -45,17 +45,15 @@ pub fn maybe(ally: std.mem.Allocator, str: []const u8) EscapeError!?[]const u8 {
     return buffer.toOwnedSlice();
 }
 
-const expect = std.testing.expect;
-const expectEqualSlices = std.testing.expectEqualSlices;
-const expectError = std.testing.expectError;
-
 test "escape failure" {
+    const expect = std.testing.expect;
     var ally = std.testing.allocator;
     var result = try maybe(ally, "abc");
     try expect(result == null);
 }
 
 test "escape success" {
+    const expectEqualSlices = std.testing.expectEqualSlices;
     var ally = std.testing.allocator;
 
     {
@@ -84,6 +82,7 @@ test "escape success" {
 }
 
 test "escape error" {
+    const expectError = std.testing.expectError;
     var ally = std.testing.allocator;
 
     {

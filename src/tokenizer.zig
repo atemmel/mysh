@@ -1,6 +1,6 @@
 const std = @import("std");
-const token = @import("token.zig");
-const Token = token.Token;
+const mysh_token = @import("token.zig");
+const Token = mysh_token.Token;
 
 const assert = std.debug.assert;
 
@@ -122,7 +122,7 @@ pub const Tokenizer = struct {
     }
 
     fn skipWhitespace(self: *Tokenizer) void {
-        while (isSpace(self.peek()) and self.peek() != '\n') {
+        while (!self.eof() and isSpace(self.peek()) and self.peek() != '\n') {
             self.next();
         }
     }
@@ -356,7 +356,7 @@ pub const Tokenizer = struct {
         }
 
         const upcoming = self.source[self.current .. self.current + 1];
-        if (token.isSymbol(upcoming)) {
+        if (mysh_token.isSymbol(upcoming)) {
             return true;
         }
 
@@ -386,16 +386,45 @@ pub const Tokenizer = struct {
 
         self.next();
 
-        //TODO: handle special cases
-        // ==, <=, >=, !=, etc...
         switch (@intToEnum(Token.Kind, index)) {
             .Subtract, .Add, .Divide, .Multiply => {
-                if (isAlpha(self.peek())) {
+                if (self.eof() or isAlpha(self.peek())) {
                     self.current = old_current;
                     self.current_column = old_column;
                     self.current_row = old_row;
                     return false;
                 }
+
+                // save state
+                const k_current = self.current;
+                const k_current_column = self.current_column;
+                const k_current_row = self.current_row;
+
+                // look ahead
+                self.skipWhitespace();
+
+                // if end after looking ahead
+                if (self.eof()) {
+                    // can't end on a binary operator, it's a bareword
+                    self.current = old_current;
+                    self.current_column = old_column;
+                    self.current_row = old_row;
+                    return false;
+                }
+
+                // if not a possibly mathematical expression
+                if (self.peek() != '$' and !isDigit(self.peek())) {
+                    // it's a bareword
+                    self.current = old_current;
+                    self.current_column = old_column;
+                    self.current_row = old_row;
+                    return false;
+                }
+
+                // rewind
+                self.current = k_current;
+                self.current_column = k_current_column;
+                self.current_row = k_current_row;
             },
             .Assign, .Bang, .Less, .Greater => {
                 if (!self.eof() and self.peek() == '=') {
@@ -479,7 +508,7 @@ test "tokenize with double dash" {
 
     var tokens = try tokenizer.tokenize("ls --color");
     defer ally.free(tokens);
-    try expectEqual(tokens.len, 1);
+    try expectEqual(tokens.len, 2);
     try expectEqual(tokens[0].kind, .Identifier);
     try expectEqualSlices(u8, tokens[0].value, "ls");
     try expectEqual(tokens[1].kind, .Bareword);
@@ -492,11 +521,24 @@ test "tokenize with equals in args" {
 
     var tokens = try tokenizer.tokenize("ls --color=auto");
     defer ally.free(tokens);
-    try expectEqual(tokens.len, 1);
+    try expectEqual(tokens.len, 2);
     try expectEqual(tokens[0].kind, .Identifier);
     try expectEqualSlices(u8, tokens[0].value, "ls");
     try expectEqual(tokens[1].kind, .Bareword);
     try expectEqualSlices(u8, tokens[1].value, "--color=auto");
+}
+
+test "tokenize with ending slash" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+
+    var tokens = try tokenizer.tokenize("ls /");
+    defer ally.free(tokens);
+    try expectEqual(tokens.len, 2);
+    try expectEqual(tokens[0].kind, .Identifier);
+    try expectEqualSlices(u8, tokens[0].value, "ls");
+    try expectEqual(tokens[1].kind, .Bareword);
+    try expectEqualSlices(u8, tokens[1].value, "/");
 }
 
 //TODO: move various text examples in here
