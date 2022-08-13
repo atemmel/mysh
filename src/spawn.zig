@@ -60,7 +60,7 @@ pub fn cmd(ally: std.mem.Allocator, args: []const []const u8, opts: SpawnCommand
     };
 }
 
-test "stdout capture test" {
+test "spawn capture test" {
     const Term = std.ChildProcess.Term;
     var ally = std.testing.allocator;
 
@@ -89,7 +89,7 @@ test "stdout capture test" {
     try std.testing.expectEqualSlices(u8, result.stdout.?, expected_stdout);
 }
 
-test "stdin input test" {
+test "spawn input test" {
     const Term = std.ChildProcess.Term;
     var ally = std.testing.allocator;
 
