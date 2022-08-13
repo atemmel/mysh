@@ -5,6 +5,7 @@ const ArgParser = @import("argparser.zig").ArgParser;
 const ast = @import("ast.zig");
 const astprint = @import("astprint.zig");
 const Interpreter = @import("interpreter.zig").Interpreter;
+const repl = @import("repl.zig");
 
 const stderr = std.io.getStdErr().writer();
 var ally: std.mem.Allocator = undefined;
@@ -88,6 +89,5 @@ pub fn main() anyerror!u8 {
         return if (try doEverythingWithPath(path)) 0 else 1;
     }
 
-    try stderr.print("No file specified, exiting...\n", .{});
-    return 2;
+    return try repl.do(ally);
 }
