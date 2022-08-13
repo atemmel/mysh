@@ -580,4 +580,17 @@ test "tokenize with ending slash" {
     try expectEqualSlices(u8, tokens[1].value, "/");
 }
 
+test "tokenize unary operator" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+
+    var tokens = try tokenizer.tokenize("- 5");
+    defer ally.free(tokens);
+    try expectEqual(tokens.len, 2);
+    try expectEqual(tokens[0].kind, .Subtract);
+    try expectEqualSlices(u8, tokens[0].value, "-");
+    try expectEqual(tokens[1].kind, .IntegerLiteral);
+    try expectEqualSlices(u8, tokens[1].value, "5");
+}
+
 //TODO: move various text examples in here
