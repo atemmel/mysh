@@ -29,6 +29,7 @@ pub const Interpreter = struct {
             type_equality_mismatch,
             argument_count_mismatch,
 
+            //TODO: undefined identifier error
             //division_error
             //modulo_error
         };
@@ -211,11 +212,11 @@ pub const Interpreter = struct {
     fn handleRoot(self: *Interpreter) !void {
         var root = self.root_node;
         for (root.statements) |*stmnt| {
-            _ = try self.handleStatement(stmnt, false);
+            try self.handleStatement(stmnt);
         }
     }
 
-    fn handleStatement(self: *Interpreter, stmnt: *const ast.Statement, may_collect: bool) !?Value {
+    fn handleStatement(self: *Interpreter, stmnt: *const ast.Statement) !void {
         switch (stmnt.*) {
             .var_decl => |*var_decl| {
                 try self.handleVarDeclaration(var_decl);
@@ -237,27 +238,25 @@ pub const Interpreter = struct {
                 try self.handleAssignment(assignment);
             },
             .expr => |*expr| {
-                const err_maybe_value = self.handleExpr(expr);
+                const err_maybe_value = self.handleExpr(expr, false);
                 if (err_maybe_value) |maybe_value| {
                     if (maybe_value) |value| {
-                        if (may_collect) {
-                            return value;
-                        } else {
-                            value.deinit(self.ally);
-                        }
-                        //defer value.deinit(self.ally);
-                        //const value_array = [_]Value{
-                        //value,
-                        //};
-                        //_ = try mysh_builtins.print(self, &value_array);
-                        //
+                        //if (may_collect) {
+                        //return value;
+                        //} else {
+                        //value.deinit(self.ally);
+                        //}
+                        defer value.deinit(self.ally);
+                        const value_array = [_]Value{
+                            value,
+                        };
+                        _ = try mysh_builtins.print(self, &value_array);
                     }
                 } else |err| {
                     return err;
                 }
             },
         }
-        return null;
     }
 
     fn handleVarDeclaration(self: *Interpreter, var_decl: *const ast.VarDeclaration) !void {
@@ -265,7 +264,7 @@ pub const Interpreter = struct {
 
         //TODO: Consider this, likely not useful
         assert(var_decl.expr != null);
-        var maybe_value = self.handleExpr(&var_decl.expr.?) catch |err| return err;
+        var maybe_value = self.handleExpr(&var_decl.expr.?, true) catch |err| return err;
 
         const eq_token = ptr.next(Token, ptr.next(Token, var_decl.token));
         var value = try self.assertHasValue(maybe_value, eq_token);
@@ -294,7 +293,7 @@ pub const Interpreter = struct {
         self.return_just_handled = false;
 
         for (fn_decl.scope.statements) |*stmnt| {
-            _ = try self.handleStatement(stmnt, false);
+            try self.handleStatement(stmnt);
             if (self.return_just_handled) {
                 self.return_just_handled = false;
                 const return_copy = self.collected_return;
@@ -313,7 +312,7 @@ pub const Interpreter = struct {
     fn handleReturn(self: *Interpreter, ret: *const ast.Return) !void {
         self.return_just_handled = true;
         if (ret.expr) |expr| {
-            const value = (try self.handleExpr(expr)) orelse unreachable;
+            const value = (try self.handleExpr(expr, true)) orelse unreachable;
             self.collected_return = value;
         }
     }
@@ -323,7 +322,7 @@ pub const Interpreter = struct {
         defer self.sym_table.dropScope();
 
         for (scope.statements) |*stmnt| {
-            _ = try self.handleStatement(stmnt, false);
+            try self.handleStatement(stmnt);
             if (self.return_just_handled) {
                 return;
             }
@@ -337,7 +336,7 @@ pub const Interpreter = struct {
             return;
         }
 
-        const maybe_condition = try self.handleExpr(&branch.condition.?);
+        const maybe_condition = try self.handleExpr(&branch.condition.?, true);
         const condition = try self.assertHasValue(maybe_condition, branch.token);
         try self.assertExpectedType(&condition, .boolean, branch.token);
 
@@ -360,12 +359,12 @@ pub const Interpreter = struct {
 
     fn handleAssignment(self: *Interpreter, assign: *const ast.Assignment) !void {
         const name = assign.variable.name;
-        const maybe_value = try self.handleExpr(&assign.expr);
+        const maybe_value = try self.handleExpr(&assign.expr, true);
         const value = try self.assertHasValue(maybe_value, assign.token);
         try self.sym_table.put(name, &value);
     }
 
-    fn handleExpr(self: *Interpreter, expr: *const ast.Expr) anyerror!?Value {
+    fn handleExpr(self: *Interpreter, expr: *const ast.Expr, needs_value: bool) anyerror!?Value {
         return switch (expr.*) {
             .bareword => |*bareword| try self.handleBareword(bareword),
             .identifier => |*identifier| self.handleIdentifier(identifier),
@@ -376,7 +375,7 @@ pub const Interpreter = struct {
             .variable => |*variable| try self.handleVariable(variable),
             .binary_operator => |*binary| try self.handleBinaryOperator(binary),
             .unary_operator => |*unary| try self.handleUnaryOperator(unary),
-            .call => |*call| try self.handleCall(call),
+            .call => |*call| try self.handleCall(call, needs_value),
         };
     }
 
@@ -449,7 +448,7 @@ pub const Interpreter = struct {
         var value = try ValueArray.initCapacity(self.ally, array.value.len);
 
         for (array.value) |*element| {
-            const maybe_val = self.handleExpr(element) catch |err| return err;
+            const maybe_val = self.handleExpr(element, true) catch |err| return err;
             const val = try self.assertHasValue(maybe_val, array.token);
             value.appendAssumeCapacity(val);
         }
@@ -485,8 +484,8 @@ pub const Interpreter = struct {
             else => {},
         }
 
-        var lhs = (try self.handleExpr(expr_lhs)) orelse unreachable;
-        var rhs = (try self.handleExpr(expr_rhs)) orelse unreachable;
+        var lhs = (try self.handleExpr(expr_lhs, true)) orelse unreachable;
+        var rhs = (try self.handleExpr(expr_rhs, true)) orelse unreachable;
         defer {
             lhs.deinit(self.ally);
             rhs.deinit(self.ally);
@@ -511,7 +510,7 @@ pub const Interpreter = struct {
     }
 
     fn handleUnaryOperator(self: *Interpreter, unary: *const ast.UnaryOperator) !Value {
-        var value = (try self.handleExpr(unary.expr)) orelse unreachable;
+        var value = (try self.handleExpr(unary.expr, true)) orelse unreachable;
 
         return try switch (unary.token.kind) {
             .Subtract => self.negateValue(&value, unary.token),
@@ -520,8 +519,8 @@ pub const Interpreter = struct {
         };
     }
 
-    fn handleCall(self: *Interpreter, call: *const ast.FunctionCall) !?Value {
-        const maybe_name_value = try self.handleExpr(call.name);
+    fn handleCall(self: *Interpreter, call: *const ast.FunctionCall, needs_value: bool) !?Value {
+        const maybe_name_value = try self.handleExpr(call.name, true);
         const name_value = try self.assertHasValue(maybe_name_value, call.token);
         try self.assertExpectedType(&name_value, .string, call.token);
         defer name_value.deinit(self.ally);
@@ -547,7 +546,7 @@ pub const Interpreter = struct {
         }
 
         for (call.args) |*arg| {
-            const maybe_arg = self.handleExpr(arg) catch |err| return err;
+            const maybe_arg = self.handleExpr(arg, true) catch |err| return err;
             const good_arg = try self.assertHasValue(maybe_arg, call.token);
             args_array.appendAssumeCapacity(good_arg);
         }
@@ -555,12 +554,13 @@ pub const Interpreter = struct {
         assert(args_array.items.len == n_args);
 
         self.calling_token = call.token;
-        return try self.executeFunction(name, args_array.items, has_stdin_arg);
+        const capture_output = needs_value;
+        return try self.executeFunction(name, args_array.items, has_stdin_arg, capture_output);
     }
 
     fn whileLoop(self: *Interpreter, loop: *const ast.Loop.WhileLoop) !void {
         while (true) {
-            var maybe_value = try self.handleExpr(&loop.condition);
+            var maybe_value = try self.handleExpr(&loop.condition, true);
             const value = try self.assertHasValue(maybe_value, loop.token);
             var inner = value.inner;
             assert(@as(Value.Kind, inner) == .boolean);
@@ -578,7 +578,7 @@ pub const Interpreter = struct {
     }
 
     fn forInLoop(self: *Interpreter, loop: *const ast.Loop.ForInLoop) anyerror!void {
-        const maybe_iterable = try self.handleExpr(&loop.iterable);
+        const maybe_iterable = try self.handleExpr(&loop.iterable, true);
         const iterable = try self.assertHasValue(maybe_iterable, loop.token);
         defer iterable.deinit(self.ally);
         try self.assertExpectedType(&iterable, .array, loop.token);
@@ -590,7 +590,7 @@ pub const Interpreter = struct {
         for (iterable.inner.array.items) |*value| {
             try self.sym_table.put(iterator_name, value);
             for (loop.scope.statements) |*stmnt| {
-                _ = try self.handleStatement(stmnt, false);
+                try self.handleStatement(stmnt);
                 if (self.return_just_handled) {
                     return;
                 }
@@ -605,7 +605,7 @@ pub const Interpreter = struct {
             unpipe = true;
         }
 
-        self.piped_value = (try self.handleExpr(current)) orelse unreachable;
+        self.piped_value = (try self.handleExpr(current, true)) orelse unreachable;
         //defer {
         //if (self.piped_value) |*val| {
         //val.deinit(self.ally);
@@ -616,10 +616,10 @@ pub const Interpreter = struct {
             self.is_piping = false;
         }
 
-        return self.handleExpr(next);
+        return self.handleExpr(next, true);
     }
 
-    pub fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, has_stdin_arg: bool) !?Value {
+    pub fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, has_stdin_arg: bool, capture_stdout: bool) !?Value {
         if (self.builtins.get(name)) |func| {
             return try func(self, args);
         } else {
@@ -650,7 +650,7 @@ pub const Interpreter = struct {
                 }
 
                 const opts = spawn.SpawnCommandOptions{
-                    .capture_stdout = true,
+                    .capture_stdout = capture_stdout,
                     .stdin_slice = stringified_stdin,
                 };
 

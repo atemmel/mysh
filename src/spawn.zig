@@ -20,14 +20,14 @@ pub fn cmd(ally: std.mem.Allocator, args: []const []const u8, opts: SpawnCommand
     if (opts.capture_stdout) {
         proc.stdout_behavior = .Pipe;
     } else {
-        proc.stdout_behavior = .Ignore;
+        //proc.stdout_behavior = .Ignore;
     }
 
     // stdin prep
     if (opts.stdin_slice != null) {
         proc.stdin_behavior = .Pipe;
     } else {
-        proc.stdin_behavior = .Ignore;
+        //proc.stdin_behavior = .Ignore;
     }
 
     try proc.spawn();

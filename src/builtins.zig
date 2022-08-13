@@ -78,7 +78,7 @@ pub fn filter(interp: *Interpreter, args: []const Value) !?Value {
 
     for (original_array.items) |*element| {
         const fn_args: []const Value = &[_]Value{element.*};
-        const fn_result = try interp.executeFunction(fn_name, fn_args, false);
+        const fn_result = try interp.executeFunction(fn_name, fn_args, false, true);
         assert(fn_result != null);
         assert(@as(Value.Kind, fn_result.?.inner) == .boolean);
 
