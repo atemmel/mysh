@@ -18,7 +18,6 @@
 
 ### to have:
  * type conversions `(newtype $variable)`(?)
- * repl-like functionality
  * type annotations
  * (some) semantic analysis
 
@@ -30,3 +29,5 @@
  * `ls --color`
  * `ls --color=auto`
  * `ls /`
+ * repl symtable
+ * better repl reader (history, search)

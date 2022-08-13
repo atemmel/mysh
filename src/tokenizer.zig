@@ -463,6 +463,40 @@ test "tokenize basic commands" {
         try expectEqual(tokens[1].row, 1);
         try expectEqualSlices(u8, tokens[1].value, "-l");
     }
+
+    {
+        var tokens = try tokenizer.tokenize("echo ");
+        defer ally.free(tokens);
+        try expectEqual(tokens.len, 1);
+        try expectEqual(tokens[0].kind, .Identifier);
+        try expectEqualSlices(u8, tokens[0].value, "echo");
+    }
+}
+
+test "tokenize with double dash" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+
+    var tokens = try tokenizer.tokenize("ls --color");
+    defer ally.free(tokens);
+    try expectEqual(tokens.len, 1);
+    try expectEqual(tokens[0].kind, .Identifier);
+    try expectEqualSlices(u8, tokens[0].value, "ls");
+    try expectEqual(tokens[1].kind, .Bareword);
+    try expectEqualSlices(u8, tokens[1].value, "--color");
+}
+
+test "tokenize with equals in args" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+
+    var tokens = try tokenizer.tokenize("ls --color=auto");
+    defer ally.free(tokens);
+    try expectEqual(tokens.len, 1);
+    try expectEqual(tokens[0].kind, .Identifier);
+    try expectEqualSlices(u8, tokens[0].value, "ls");
+    try expectEqual(tokens[1].kind, .Bareword);
+    try expectEqualSlices(u8, tokens[1].value, "--color=auto");
 }
 
 //TODO: move various text examples in here
