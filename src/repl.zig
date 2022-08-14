@@ -10,6 +10,7 @@ const stderr = std.io.getStdErr().writer();
 
 var ally: std.mem.Allocator = undefined;
 var buffer: [2048]u8 = undefined;
+var input: []const u8 = undefined;
 
 pub fn do(the_ally: std.mem.Allocator) !u8 {
     ally = the_ally;
@@ -22,12 +23,23 @@ pub fn do(the_ally: std.mem.Allocator) !u8 {
 
     while (true) {
         try stderr.print("mysh > ", .{});
-        const count = try stdin.read(&buffer);
-        if (count == 0) {
-            break;
+        //const count = try stdin.read(&buffer);
+        //if (count == 0) {
+        //break;
+        //}
+        //const source = buffer[0 .. count - 1];
+
+        switch (readLine()) {
+            .Ok => {},
+            .Discard => {
+                continue;
+            },
+            .Exit => {
+                break;
+            },
         }
-        const source = buffer[0 .. count - 1];
-        var tokens = try tokenizer.tokenize(source);
+
+        var tokens = try tokenizer.tokenize(input);
         defer ally.free(tokens);
 
         if (globals.verbose) {
@@ -35,7 +47,7 @@ pub fn do(the_ally: std.mem.Allocator) !u8 {
                 token.print();
             }
         }
-        var maybe_root = try parser.parse(tokens, source, "");
+        var maybe_root = try parser.parse(tokens, input, "");
         if (maybe_root == null) {
             if (parser.encounteredError()) {
                 parser.dumpError();
@@ -56,4 +68,44 @@ pub fn do(the_ally: std.mem.Allocator) !u8 {
     }
     try stderr.print("\nexit\n", .{});
     return 0;
+}
+
+const ReadResult = enum {
+    Ok,
+    Discard,
+    Exit,
+};
+
+fn readLine() ReadResult {
+    var i: usize = 0;
+
+    while (i < buffer.len) {
+        const c = stdin.readByte() catch {
+            return .Exit;
+        };
+        stderr.print("HERE\n", .{}) catch unreachable;
+
+        switch (c) {
+            0 => {
+                return .Exit;
+            },
+            '\t' => {
+                //TODO: handle tab
+            },
+            8 => {
+                //TODO: handle backspace
+            },
+            '\n' => {
+                break;
+            },
+            else => {
+                buffer[i] = c;
+                i += 1;
+            },
+        }
+    }
+
+    input = buffer[0..i];
+
+    return .Ok;
 }
