@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const deps = @import("deps.zig");
+
 pub fn build(b: *std.build.Builder) void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
@@ -12,6 +14,7 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
 
     const exe = b.addExecutable("mysh", "src/main.zig");
+    deps.addAllTo(exe);
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
@@ -26,6 +29,7 @@ pub fn build(b: *std.build.Builder) void {
     run_step.dependOn(&run_cmd.step);
 
     const exe_tests = b.addTest("src/main.zig");
+    deps.addAllTo(exe_tests);
     exe_tests.setTarget(target);
     exe_tests.setBuildMode(mode);
 

@@ -1,0 +1,6 @@
+id: xrm49mu0754y9zmkuwpzduj4hfkb8ckfulh7dfkx9cino731
+name: mysh
+license: GPLv3
+description: none
+root_dependencies:
+  - src: git https://github.com/xyaman/mibu

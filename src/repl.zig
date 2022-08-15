@@ -5,41 +5,46 @@ const ast = @import("ast.zig");
 const astprint = @import("astprint.zig");
 const Interpreter = @import("interpreter.zig").Interpreter;
 
-const stdin = std.io.getStdIn().reader();
-const stderr = std.io.getStdErr().writer();
+const mibu = @import("mibu");
+const events = mibu.events;
+const term = mibu.term;
+
+const stdin = std.io.getStdIn();
+const stderr_writer = std.io.getStdErr().writer();
 
 var ally: std.mem.Allocator = undefined;
-var buffer: [2048]u8 = undefined;
-var input: []const u8 = undefined;
+var input: std.ArrayList(u8) = undefined;
 
 pub fn do(the_ally: std.mem.Allocator) !u8 {
     ally = the_ally;
+    input = try std.ArrayList(u8).initCapacity(ally, 128);
+    defer input.deinit();
     var tokenizer = Tokenizer.init(ally);
     var parser = ast.Parser.init(ally);
     var interpreter = try Interpreter.init(ally);
     defer interpreter.deinit();
-    //TODO: final step
-    //var interpreter = Interpreter.init(ally);
 
     while (true) {
-        try stderr.print("mysh > ", .{});
+        try stderr_writer.print("mysh > ", .{});
         //const count = try stdin.read(&buffer);
         //if (count == 0) {
         //break;
         //}
         //const source = buffer[0 .. count - 1];
 
-        switch (readLine()) {
+        switch (try readLine()) {
             .Ok => {},
             .Discard => {
+                try stderr_writer.writeByte('\n');
                 continue;
             },
             .Exit => {
                 break;
             },
         }
+        try stderr_writer.writeByte('\n');
 
-        var tokens = try tokenizer.tokenize(input);
+        var tokens = try tokenizer.tokenize(input.items);
         defer ally.free(tokens);
 
         if (globals.verbose) {
@@ -47,7 +52,7 @@ pub fn do(the_ally: std.mem.Allocator) !u8 {
                 token.print();
             }
         }
-        var maybe_root = try parser.parse(tokens, input, "");
+        var maybe_root = try parser.parse(tokens, input.items, "");
         if (maybe_root == null) {
             if (parser.encounteredError()) {
                 parser.dumpError();
@@ -66,7 +71,7 @@ pub fn do(the_ally: std.mem.Allocator) !u8 {
             interpreter.reportError();
         };
     }
-    try stderr.print("\nexit\n", .{});
+    try stderr_writer.print("\nexit\n", .{});
     return 0;
 }
 
@@ -76,36 +81,46 @@ const ReadResult = enum {
     Exit,
 };
 
-fn readLine() ReadResult {
-    var i: usize = 0;
+fn readLine() !ReadResult {
+    input.clearRetainingCapacity();
 
-    while (i < buffer.len) {
-        const c = stdin.readByte() catch {
-            return .Exit;
-        };
-        stderr.print("HERE\n", .{}) catch unreachable;
+    var raw_term = try term.enableRawMode(stdin.handle, .blocking);
+    defer raw_term.disableRawMode() catch {};
 
-        switch (c) {
-            0 => {
-                return .Exit;
+    while (true) {
+        const event = try events.next(stdin);
+        //try stderr_writer.print("event: {s}\n\r", .{event});
+        switch (event) {
+            .key => |k| switch (k) {
+                .char => |c| {
+                    try addch(@intCast(u8, c & 0xff));
+                    if (c > 0xff) {
+                        try addch(@intCast(u8, c & 0xff00));
+                    }
+                    if (c > 0xff00) {
+                        try addch(@intCast(u8, c & 0x1f0000));
+                    }
+                },
+                .ctrl => |c| switch (c) {
+                    'd' => return .Exit,
+                    else => {},
+                },
+                .enter => break,
+                .up => {},
+                .down => {},
+                .left => {},
+                .right => {},
+                else => {},
             },
-            '\t' => {
-                //TODO: handle tab
-            },
-            8 => {
-                //TODO: handle backspace
-            },
-            '\n' => {
-                break;
-            },
-            else => {
-                buffer[i] = c;
-                i += 1;
-            },
+            .none => return .Exit,
+            else => {},
         }
     }
 
-    input = buffer[0..i];
-
     return .Ok;
+}
+
+fn addch(char: u8) !void {
+    try stderr_writer.writeByte(char);
+    try input.append(char);
 }
