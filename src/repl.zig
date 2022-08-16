@@ -8,12 +8,17 @@ const Interpreter = @import("interpreter.zig").Interpreter;
 const mibu = @import("mibu");
 const events = mibu.events;
 const term = mibu.term;
+const clear = mibu.clear;
+const cursor = mibu.cursor;
 
 const stdin = std.io.getStdIn();
 const stderr_writer = std.io.getStdErr().writer();
+const stdout_writer = std.io.getStdOut().writer();
 
 var ally: std.mem.Allocator = undefined;
 var input: std.ArrayList(u8) = undefined;
+
+const prompt_str = "mysh > ";
 
 pub fn do(the_ally: std.mem.Allocator) !u8 {
     ally = the_ally;
@@ -24,25 +29,31 @@ pub fn do(the_ally: std.mem.Allocator) !u8 {
     var interpreter = try Interpreter.init(ally);
     defer interpreter.deinit();
 
-    while (true) {
-        try stderr_writer.print("mysh > ", .{});
-        //const count = try stdin.read(&buffer);
-        //if (count == 0) {
-        //break;
-        //}
-        //const source = buffer[0 .. count - 1];
+    var result = ReadResult.Parse;
 
-        switch (try readLine()) {
-            .Ok => {},
-            .Discard => {
-                try stderr_writer.writeByte('\n');
+    while (true) {
+        if (result != .NoDrawPrompt) {
+            try printPrompt(false);
+        }
+        //try stdout_writer.print("{s}", .{prompt_str});
+
+        result = try readLine();
+        switch (result) {
+            .Parse => {},
+            .Ignore => {
+                //try stdout_writer.writeByte('\n');
+                continue;
+            },
+            .NoDrawPrompt => {
                 continue;
             },
             .Exit => {
                 break;
             },
         }
-        try stderr_writer.writeByte('\n');
+        try stdout_writer.writeByte('\n');
+
+        defer input.clearRetainingCapacity();
 
         var tokens = try tokenizer.tokenize(input.items);
         defer ally.free(tokens);
@@ -70,20 +81,20 @@ pub fn do(the_ally: std.mem.Allocator) !u8 {
         interpreter.interpret(&root) catch {
             interpreter.reportError();
         };
+        input.clearRetainingCapacity();
     }
     try stderr_writer.print("\nexit\n", .{});
     return 0;
 }
 
 const ReadResult = enum {
-    Ok,
-    Discard,
+    Parse,
+    Ignore,
+    NoDrawPrompt,
     Exit,
 };
 
 fn readLine() !ReadResult {
-    input.clearRetainingCapacity();
-
     var raw_term = try term.enableRawMode(stdin.handle, .blocking);
     defer raw_term.disableRawMode() catch {};
 
@@ -103,24 +114,51 @@ fn readLine() !ReadResult {
                 },
                 .ctrl => |c| switch (c) {
                     'd' => return .Exit,
+                    'l' => {
+                        try clearScreen();
+                        return .NoDrawPrompt;
+                    },
+                    'u' => {
+                        try clearFromCursorToBeginning();
+                        return .Ignore;
+                    },
                     else => {},
                 },
-                .enter => break,
+                .enter => return .Parse,
                 .up => {},
                 .down => {},
                 .left => {},
                 .right => {},
                 else => {},
             },
-            .none => return .Exit,
             else => {},
         }
     }
 
-    return .Ok;
+    unreachable;
 }
 
 fn addch(char: u8) !void {
-    try stderr_writer.writeByte(char);
+    try stdout_writer.writeByte(char);
     try input.append(char);
+}
+
+fn clearFromCursorToBeginning() !void {
+    try clear.line_to_cursor(stdout_writer);
+    const steps = prompt_str.len + input.items.len;
+    try cursor.goLeft(stdout_writer, steps);
+    input.clearRetainingCapacity();
+}
+
+fn printPrompt(andContents: bool) !void {
+    try stdout_writer.print("{s}", .{prompt_str});
+    if (andContents) {
+        try stdout_writer.print("{s}", .{input.items});
+    }
+}
+
+fn clearScreen() !void {
+    try clear.screenToCursor(stdout_writer);
+    try cursor.goTo(stdout_writer, 0, 0);
+    try printPrompt(true);
 }
