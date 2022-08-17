@@ -17,6 +17,7 @@ const stdout_writer = std.io.getStdOut().writer();
 
 var ally: std.mem.Allocator = undefined;
 var input: std.ArrayList(u8) = undefined;
+var input_needle: usize = 0;
 
 const prompt_str = "mysh > ";
 
@@ -32,7 +33,7 @@ pub fn do(the_ally: std.mem.Allocator) !u8 {
     var result = ReadResult.Parse;
 
     while (true) {
-        if (result != .NoDrawPrompt) {
+        if (result == .Parse) {
             try printPrompt(false);
         }
         //try stdout_writer.print("{s}", .{prompt_str});
@@ -120,15 +121,35 @@ fn readLine() !ReadResult {
                     },
                     'u' => {
                         try clearFromCursorToBeginning();
+                        try printPrompt(true);
                         return .Ignore;
                     },
                     else => {},
                 },
-                .enter => return .Parse,
+                .enter => {
+                    input_needle = 0;
+                    return .Parse;
+                },
+                .delete => {
+                    if (input_needle > 0) {
+                        _ = input.orderedRemove(input_needle);
+                        input_needle -= 1;
+                    }
+                },
                 .up => {},
                 .down => {},
-                .left => {},
-                .right => {},
+                .left => {
+                    if (input_needle > 0) {
+                        input_needle -= 1;
+                        try cursor.goLeft(stdout_writer, 1);
+                    }
+                },
+                .right => {
+                    if (input_needle < input.items.len) {
+                        input_needle += 1;
+                        try cursor.goRight(stdout_writer, 1);
+                    }
+                },
                 else => {},
             },
             else => {},
@@ -141,13 +162,19 @@ fn readLine() !ReadResult {
 fn addch(char: u8) !void {
     try stdout_writer.writeByte(char);
     try input.append(char);
+    input_needle += 1;
 }
 
 fn clearFromCursorToBeginning() !void {
     try clear.line_to_cursor(stdout_writer);
-    const steps = prompt_str.len + input.items.len;
+    try clear.line_from_cursor(stdout_writer);
+    const steps = prompt_str.len + input_needle;
     try cursor.goLeft(stdout_writer, steps);
-    input.clearRetainingCapacity();
+    const slice = input.items[input_needle..];
+    const new_len = input.items.len - input_needle;
+    input_needle = 0;
+    try input.replaceRange(0, new_len, slice);
+    input.shrinkRetainingCapacity(new_len);
 }
 
 fn printPrompt(andContents: bool) !void {
