@@ -131,10 +131,7 @@ fn readLine() !ReadResult {
                     return .Parse;
                 },
                 .delete => {
-                    if (input_needle > 0) {
-                        _ = input.orderedRemove(input_needle);
-                        input_needle -= 1;
-                    }
+                    try deleteCharAtNeedle();
                 },
                 .up => {},
                 .down => {},
@@ -165,9 +162,26 @@ fn addch(char: u8) !void {
     input_needle += 1;
 }
 
+fn deleteCharAtNeedle() !void {
+    if (input_needle == 0) {
+        return;
+    }
+
+    input_needle -= 1;
+    try clear.entire_line(stdout_writer);
+    _ = input.orderedRemove(input_needle);
+    const steps = prompt_str.len + input_needle;
+    try cursor.goLeft(stdout_writer, steps + 1);
+    try printPrompt(true);
+    const back_steps = prompt_str.len + input.items.len + 1;
+    try cursor.goLeft(stdout_writer, back_steps);
+    try cursor.goRight(stdout_writer, steps);
+}
+
 fn clearFromCursorToBeginning() !void {
-    try clear.line_to_cursor(stdout_writer);
-    try clear.line_from_cursor(stdout_writer);
+    //try clear.line_to_cursor(stdout_writer);
+    //try clear.line_from_cursor(stdout_writer);
+    try clear.entire_line(stdout_writer);
     const steps = prompt_str.len + input_needle;
     try cursor.goLeft(stdout_writer, steps);
     const slice = input.items[input_needle..];
