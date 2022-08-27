@@ -27,13 +27,28 @@ pub const IntegerLiteral = struct {
 
 pub const ArrayLiteral = struct {
     token: *const Token,
-    value: []const Expr,
+    values: []const Expr,
 
     fn deinit(self: *const ArrayLiteral, ally: std.mem.Allocator) void {
-        for (self.value) |expr| {
+        for (self.values) |expr| {
             expr.deinit(ally);
         }
-        ally.free(self.value);
+        ally.free(self.values);
+    }
+};
+
+pub const TableLiteral = struct {
+    token: *const Token,
+    names: []const []const u8,
+    values: []const *const Expr,
+
+    fn deinit(self: *const TableLiteral, ally: std.mem.Allocator) void {
+        for (self.values) |expr| {
+            expr.deinit(ally);
+            ally.destroy(expr);
+        }
+        ally.free(self.values);
+        ally.free(self.names);
     }
 };
 
@@ -204,6 +219,7 @@ pub const ExprKind = enum {
     boolean_literal,
     integer_literal,
     array_literal,
+    table_literal,
     variable,
     binary_operator,
     unary_operator,
@@ -217,6 +233,7 @@ pub const Expr = union(ExprKind) {
     boolean_literal: BoolLiteral,
     integer_literal: IntegerLiteral,
     array_literal: ArrayLiteral,
+    table_literal: TableLiteral,
     variable: Variable,
     binary_operator: BinaryOperator,
     unary_operator: UnaryOperator,
@@ -229,6 +246,9 @@ pub const Expr = union(ExprKind) {
             .string_literal => {},
             .boolean_literal => {},
             .integer_literal => {},
+            .table_literal => |table| {
+                table.deinit(ally);
+            },
             .array_literal => |array| {
                 array.deinit(ally);
             },
@@ -847,51 +867,15 @@ pub const Parser = struct {
             };
         }
 
+        if (try self.parseTableLiteral()) |table| {
+            return Expr{
+                .table_literal = table,
+            };
+        }
+
         if (try self.parseFunctionCall()) |call| {
             return call;
         }
-
-        //if(auto un = parseUnaryExpression();
-        //un != nullptr) {
-        //return un;
-        //}
-        //if(auto call = parseFunctionCallExpr();
-        //call != nullptr) {
-        //return call;
-        //}
-        //if(auto identifier = parseIdentifier();
-        //identifier != nullptr) {
-        //return identifier;
-        //}
-        //if(auto bareword = parseBareword();
-        //bareword != nullptr) {
-        //return bareword;
-        //}
-        //if(auto variable = parseVariable();
-        //variable != nullptr) {
-        //return variable;
-        //}
-        //if(auto stringLiteral = parseStringLiteral();
-        //stringLiteral != nullptr) {
-        //return stringLiteral;
-        //}
-        //if(auto integerLiteral = parseIntegerLiteral();
-        //integerLiteral != nullptr) {
-        //return integerLiteral;
-        //}
-        //if(auto boolLiteral = parseBoolLiteral();
-        //boolLiteral != nullptr) {
-        //return boolLiteral;
-        //}
-        //if(auto arrayLiteral = parseArrayLiteral();
-        //arrayLiteral != nullptr) {
-        //return arrayLiteral;
-        //}
-        //if(auto call = parseFunctionCall();
-        //call != nullptr) {
-        //return call;
-        //}
-        //return nullptr;
 
         return null;
     }
@@ -1313,8 +1297,94 @@ pub const Parser = struct {
 
         return ArrayLiteral{
             .token = token.?,
-            .value = exprs.toOwnedSlice(),
+            .values = exprs.toOwnedSlice(),
         };
+    }
+
+    fn parseTableLiteral(self: *Parser) !?TableLiteral {
+        const token = self.getIf(.Member);
+        if (token == null) {
+            return null;
+        }
+        const lbrace = self.getIf(.LeftBrace);
+        if (lbrace == null) {
+            self.expectedToken(.LeftBrace);
+            return null;
+        }
+
+        var names = std.ArrayList([]const u8).init(self.ally);
+        var values = std.ArrayList(*const Expr).init(self.ally);
+        defer {
+            for (values.items) |value| {
+                self.ally.destroy(value);
+            }
+            names.deinit();
+            values.deinit();
+        }
+
+        while (true) {
+            while (self.getIf(.Newline) != null) {}
+            if (self.getIf(.RightBrace) != null) {
+                break;
+            }
+            const key = self.parseKey();
+            if (key == null) {
+                self.expectedToken(.Identifier);
+                return null;
+            }
+            if (!self.parseKeyValueSeparator()) {
+                self.expectedToken(.Colon);
+                return null;
+            }
+
+            const value = try self.parseExpr();
+            if (value == null) {
+                self.expected(.expression);
+                return null;
+            }
+
+            if (!self.parseKeyValuePairSeparator()) {
+                if (self.get().kind != .RightBrace) {
+                    self.expectedToken(.Newline);
+                    return null;
+                }
+            }
+
+            const value_ptr = try self.ally.create(Expr);
+            value_ptr.* = value.?;
+
+            try names.append(key.?);
+            try values.append(value_ptr);
+        }
+
+        return TableLiteral{
+            .token = token.?,
+            .names = names.toOwnedSlice(),
+            .values = values.toOwnedSlice(),
+        };
+    }
+
+    fn parseKey(self: *Parser) ?[]const u8 {
+        if (self.parseStringLiteral()) |string| {
+            return string.token.value;
+        } else if (self.parseIdentifier()) |identifier| {
+            return identifier.token.value;
+        }
+        return null;
+    }
+
+    fn parseKeyValueSeparator(self: *Parser) bool {
+        if (self.getIf(.Colon) != null) { // or self.getIf(.Comma)
+            return true;
+        }
+        return false;
+    }
+
+    fn parseKeyValuePairSeparator(self: *Parser) bool {
+        if (self.getIf(.Newline) != null) { // or self.getIf(.Comma)
+            return true;
+        }
+        return false;
     }
 
     fn getIf(self: *Parser, kind: Token.Kind) ?*const Token {

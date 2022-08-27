@@ -11,8 +11,9 @@ pub const Token = struct {
         Else, // else
         While, // while
         Return, // return
-        For, // For
+        For, // for
         In, // in
+        Struct, // struct
         Assign, // =
         Add, // +
         Subtract, // -
@@ -36,6 +37,10 @@ pub const Token = struct {
         RightPar, // )
         LeftBrack, // [
         RightBrack, // ]
+        Member, // .
+        Comma, // ,
+        Colon, // :
+        Semicolon, // ;
         Variable, // $hello
         StringLiteral, // "hello"
         Identifier, // hello
@@ -56,6 +61,7 @@ pub const Token = struct {
         "Return",
         "For",
         "In",
+        "Struct",
         "Assign",
         "Add",
         "Subtract",
@@ -79,6 +85,10 @@ pub const Token = struct {
         "RightPar",
         "LeftBrack",
         "RightBrack",
+        "Member",
+        "Comma",
+        "Colon",
+        "Semicolon",
         "Variable",
         "StringLiteral",
         "Identifier",
@@ -98,6 +108,7 @@ pub const Token = struct {
         "return",
         "for",
         "in",
+        "table",
         "=",
         "+",
         "-",
@@ -121,6 +132,10 @@ pub const Token = struct {
         ")",
         "[",
         "]",
+        ".",
+        ",",
+        ":",
+        ";",
         "",
         "",
         "",
@@ -129,6 +144,7 @@ pub const Token = struct {
     };
 
     const precedences = [_]u32{
+        0,
         0,
         0,
         0,
@@ -168,24 +184,33 @@ pub const Token = struct {
         0,
         0,
         0,
+        0,
+        0,
+        0,
+        0,
     };
 
     pub const keyword_begin = 1;
-    pub const keyword_end = 11;
-    pub const symbol_begin = 11;
-    pub const symbol_end = 34;
-    pub const operator_begin = 11;
-    pub const operator_end = 28;
+    pub const keyword_end = 12;
+    pub const symbol_begin = 12;
+    pub const symbol_end = 39;
+    pub const operator_begin = 12;
+    pub const operator_end = 29;
 
     pub fn precedence(self: *const Token) u32 {
         const idx: usize = @enumToInt(self.kind);
         const prec = precedences[idx];
         return prec;
     }
-
-    pub fn print(self: *const Token) void {
-        const printImpl = std.debug.print;
-        printImpl("Row: {}, Column: {}, Kind: {s}", .{
+    pub fn format(
+        self: *const Token,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("Row: {}, Column: {}, Kind: {s}", .{
             self.row,
             self.column,
             printable_strings[@enumToInt(self.kind)],
@@ -193,12 +218,11 @@ pub const Token = struct {
 
         if (self.value.len > 0) {
             if (self.kind == .Newline) {
-                printImpl(" Value: \\n", .{});
+                try writer.print(" Value: \\n", .{});
             } else {
-                printImpl(" Value: {s}", .{self.value});
+                try writer.print(" Value: {s}", .{self.value});
             }
         }
-        printImpl("\n", .{});
     }
 
     kind: Kind,

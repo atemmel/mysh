@@ -372,6 +372,7 @@ pub const Interpreter = struct {
             .boolean_literal => |*boolean| self.handleBoolLiteral(boolean),
             .integer_literal => |*integer| self.handleIntegerLiteral(integer),
             .array_literal => |*array| try self.handleArrayLiteral(array),
+            .table_literal => |*table| try self.handleTableLiteral(table),
             .variable => |*variable| try self.handleVariable(variable),
             .binary_operator => |*binary| try self.handleBinaryOperator(binary),
             .unary_operator => |*unary| try self.handleUnaryOperator(unary),
@@ -445,15 +446,15 @@ pub const Interpreter = struct {
     }
 
     fn handleArrayLiteral(self: *Interpreter, array: *const ast.ArrayLiteral) !Value {
-        var value = try ValueArray.initCapacity(self.ally, array.value.len);
+        var value = try ValueArray.initCapacity(self.ally, array.values.len);
 
-        for (array.value) |*element| {
+        for (array.values) |*element| {
             const maybe_val = self.handleExpr(element, true) catch |err| return err;
             const val = try self.assertHasValue(maybe_val, array.token);
             value.appendAssumeCapacity(val);
         }
 
-        assert(value.items.len == array.value.len);
+        assert(value.items.len == array.values.len);
 
         return Value{
             .inner = .{
@@ -461,6 +462,12 @@ pub const Interpreter = struct {
             },
             .origin = array.token,
         };
+    }
+
+    fn handleTableLiteral(self: *Interpreter, struc: *const ast.TableLiteral) !Value {
+        _ = self;
+        _ = struc;
+        unreachable;
     }
 
     fn handleVariable(self: *Interpreter, variable: *const ast.Variable) !Value {

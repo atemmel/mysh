@@ -27,7 +27,7 @@ pub fn doEverything(source: []const u8, canonical_path: []const u8) !bool {
     defer ally.free(tokens);
     if (globals.verbose) {
         for (tokens) |*token| {
-            token.print();
+            try stderr.print("{}\n", .{token});
         }
     }
 

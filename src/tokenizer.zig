@@ -6,7 +6,10 @@ const assert = std.debug.assert;
 
 const isSpace = std.ascii.isSpace;
 const isAlpha = std.ascii.isAlpha;
-const isDigit = std.ascii.isDigit;
+
+fn isDigit(what: u8) bool {
+    return std.ascii.isDigit(what);
+}
 
 fn isAlnum(what: u8) bool {
     return isAlpha(what) or isDigit(what);
@@ -32,11 +35,13 @@ pub const Tokenizer = struct {
             const c = self.peek();
 
             if (try self.readNewline()) {
+                self.member_chain_alive = false;
                 continue;
             }
 
             if (isSpace(c) and c != '\n') {
                 self.skipWhitespace();
+                self.member_chain_alive = false;
                 continue;
             }
 
@@ -46,12 +51,20 @@ pub const Tokenizer = struct {
             }
 
             if (try self.readVariable()) {
+                if (self.member_chain_alive) {
+                    self.member_chain_alive = false;
+                } else {
+                    self.member_chain_alive = true;
+                }
                 continue;
             }
             if (try self.readKeyword()) {
                 continue;
             }
             if (try self.readIdentifier()) {
+                if (self.member_chain_alive and self.prevTokenKindWas(Token.Kind.Member)) {} else {
+                    self.member_chain_alive = false;
+                }
                 continue;
             }
             if (try self.readSymbol()) {
@@ -73,11 +86,19 @@ pub const Tokenizer = struct {
         return self.tokens.toOwnedSlice();
     }
 
-    fn eof(self: *Tokenizer) bool {
+    fn prevTokenKindWas(self: *const Tokenizer, kind: Token.Kind) bool {
+        const tokens = self.tokens.items;
+        if (tokens.len < 2) {
+            return false;
+        }
+        return tokens[tokens.len - 2].kind == kind;
+    }
+
+    fn eof(self: *const Tokenizer) bool {
         return self.current >= self.end;
     }
 
-    fn peek(self: *Tokenizer) u8 {
+    fn peek(self: *const Tokenizer) u8 {
         assert(self.current < self.end);
         return self.source[self.current];
     }
@@ -400,29 +421,6 @@ pub const Tokenizer = struct {
                 const k_current_column = self.current_column;
                 const k_current_row = self.current_row;
 
-                if (false) {
-                    // look ahead
-                    self.skipWhitespace();
-
-                    // if end after looking ahead
-                    if (self.eof()) {
-                        // can't end on a binary operator, it's a bareword
-                        self.current = old_current;
-                        self.current_column = old_column;
-                        self.current_row = old_row;
-                        return false;
-                    }
-
-                    // if not a possibly mathematical expression
-                    if (self.peek() != '$' and !isDigit(self.peek())) {
-                        // it's a bareword
-                        self.current = old_current;
-                        self.current_column = old_column;
-                        self.current_row = old_row;
-                        return false;
-                    }
-                }
-
                 if (!self.isMathCheck()) {
                     self.current = old_current;
                     self.current_column = old_column;
@@ -459,6 +457,14 @@ pub const Tokenizer = struct {
                     self.next();
                 }
             },
+            .Member => {
+                if (!self.member_chain_alive) {
+                    self.current = old_current;
+                    self.current_column = old_column;
+                    self.current_row = old_row;
+                    return false;
+                }
+            },
             else => {},
         }
 
@@ -472,33 +478,19 @@ pub const Tokenizer = struct {
     }
 
     fn isMathCheck(self: *Tokenizer) bool {
-        switch (self.peek()) {
-            '+', '-', '/', '*' => {},
-            else => {
-                return true;
-            },
-        }
-
-        // look ahead
         self.skipWhitespace();
+        while (!self.eof()) {
+            const c = self.peek();
 
-        // if end after looking ahead
-        if (self.eof()) {
-            // can't end on a binary operator, it's a bareword
-            return false;
+            switch (c) {
+                '0'...'9', '$' => return true,
+                '-' => {},
+                else => return false,
+            }
+            self.next();
+            self.skipWhitespace();
         }
-
-        // if not a possibly mathematical expression
-        if (self.peek() != '$' and !isDigit(self.peek())) {
-            // it's a bareword
-            return false;
-        }
-
-        // check unary operators
-        return switch (self.peek()) {
-            '-' => self.isMathCheck(),
-            else => true,
-        };
+        return false;
     }
 
     tokens: Tokens = undefined,
@@ -507,6 +499,7 @@ pub const Tokenizer = struct {
     end: usize = undefined,
     current_column: usize = undefined,
     current_row: usize = undefined,
+    member_chain_alive: bool = false,
 };
 
 const expectEqual = std.testing.expectEqual;
@@ -544,7 +537,6 @@ test "tokenize basic commands" {
 test "tokenize with double dash" {
     var ally = std.testing.allocator;
     var tokenizer = Tokenizer.init(ally);
-
     var tokens = try tokenizer.tokenize("ls --color");
     defer ally.free(tokens);
     try expectEqual(tokens.len, 2);
@@ -552,6 +544,40 @@ test "tokenize with double dash" {
     try expectEqualSlices(u8, tokens[0].value, "ls");
     try expectEqual(tokens[1].kind, .Bareword);
     try expectEqualSlices(u8, tokens[1].value, "--color");
+}
+
+test "tokenize subtraction" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+    var tokens = try tokenizer.tokenize("- 1 - - - - - - - 5 - - 0 ");
+    defer ally.free(tokens);
+    try expectEqual(@as(usize, 13), tokens.len);
+    try expectEqual(Token.Kind.Subtract, tokens[0].kind);
+    try expectEqualSlices(u8, "-", tokens[0].value);
+    try expectEqual(Token.Kind.IntegerLiteral, tokens[1].kind);
+    try expectEqualSlices(u8, "1", tokens[1].value);
+    try expectEqual(Token.Kind.Subtract, tokens[2].kind);
+    try expectEqualSlices(u8, "-", tokens[2].value);
+    try expectEqual(Token.Kind.Subtract, tokens[3].kind);
+    try expectEqualSlices(u8, "-", tokens[3].value);
+    try expectEqual(Token.Kind.Subtract, tokens[4].kind);
+    try expectEqualSlices(u8, "-", tokens[4].value);
+    try expectEqual(Token.Kind.Subtract, tokens[5].kind);
+    try expectEqualSlices(u8, "-", tokens[5].value);
+    try expectEqual(Token.Kind.Subtract, tokens[6].kind);
+    try expectEqualSlices(u8, "-", tokens[6].value);
+    try expectEqual(Token.Kind.Subtract, tokens[7].kind);
+    try expectEqualSlices(u8, "-", tokens[7].value);
+    try expectEqual(Token.Kind.Subtract, tokens[8].kind);
+    try expectEqualSlices(u8, "-", tokens[8].value);
+    try expectEqual(Token.Kind.IntegerLiteral, tokens[9].kind);
+    try expectEqualSlices(u8, "5", tokens[9].value);
+    try expectEqual(Token.Kind.Subtract, tokens[10].kind);
+    try expectEqualSlices(u8, "-", tokens[10].value);
+    try expectEqual(Token.Kind.Subtract, tokens[11].kind);
+    try expectEqualSlices(u8, "-", tokens[11].value);
+    try expectEqual(Token.Kind.IntegerLiteral, tokens[12].kind);
+    try expectEqualSlices(u8, "0", tokens[12].value);
 }
 
 test "tokenize with equals in args" {
@@ -591,6 +617,75 @@ test "tokenize unary operator" {
     try expectEqualSlices(u8, tokens[0].value, "-");
     try expectEqual(tokens[1].kind, .IntegerLiteral);
     try expectEqualSlices(u8, tokens[1].value, "5");
+}
+
+test "tokenize dotfile" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+
+    var tokens = try tokenizer.tokenize("cat .hidden");
+    defer ally.free(tokens);
+    try expectEqual(@as(usize, 2), tokens.len);
+    try expectEqual(Token.Kind.Identifier, tokens[0].kind);
+    try expectEqualSlices(u8, "cat", tokens[0].value);
+    try expectEqual(Token.Kind.Bareword, tokens[1].kind);
+    try expectEqualSlices(u8, ".hidden", tokens[1].value);
+}
+
+test "tokenize wildcard" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+    var tokens = try tokenizer.tokenize("ls *txt");
+    defer ally.free(tokens);
+    try expectEqual(@as(usize, 2), tokens.len);
+    try expectEqual(Token.Kind.Identifier, tokens[0].kind);
+    try expectEqualSlices(u8, "ls", tokens[0].value);
+    try expectEqual(Token.Kind.Bareword, tokens[1].kind);
+    try expectEqualSlices(u8, "*txt", tokens[1].value);
+}
+
+test "tokenize wildcard dot" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+    var tokens = try tokenizer.tokenize("ls *.txt");
+    defer ally.free(tokens);
+    try expectEqual(@as(usize, 2), tokens.len);
+    try expectEqual(Token.Kind.Identifier, tokens[0].kind);
+    try expectEqualSlices(u8, "ls", tokens[0].value);
+    try expectEqual(Token.Kind.Bareword, tokens[1].kind);
+    try expectEqualSlices(u8, "*.txt", tokens[1].value);
+}
+
+test "tokenize member access 1" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+    var tokens = try tokenizer.tokenize("$person.age");
+    defer ally.free(tokens);
+    try expectEqual(@as(usize, 3), tokens.len);
+    try expectEqual(Token.Kind.Variable, tokens[0].kind);
+    try expectEqualSlices(u8, "$person", tokens[0].value);
+    try expectEqual(Token.Kind.Member, tokens[1].kind);
+    try expectEqualSlices(u8, ".", tokens[1].value);
+    try expectEqual(Token.Kind.Identifier, tokens[2].kind);
+    try expectEqualSlices(u8, "age", tokens[2].value);
+}
+
+test "tokenize member access deep" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+    var tokens = try tokenizer.tokenize("$person.name.first");
+    defer ally.free(tokens);
+    try expectEqual(@as(usize, 5), tokens.len);
+    try expectEqual(Token.Kind.Variable, tokens[0].kind);
+    try expectEqualSlices(u8, "$person", tokens[0].value);
+    try expectEqual(Token.Kind.Member, tokens[1].kind);
+    try expectEqualSlices(u8, ".", tokens[1].value);
+    try expectEqual(Token.Kind.Identifier, tokens[2].kind);
+    try expectEqualSlices(u8, "name", tokens[2].value);
+    try expectEqual(Token.Kind.Member, tokens[3].kind);
+    try expectEqualSlices(u8, ".", tokens[3].value);
+    try expectEqual(Token.Kind.Identifier, tokens[4].kind);
+    try expectEqualSlices(u8, "first", tokens[4].value);
 }
 
 //TODO: move various text examples in here

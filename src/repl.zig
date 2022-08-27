@@ -61,7 +61,7 @@ pub fn do(the_ally: std.mem.Allocator) !u8 {
 
         if (globals.verbose) {
             for (tokens) |*token| {
-                token.print();
+                try stderr_writer.print("{}\n", .{token});
             }
         }
         var maybe_root = try parser.parse(tokens, input.items, "");
