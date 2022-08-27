@@ -1,0 +1,15 @@
+#!../zig-out/bin/mysh
+var person = struct {
+	age: 4
+	"name": James
+}
+
+print $person["name"] should be James
+
+print $person.age should be 4
+
+#var other = .{age: 5, "name": James}
+
+#print $other.name should be James
+
+#print $other["age"] should be 4

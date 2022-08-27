@@ -95,5 +95,14 @@ pub fn main() anyerror!u8 {
 }
 
 comptime {
-    std.testing.refAllDecls(@This());
+    //TODO: go back to this once zig 0.10 is more stable
+    //std.testing.refAllDecls(@This());
+    _ = @import("tokenizer.zig");
+    _ = @import("interpreter.zig");
+    _ = @import("escape.zig");
+    _ = @import("ast.zig");
+    _ = @import("ptr.zig");
+    _ = @import("symtable.zig");
+    _ = @import("token.zig");
+    _ = @import("spawn.zig");
 }
