@@ -20,7 +20,7 @@ const InterpreterError = error{
 };
 
 pub const Interpreter = struct {
-    const Builtins = std.StringHashMap(mysh_builtins.Signature);
+    const Builtins = std.StringHashMap(*const mysh_builtins.Signature);
 
     const ErrorInfo = union(Kind) {
         const Kind = enum {
@@ -967,8 +967,8 @@ pub const Interpreter = struct {
 const builtin_signature = fn (interp: *Interpreter, args: []const Value) anyerror!?Value;
 
 const builtins_array = .{
-    .{ "print", mysh_builtins.print },
-    .{ "append", mysh_builtins.append },
-    .{ "filter", mysh_builtins.filter },
-    .{ "len", mysh_builtins.len },
+    .{ "print", &mysh_builtins.print },
+    .{ "append", &mysh_builtins.append },
+    .{ "filter", &mysh_builtins.filter },
+    .{ "len", &mysh_builtins.len },
 };

@@ -33,7 +33,6 @@ pub fn maybe(ally: std.mem.Allocator, str: []const u8, sym_table: *const SymTabl
                         const name = str[i + 1 .. rbrace_idx];
 
                         if (name.len == 0) {
-                            //TODO: this is an error, empty interpolation attempt
                             return InterpolationError.EmptySymbol;
                         }
 
@@ -43,11 +42,9 @@ pub fn maybe(ally: std.mem.Allocator, str: []const u8, sym_table: *const SymTabl
                             i = rbrace_idx;
                             prev_i = i + 1;
                         } else {
-                            //TODO: this is an error, could not find symbol
                             return InterpolationError.SymbolNotFound;
                         }
                     } else {
-                        //TODO: this is an error, could not find ending brace
                         return InterpolationError.EndBraceNotFound;
                     }
                 }
