@@ -108,7 +108,7 @@ pub const Token = struct {
         "return",
         "for",
         "in",
-        "table",
+        "struct",
         "=",
         "+",
         "-",

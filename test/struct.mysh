@@ -1,12 +1,17 @@
 #!../zig-out/bin/mysh
 var person = struct {
-	age: 4
-	"name": James
+	age = 4
+	"the name" = "James"
+	here = pwd
 }
 
-print $person["name"] should be James
+print $person
 
-print $person.age should be 4
+#TODO: these guys
+
+#print $person.age should be 4
+
+#print $person["name"] should be James
 
 #var other = .{age: 5, "name": James}
 

@@ -2,6 +2,7 @@ const std = @import("std");
 const Token = @import("token.zig").Token;
 
 pub const ValueArray = std.ArrayList(Value);
+pub const ValueStruct = std.StringHashMap(Value);
 
 pub const Value = struct {
     pub const Kind = enum {
@@ -9,6 +10,7 @@ pub const Value = struct {
         boolean,
         integer,
         array,
+        struct_,
 
         pub fn format(
             self: *const Kind,
@@ -32,6 +34,9 @@ pub const Value = struct {
                 .array => {
                     try writer.writeAll("[]");
                 },
+                .struct_ => {
+                    try writer.writeAll("struct");
+                },
             }
         }
     };
@@ -41,6 +46,7 @@ pub const Value = struct {
         boolean: bool,
         integer: i64,
         array: ValueArray,
+        struct_: ValueStruct,
     };
 
     inner: Inner = undefined,
@@ -73,6 +79,23 @@ pub const Value = struct {
                 return Value{
                     .inner = .{
                         .array = new_array,
+                    },
+                };
+            },
+            .struct_ => |struct_| {
+                if (!self.may_free) {
+                    return self.*;
+                }
+                var new_struct = ValueStruct.init(ally);
+                var it = struct_.iterator();
+                while (it.next()) |pair| {
+                    const key = try ally.dupe(u8, pair.key_ptr.*);
+                    const value = try pair.value_ptr.clone(ally);
+                    try new_struct.put(key, value);
+                }
+                return Value{
+                    .inner = .{
+                        .struct_ = new_struct,
                     },
                 };
             },
@@ -116,13 +139,13 @@ pub const Value = struct {
         };
     }
 
-    pub fn deinit(self: *const Value, ally: std.mem.Allocator) void {
+    pub fn deinit(self: *Value, ally: std.mem.Allocator) void {
         if (!self.owned) {
             self.deinitWithOwnership(ally);
         }
     }
 
-    pub fn deinitWithOwnership(self: *const Value, ally: std.mem.Allocator) void {
+    pub fn deinitWithOwnership(self: *Value, ally: std.mem.Allocator) void {
         if (!self.may_free) {
             return;
         }
@@ -133,7 +156,18 @@ pub const Value = struct {
             .boolean => {},
             .integer => {},
             .array => |array| {
+                for (array.items) |*value| {
+                    value.deinit(ally);
+                }
                 array.deinit();
+            },
+            .struct_ => |*struct_| {
+                var iterator = struct_.iterator();
+                while (iterator.next()) |pair| {
+                    ally.free(pair.key_ptr.*);
+                    pair.value_ptr.deinit(ally);
+                }
+                struct_.deinit();
             },
         }
     }
@@ -167,6 +201,14 @@ pub const Value = struct {
                     try writer.print("{} ", .{element});
                 }
                 try writer.writeAll("]");
+            },
+            .struct_ => |struct_| {
+                try writer.writeAll("{ ");
+                var iterator = struct_.iterator();
+                while (iterator.next()) |pair| {
+                    try writer.print("\"{s}\" = {} ", .{ pair.key_ptr.*, pair.value_ptr });
+                }
+                try writer.writeAll("}");
             },
         }
     }
@@ -229,7 +271,7 @@ pub const SymTable = struct {
         const idx = self.lookup(name);
         var scope = &self.scopes.items[idx];
 
-        if (scope.get(name)) |*prev_value| {
+        if (scope.getPtr(name)) |prev_value| {
             prev_value.deinitWithOwnership(self.ally);
         }
 

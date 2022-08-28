@@ -4,6 +4,7 @@ const Token = @import("token.zig").Token;
 const SymTable = @import("symtable.zig").SymTable;
 const Value = @import("symtable.zig").Value;
 const ValueArray = @import("symtable.zig").ValueArray;
+const ValueStruct = @import("symtable.zig").ValueStruct;
 const spawn = @import("spawn.zig");
 const interpolate = @import("interpolate.zig");
 const escape = @import("escape.zig");
@@ -238,17 +239,12 @@ pub const Interpreter = struct {
                 try self.handleAssignment(assignment);
             },
             .expr => |*expr| {
-                const err_maybe_value = self.handleExpr(expr, false);
-                if (err_maybe_value) |maybe_value| {
-                    if (maybe_value) |value| {
-                        //if (may_collect) {
-                        //return value;
-                        //} else {
-                        //value.deinit(self.ally);
-                        //}
+                var err_maybe_value = self.handleExpr(expr, false);
+                if (err_maybe_value) |*maybe_value| {
+                    if (maybe_value.*) |*value| {
                         defer value.deinit(self.ally);
                         const value_array = [_]Value{
-                            value,
+                            value.*,
                         };
                         _ = try mysh_builtins.print(self, &value_array);
                     }
@@ -372,7 +368,7 @@ pub const Interpreter = struct {
             .boolean_literal => |*boolean| self.handleBoolLiteral(boolean),
             .integer_literal => |*integer| self.handleIntegerLiteral(integer),
             .array_literal => |*array| try self.handleArrayLiteral(array),
-            .table_literal => |*table| try self.handleTableLiteral(table),
+            .struct_literal => |*struct_literal| try self.handleStructLiteral(struct_literal),
             .variable => |*variable| try self.handleVariable(variable),
             .binary_operator => |*binary| try self.handleBinaryOperator(binary),
             .unary_operator => |*unary| try self.handleUnaryOperator(unary),
@@ -449,6 +445,7 @@ pub const Interpreter = struct {
         var value = try ValueArray.initCapacity(self.ally, array.values.len);
 
         for (array.values) |*element| {
+            //TODO: hmm
             const maybe_val = self.handleExpr(element, true) catch |err| return err;
             const val = try self.assertHasValue(maybe_val, array.token);
             value.appendAssumeCapacity(val);
@@ -464,10 +461,22 @@ pub const Interpreter = struct {
         };
     }
 
-    fn handleTableLiteral(self: *Interpreter, struc: *const ast.TableLiteral) !Value {
-        _ = self;
-        _ = struc;
-        unreachable;
+    fn handleStructLiteral(self: *Interpreter, struc: *const ast.StructLiteral) !Value {
+        var value = ValueStruct.init(self.ally);
+        for (struc.names) |name, idx| {
+            const expr = struc.values[idx];
+            var maybe_value = try self.handleExpr(expr, true);
+            var val = try self.assertHasValue(maybe_value, struc.token);
+            var key = try self.ally.dupe(u8, name);
+            try value.put(key, val);
+        }
+
+        return Value{
+            .inner = .{
+                .struct_ = value,
+            },
+            .origin = struc.token,
+        };
     }
 
     fn handleVariable(self: *Interpreter, variable: *const ast.Variable) !Value {
@@ -527,8 +536,8 @@ pub const Interpreter = struct {
     }
 
     fn handleCall(self: *Interpreter, call: *const ast.FunctionCall, needs_value: bool) !?Value {
-        const maybe_name_value = try self.handleExpr(call.name, true);
-        const name_value = try self.assertHasValue(maybe_name_value, call.token);
+        var maybe_name_value = try self.handleExpr(call.name, true);
+        var name_value = try self.assertHasValue(maybe_name_value, call.token);
         try self.assertExpectedType(&name_value, .string, call.token);
         defer name_value.deinit(self.ally);
         const name = name_value.inner.string;
@@ -541,7 +550,7 @@ pub const Interpreter = struct {
 
         var args_array = try ValueArray.initCapacity(self.ally, n_args);
         defer {
-            for (args_array.items) |arg| {
+            for (args_array.items) |*arg| {
                 arg.deinit(self.ally);
             }
             args_array.deinit();
@@ -585,8 +594,8 @@ pub const Interpreter = struct {
     }
 
     fn forInLoop(self: *Interpreter, loop: *const ast.Loop.ForInLoop) anyerror!void {
-        const maybe_iterable = try self.handleExpr(&loop.iterable, true);
-        const iterable = try self.assertHasValue(maybe_iterable, loop.token);
+        var maybe_iterable = try self.handleExpr(&loop.iterable, true);
+        var iterable = try self.assertHasValue(maybe_iterable, loop.token);
         defer iterable.deinit(self.ally);
         try self.assertExpectedType(&iterable, .array, loop.token);
 
@@ -759,13 +768,15 @@ pub const Interpreter = struct {
                     .integer => lhs.inner.integer < rhs.inner.integer,
                     .string => std.mem.lessThan(u8, lhs.inner.string, rhs.inner.string),
                     .array => {
-                        //TODO: should maybe work(?)
-                        unreachable;
+                        std.debug.todo("This should maybe work(?)");
                     },
                     .boolean => {
                         // should be error
                         assert(false);
                         unreachable;
+                    },
+                    .struct_ => {
+                        std.debug.todo("This should maybe work(?)");
                     },
                 },
             },
@@ -781,13 +792,15 @@ pub const Interpreter = struct {
                     .integer => lhs.inner.integer > rhs.inner.integer,
                     .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .gt,
                     .array => {
-                        //TODO: should maybe work(?)
-                        unreachable;
+                        std.debug.todo("This should maybe work(?)");
                     },
                     .boolean => {
                         // should be error
                         assert(false);
                         unreachable;
+                    },
+                    .struct_ => {
+                        std.debug.todo("This should maybe work(?)");
                     },
                 },
             },
@@ -813,13 +826,15 @@ pub const Interpreter = struct {
                     .integer => lhs.inner.integer == rhs.inner.integer,
                     .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .eq,
                     .array => {
-                        //TODO: should maybe work(?)
-                        unreachable;
+                        std.debug.todo("This should maybe work(?)");
                     },
                     .boolean => {
                         // should be error
                         assert(false);
                         unreachable;
+                    },
+                    .struct_ => {
+                        std.debug.todo("This should maybe work(?)");
                     },
                 },
             },
@@ -835,13 +850,15 @@ pub const Interpreter = struct {
                     .integer => lhs.inner.integer != rhs.inner.integer,
                     .string => !std.mem.eql(u8, lhs.inner.string, rhs.inner.string),
                     .array => {
-                        //TODO: should maybe work(?)
-                        unreachable;
+                        std.debug.todo("This should maybe work(?)");
                     },
                     .boolean => {
                         // should be error
                         assert(false);
                         unreachable;
+                    },
+                    .struct_ => {
+                        std.debug.todo("This should maybe work(?)");
                     },
                 },
             },
@@ -860,13 +877,15 @@ pub const Interpreter = struct {
                         .gt => false,
                     },
                     .array => {
-                        //TODO: should maybe work(?)
-                        unreachable;
+                        std.debug.todo("This should maybe work(?)");
                     },
                     .boolean => {
                         // should be error
                         assert(false);
                         unreachable;
+                    },
+                    .struct_ => {
+                        std.debug.todo("This should maybe work(?)");
                     },
                 },
             },
@@ -885,13 +904,15 @@ pub const Interpreter = struct {
                         .lt => false,
                     },
                     .array => {
-                        //TODO: should maybe work(?)
-                        unreachable;
+                        std.debug.todo("This should maybe work(?)");
                     },
                     .boolean => {
                         // should be error
                         assert(false);
                         unreachable;
+                    },
+                    .struct_ => {
+                        std.debug.todo("This should maybe work(?)");
                     },
                 },
             },

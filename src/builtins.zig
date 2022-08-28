@@ -9,13 +9,27 @@ const assert = std.debug.assert;
 pub const Signature = fn (interp: *Interpreter, args: []const Value) anyerror!?Value;
 
 pub fn print(interp: *Interpreter, args: []const Value) !?Value {
-    const stdout = std.io.getStdOut().writer();
+    if (interp.is_piping) {
+        var buffer = try std.ArrayList(u8).initCapacity(interp.ally, 64);
+        defer buffer.deinit();
+        try printWithWriter(buffer.writer(), args);
+        return Value{
+            .inner = .{
+                .string = buffer.toOwnedSlice(),
+            },
+        };
+    }
 
-    _ = interp;
+    const stdout = std.io.getStdOut().writer();
+    try printWithWriter(stdout, args);
+    return null;
+}
+
+fn printWithWriter(writer: anytype, args: []const Value) @TypeOf(writer).Error!void {
     for (args) |*arg, idx| {
-        try stdout.print("{}", .{arg.*});
+        try writer.print("{}", .{arg.*});
         if (idx != args.len - 1) {
-            try stdout.print(" ", .{});
+            try writer.writeByte(' ');
         }
     }
 
@@ -27,15 +41,14 @@ pub fn print(interp: *Interpreter, args: []const Value) !?Value {
                 if (string.len > 0) {
                     const last_byte = string[string.len - 1];
                     if (last_byte == '\n') {
-                        return null;
+                        return;
                     }
                 }
             },
             else => {},
         }
     }
-    try stdout.print("\n", .{});
-    return null;
+    try writer.writeByte('\n');
 }
 
 pub fn append(interp: *Interpreter, args: []const Value) !?Value {
@@ -110,6 +123,9 @@ pub fn len(interp: *Interpreter, args: []const Value) !?Value {
             },
             .array => |*array| {
                 length_sum += @intCast(i64, array.items.len);
+            },
+            .struct_ => |*struct_| {
+                length_sum += @intCast(i64, struct_.count());
             },
         }
     }

@@ -37,12 +37,12 @@ pub const ArrayLiteral = struct {
     }
 };
 
-pub const TableLiteral = struct {
+pub const StructLiteral = struct {
     token: *const Token,
     names: []const []const u8,
     values: []const *const Expr,
 
-    fn deinit(self: *const TableLiteral, ally: std.mem.Allocator) void {
+    fn deinit(self: *const StructLiteral, ally: std.mem.Allocator) void {
         for (self.values) |expr| {
             expr.deinit(ally);
             ally.destroy(expr);
@@ -219,7 +219,7 @@ pub const ExprKind = enum {
     boolean_literal,
     integer_literal,
     array_literal,
-    table_literal,
+    struct_literal,
     variable,
     binary_operator,
     unary_operator,
@@ -233,7 +233,7 @@ pub const Expr = union(ExprKind) {
     boolean_literal: BoolLiteral,
     integer_literal: IntegerLiteral,
     array_literal: ArrayLiteral,
-    table_literal: TableLiteral,
+    struct_literal: StructLiteral,
     variable: Variable,
     binary_operator: BinaryOperator,
     unary_operator: UnaryOperator,
@@ -246,8 +246,8 @@ pub const Expr = union(ExprKind) {
             .string_literal => {},
             .boolean_literal => {},
             .integer_literal => {},
-            .table_literal => |table| {
-                table.deinit(ally);
+            .struct_literal => |struct_literal| {
+                struct_literal.deinit(ally);
             },
             .array_literal => |array| {
                 array.deinit(ally);
@@ -524,7 +524,7 @@ pub const Parser = struct {
         if (self.getIf(Token.Kind.Or)) |pipe| {
             var rhs_call = try self.parseFunctionCall();
             if (rhs_call == null) {
-                // TODO:
+                self.ally.destroy(name_expr);
                 self.expected(Expectable.callable);
                 return null;
             }
@@ -611,6 +611,7 @@ pub const Parser = struct {
 
         if (!self.eot()) {
             if (self.getIf(Token.Kind.Newline) == null) {
+                expr.?.deinit(self.ally);
                 self.expectedToken(Token.Kind.Newline);
                 return null;
             }
@@ -867,9 +868,9 @@ pub const Parser = struct {
             };
         }
 
-        if (try self.parseTableLiteral()) |table| {
+        if (try self.parseStructLiteral()) |struct_literal| {
             return Expr{
-                .table_literal = table,
+                .struct_literal = struct_literal,
             };
         }
 
@@ -1171,6 +1172,7 @@ pub const Parser = struct {
 
         const newline = self.getIf(Token.Kind.Newline);
         if (newline == null and !self.eot()) {
+            expr.?.deinit(self.ally);
             self.expectedToken(Token.Kind.Newline);
             return null;
         }
@@ -1301,8 +1303,8 @@ pub const Parser = struct {
         };
     }
 
-    fn parseTableLiteral(self: *Parser) !?TableLiteral {
-        const token = self.getIf(.Member);
+    fn parseStructLiteral(self: *Parser) !?StructLiteral {
+        const token = self.getIf(.Struct);
         if (token == null) {
             return null;
         }
@@ -1333,7 +1335,7 @@ pub const Parser = struct {
                 return null;
             }
             if (!self.parseKeyValueSeparator()) {
-                self.expectedToken(.Colon);
+                self.expectedToken(.Equals);
                 return null;
             }
 
@@ -1357,7 +1359,7 @@ pub const Parser = struct {
             try values.append(value_ptr);
         }
 
-        return TableLiteral{
+        return StructLiteral{
             .token = token.?,
             .names = names.toOwnedSlice(),
             .values = values.toOwnedSlice(),
@@ -1374,7 +1376,7 @@ pub const Parser = struct {
     }
 
     fn parseKeyValueSeparator(self: *Parser) bool {
-        if (self.getIf(.Colon) != null) { // or self.getIf(.Comma)
+        if (self.getIf(.Assign) != null) { // or self.getIf(.Comma)
             return true;
         }
         return false;
