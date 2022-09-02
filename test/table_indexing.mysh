@@ -1,0 +1,9 @@
+#!../zig-out/bin/mysh
+var person = table {
+	"the name" = "James"
+	"a\nb" = "my text"
+}
+
+#print $person["the name"] should be James
+
+#print $person["a\nb"] should be my text

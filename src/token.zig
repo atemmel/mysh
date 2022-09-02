@@ -13,7 +13,7 @@ pub const Token = struct {
         Return, // return
         For, // for
         In, // in
-        Struct, // struct
+        Table, // table
         Assign, // =
         Add, // +
         Subtract, // -
@@ -61,7 +61,7 @@ pub const Token = struct {
         "Return",
         "For",
         "In",
-        "Struct",
+        "Table",
         "Assign",
         "Add",
         "Subtract",
@@ -108,7 +108,7 @@ pub const Token = struct {
         "return",
         "for",
         "in",
-        "struct",
+        "table",
         "=",
         "+",
         "-",

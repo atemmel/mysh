@@ -1,0 +1,26 @@
+#!../zig-out/bin/mysh
+var person = table {
+	age = 4
+	"the name" = "James"
+	here = pwd | sed "s/.*\\///"
+}
+
+print $person
+
+print $person.age should be 4
+
+print $person.here should be test
+
+print $person
+
+$person.age = 5
+
+print $person.age should be 5
+
+print $person.age * $person.age should be 25
+
+$person = table {
+	guy = "fawkes"
+}
+
+print $person should be reinitialized

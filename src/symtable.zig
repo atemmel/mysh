@@ -2,7 +2,7 @@ const std = @import("std");
 const Token = @import("token.zig").Token;
 
 pub const ValueArray = std.ArrayList(Value);
-pub const ValueStruct = std.StringHashMap(Value);
+pub const ValueTable = std.StringHashMap(Value);
 
 pub const Value = struct {
     pub const Kind = enum {
@@ -10,7 +10,7 @@ pub const Value = struct {
         boolean,
         integer,
         array,
-        struct_,
+        table,
 
         pub fn format(
             self: *const Kind,
@@ -34,7 +34,7 @@ pub const Value = struct {
                 .array => {
                     try writer.writeAll("[]");
                 },
-                .struct_ => {
+                .table => {
                     try writer.writeAll("struct");
                 },
             }
@@ -46,7 +46,7 @@ pub const Value = struct {
         boolean: bool,
         integer: i64,
         array: ValueArray,
-        struct_: ValueStruct,
+        table: ValueTable,
     };
 
     inner: Inner = undefined,
@@ -82,12 +82,12 @@ pub const Value = struct {
                     },
                 };
             },
-            .struct_ => |struct_| {
+            .table => |table| {
                 if (!self.may_free) {
                     return self.*;
                 }
-                var new_struct = ValueStruct.init(ally);
-                var it = struct_.iterator();
+                var new_struct = ValueTable.init(ally);
+                var it = table.iterator();
                 while (it.next()) |pair| {
                     const key = try ally.dupe(u8, pair.key_ptr.*);
                     const value = try pair.value_ptr.clone(ally);
@@ -95,7 +95,7 @@ pub const Value = struct {
                 }
                 return Value{
                     .inner = .{
-                        .struct_ = new_struct,
+                        .table = new_struct,
                     },
                 };
             },
@@ -152,6 +152,7 @@ pub const Value = struct {
         switch (self.inner) {
             .string => |string| {
                 ally.free(string);
+                //unreachable;
             },
             .boolean => {},
             .integer => {},
@@ -161,13 +162,13 @@ pub const Value = struct {
                 }
                 array.deinit();
             },
-            .struct_ => |*struct_| {
-                var iterator = struct_.iterator();
+            .table => |*table| {
+                var iterator = table.iterator();
                 while (iterator.next()) |pair| {
                     ally.free(pair.key_ptr.*);
                     pair.value_ptr.deinit(ally);
                 }
-                struct_.deinit();
+                table.deinit();
             },
         }
     }
@@ -202,9 +203,9 @@ pub const Value = struct {
                 }
                 try writer.writeAll("]");
             },
-            .struct_ => |struct_| {
+            .table => |table| {
                 try writer.writeAll("{ ");
-                var iterator = struct_.iterator();
+                var iterator = table.iterator();
                 while (iterator.next()) |pair| {
                     try writer.print("\"{s}\" = {} ", .{ pair.key_ptr.*, pair.value_ptr });
                 }

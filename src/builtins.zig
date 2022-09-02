@@ -124,8 +124,8 @@ pub fn len(interp: *Interpreter, args: []const Value) !?Value {
             .array => |*array| {
                 length_sum += @intCast(i64, array.items.len);
             },
-            .struct_ => |*struct_| {
-                length_sum += @intCast(i64, struct_.count());
+            .table => |*table| {
+                length_sum += @intCast(i64, table.count());
             },
         }
     }

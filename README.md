@@ -14,7 +14,8 @@
     * ~~int~~
     * float
     * list/array ~~literal~~ ~~append~~
-    * struct/table/dict
+    * ~~struct/table/dict~~
+		* nested tables
   * proper error messages
   * indexing + slicing
 

@@ -65,9 +65,9 @@ const Printer = struct {
         self.depth -= 1;
     }
 
-    pub fn printStructLiteral(self: *Printer, node: *const ast.StructLiteral) void {
+    pub fn printTableLiteral(self: *Printer, node: *const ast.TableLiteral) void {
         self.pad();
-        printImpl("StructLiteralNode:\n", .{});
+        printImpl("TableLiteralNode:\n", .{});
         self.depth += 1;
         for (node.names) |name, idx| {
             self.pad();
@@ -242,8 +242,8 @@ const Printer = struct {
             .array_literal => |*array_literal| {
                 self.printArrayLiteral(array_literal);
             },
-            .struct_literal => |*struct_literal| {
-                self.printStructLiteral(struct_literal);
+            .table_literal => |*table_literal| {
+                self.printTableLiteral(table_literal);
             },
             .variable => |*variable| {
                 self.printVariable(variable);

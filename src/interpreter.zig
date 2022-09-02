@@ -4,7 +4,7 @@ const Token = @import("token.zig").Token;
 const SymTable = @import("symtable.zig").SymTable;
 const Value = @import("symtable.zig").Value;
 const ValueArray = @import("symtable.zig").ValueArray;
-const ValueStruct = @import("symtable.zig").ValueStruct;
+const ValueTable = @import("symtable.zig").ValueTable;
 const spawn = @import("spawn.zig");
 const interpolate = @import("interpolate.zig");
 const escape = @import("escape.zig");
@@ -249,7 +249,8 @@ pub const Interpreter = struct {
                         _ = try mysh_builtins.print(self, &value_array);
                     }
                 } else |err| {
-                    return err;
+                    std.debug.print("{}\n", .{err});
+                    unreachable;
                 }
             },
         }
@@ -265,6 +266,7 @@ pub const Interpreter = struct {
         const eq_token = ptr.next(Token, ptr.next(Token, var_decl.token));
         var value = try self.assertHasValue(maybe_value, eq_token);
 
+        errdefer value.deinit(self.ally);
         //TODO: redeclaration check
         assert(self.sym_table.get(var_name) == null);
         try self.sym_table.put(var_name, &value);
@@ -357,7 +359,35 @@ pub const Interpreter = struct {
         const name = assign.variable.name;
         const maybe_value = try self.handleExpr(&assign.expr, true);
         const value = try self.assertHasValue(maybe_value, assign.token);
-        try self.sym_table.put(name, &value);
+
+        if (assign.variable.specifier) |spec| {
+            switch (spec) {
+                .member => |*member| try self.handleAssignmentMember(name, member, value),
+                .index => undefined,
+            }
+        } else {
+            try self.sym_table.put(name, &value);
+        }
+    }
+
+    fn handleAssignmentMember(self: *Interpreter, name: []const u8, member: *const ast.Member, value: Value) !void {
+        //TODO: nested puts
+        var variable = self.sym_table.get(name);
+        var table = &variable.?.inner.table;
+        var key = member.name;
+        try self.putTable(table, key, value);
+    }
+
+    fn putTable(self: *Interpreter, table: *ValueTable, key: []const u8, value: Value) !void {
+        const entry = table.getEntry(key);
+        var new_key: []const u8 = undefined;
+        if (entry == null) {
+            new_key = try self.ally.dupe(u8, key);
+        } else {
+            new_key = entry.?.key_ptr.*;
+            entry.?.value_ptr.deinit(self.ally);
+        }
+        try table.put(new_key, value);
     }
 
     fn handleExpr(self: *Interpreter, expr: *const ast.Expr, needs_value: bool) anyerror!?Value {
@@ -368,7 +398,7 @@ pub const Interpreter = struct {
             .boolean_literal => |*boolean| self.handleBoolLiteral(boolean),
             .integer_literal => |*integer| self.handleIntegerLiteral(integer),
             .array_literal => |*array| try self.handleArrayLiteral(array),
-            .struct_literal => |*struct_literal| try self.handleStructLiteral(struct_literal),
+            .table_literal => |*table_literal| try self.handleTableLiteral(table_literal),
             .variable => |*variable| try self.handleVariable(variable),
             .binary_operator => |*binary| try self.handleBinaryOperator(binary),
             .unary_operator => |*unary| try self.handleUnaryOperator(unary),
@@ -443,6 +473,12 @@ pub const Interpreter = struct {
 
     fn handleArrayLiteral(self: *Interpreter, array: *const ast.ArrayLiteral) !Value {
         var value = try ValueArray.initCapacity(self.ally, array.values.len);
+        errdefer {
+            for (value.items) |*entry| {
+                entry.deinit(self.ally);
+            }
+            value.deinit();
+        }
 
         for (array.values) |*element| {
             //TODO: hmm
@@ -461,8 +497,16 @@ pub const Interpreter = struct {
         };
     }
 
-    fn handleStructLiteral(self: *Interpreter, struc: *const ast.StructLiteral) !Value {
-        var value = ValueStruct.init(self.ally);
+    fn handleTableLiteral(self: *Interpreter, struc: *const ast.TableLiteral) !Value {
+        var value = ValueTable.init(self.ally);
+        errdefer {
+            var it = value.iterator();
+            while (it.next()) |entry| {
+                self.ally.free(entry.key_ptr.*);
+                entry.value_ptr.deinit(self.ally);
+            }
+            value.deinit();
+        }
         for (struc.names) |name, idx| {
             const expr = struc.values[idx];
             var maybe_value = try self.handleExpr(expr, true);
@@ -473,7 +517,7 @@ pub const Interpreter = struct {
 
         return Value{
             .inner = .{
-                .struct_ = value,
+                .table = value,
             },
             .origin = struc.token,
         };
@@ -484,8 +528,29 @@ pub const Interpreter = struct {
         var maybe_value = self.sym_table.get(name);
         //TODO: this is looking up a variable that does not exist, should be an error message
         assert(maybe_value != null);
-        maybe_value.?.origin = variable.token;
+        if (variable.specifier) |spec| {
+            switch (spec) {
+                .member => |*member| maybe_value.? = try self.handleMember(member, maybe_value.?),
+                .index => unreachable,
+            }
+        } else {
+            maybe_value.?.origin = variable.token;
+        }
         return maybe_value.?;
+    }
+
+    fn handleMember(self: *Interpreter, member: *const ast.Member, value: Value) !Value {
+        try self.assertExpectedType(&value, .table, member.token);
+        const name = member.name;
+        const table = &value.inner.table;
+        var inner_value = table.get(name);
+        //TODO: assert that member exists
+        assert(inner_value != null);
+        return Value{
+            .inner = inner_value.?.inner,
+            .origin = member.token,
+            .owned = true,
+        };
     }
 
     fn handleBinaryOperator(self: *Interpreter, binary: *const ast.BinaryOperator) !?Value {
@@ -775,7 +840,7 @@ pub const Interpreter = struct {
                         assert(false);
                         unreachable;
                     },
-                    .struct_ => {
+                    .table => {
                         std.debug.todo("This should maybe work(?)");
                     },
                 },
@@ -799,7 +864,7 @@ pub const Interpreter = struct {
                         assert(false);
                         unreachable;
                     },
-                    .struct_ => {
+                    .table => {
                         std.debug.todo("This should maybe work(?)");
                     },
                 },
@@ -833,7 +898,7 @@ pub const Interpreter = struct {
                         assert(false);
                         unreachable;
                     },
-                    .struct_ => {
+                    .table => {
                         std.debug.todo("This should maybe work(?)");
                     },
                 },
@@ -857,7 +922,7 @@ pub const Interpreter = struct {
                         assert(false);
                         unreachable;
                     },
-                    .struct_ => {
+                    .table => {
                         std.debug.todo("This should maybe work(?)");
                     },
                 },
@@ -884,7 +949,7 @@ pub const Interpreter = struct {
                         assert(false);
                         unreachable;
                     },
-                    .struct_ => {
+                    .table => {
                         std.debug.todo("This should maybe work(?)");
                     },
                 },
@@ -911,7 +976,7 @@ pub const Interpreter = struct {
                         assert(false);
                         unreachable;
                     },
-                    .struct_ => {
+                    .table => {
                         std.debug.todo("This should maybe work(?)");
                     },
                 },

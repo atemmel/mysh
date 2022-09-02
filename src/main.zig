@@ -52,7 +52,8 @@ pub fn doEverything(source: []const u8, canonical_path: []const u8) !bool {
     var interpreter = try Interpreter.init(ally);
     defer interpreter.deinit();
 
-    interpreter.interpret(&root) catch {
+    interpreter.interpret(&root) catch |err| {
+        std.debug.print("{}\n", .{err});
         interpreter.reportError();
         return false;
     };

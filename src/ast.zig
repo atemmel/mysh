@@ -37,12 +37,12 @@ pub const ArrayLiteral = struct {
     }
 };
 
-pub const StructLiteral = struct {
+pub const TableLiteral = struct {
     token: *const Token,
     names: []const []const u8,
     values: []const *const Expr,
 
-    fn deinit(self: *const StructLiteral, ally: std.mem.Allocator) void {
+    fn deinit(self: *const TableLiteral, ally: std.mem.Allocator) void {
         for (self.values) |expr| {
             expr.deinit(ally);
             ally.destroy(expr);
@@ -89,6 +89,40 @@ pub const Return = struct {
 pub const Variable = struct {
     token: *const Token,
     name: []const u8,
+    specifier: ?VariableSpecifier,
+
+    fn deinit(self: *const Variable, ally: std.mem.Allocator) void {
+        switch (self.specifier) {
+            .member => {},
+            .index => |*index| {
+                index.deinit(ally);
+            },
+        }
+    }
+};
+
+pub const VariableSpecifier = union(SpecifierKind) {
+    const SpecifierKind = enum {
+        member,
+        index,
+    };
+    member: Member,
+    index: Index,
+};
+
+pub const Member = struct {
+    token: *const Token,
+    name: []const u8,
+};
+
+pub const Index = struct {
+    token: *const Token,
+    index: *const Expr,
+
+    fn deinit(self: *const Index, ally: std.mem.Allocator) void {
+        self.index.deinit(ally);
+        ally.free(self.index);
+    }
 };
 
 pub const Scope = struct {
@@ -219,7 +253,7 @@ pub const ExprKind = enum {
     boolean_literal,
     integer_literal,
     array_literal,
-    struct_literal,
+    table_literal,
     variable,
     binary_operator,
     unary_operator,
@@ -233,7 +267,7 @@ pub const Expr = union(ExprKind) {
     boolean_literal: BoolLiteral,
     integer_literal: IntegerLiteral,
     array_literal: ArrayLiteral,
-    struct_literal: StructLiteral,
+    table_literal: TableLiteral,
     variable: Variable,
     binary_operator: BinaryOperator,
     unary_operator: UnaryOperator,
@@ -246,8 +280,8 @@ pub const Expr = union(ExprKind) {
             .string_literal => {},
             .boolean_literal => {},
             .integer_literal => {},
-            .struct_literal => |struct_literal| {
-                struct_literal.deinit(ally);
+            .table_literal => |table_literal| {
+                table_literal.deinit(ally);
             },
             .array_literal => |array| {
                 array.deinit(ally);
@@ -868,9 +902,9 @@ pub const Parser = struct {
             };
         }
 
-        if (try self.parseStructLiteral()) |struct_literal| {
+        if (try self.parseTableLiteral()) |table_literal| {
             return Expr{
-                .struct_literal = struct_literal,
+                .table_literal = table_literal,
             };
         }
 
@@ -945,9 +979,35 @@ pub const Parser = struct {
 
         const variable = token.?;
 
+        var specifier: ?VariableSpecifier = null;
+        if (self.parseMember()) |member| {
+            specifier = VariableSpecifier{
+                .member = member,
+            };
+        }
+
         return Variable{
             .token = variable,
             .name = variable.value[1..],
+            .specifier = specifier,
+        };
+    }
+
+    fn parseMember(self: *Parser) ?Member {
+        const token = self.getIf(.Member);
+        if (token == null) {
+            return null;
+        }
+
+        const identifier = self.getIf(.Identifier);
+        if (identifier == null) {
+            self.expectedToken(.Identifier);
+            return null;
+        }
+
+        return Member{
+            .token = token.?,
+            .name = identifier.?.value,
         };
     }
 
@@ -1303,8 +1363,8 @@ pub const Parser = struct {
         };
     }
 
-    fn parseStructLiteral(self: *Parser) !?StructLiteral {
-        const token = self.getIf(.Struct);
+    fn parseTableLiteral(self: *Parser) !?TableLiteral {
+        const token = self.getIf(.Table);
         if (token == null) {
             return null;
         }
@@ -1359,7 +1419,7 @@ pub const Parser = struct {
             try values.append(value_ptr);
         }
 
-        return StructLiteral{
+        return TableLiteral{
             .token = token.?,
             .names = names.toOwnedSlice(),
             .values = values.toOwnedSlice(),
