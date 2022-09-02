@@ -73,8 +73,8 @@ pub const Value = struct {
                     return self.*;
                 }
                 var new_array = try ValueArray.initCapacity(ally, array.items.len);
-                for (new_array.items) |*element, i| {
-                    element.* = try array.items[i].clone(ally);
+                for (array.items) |*old_element| {
+                    new_array.appendAssumeCapacity(try old_element.clone(ally));
                 }
                 return Value{
                     .inner = .{
@@ -288,5 +288,20 @@ pub const SymTable = struct {
         const idx = self.lookup(name);
         var scope = &self.scopes.items[idx];
         return scope.get(name);
+    }
+
+    pub fn dump(self: *const SymTable) void {
+        var depth: usize = 0;
+        for (self.scopes.items) |*scope| {
+            var i: usize = 0;
+            while (i < depth) : (i += 1) {
+                std.debug.print("  ", .{});
+            }
+            var it = scope.iterator();
+            while (it.next()) |entry| {
+                std.debug.print("{s} = {}\n", .{ entry.key_ptr.*, entry.value_ptr });
+            }
+            depth += 1;
+        }
     }
 };

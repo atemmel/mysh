@@ -1,0 +1,36 @@
+#!../zig-out/bin/mysh
+
+var matrix = [[1 2] [3 4]]
+
+print $matrix
+
+var identity = [
+	[ 1 0 0 ]
+	[ 0 1 0 ]
+	[ 0 0 1 ]
+]
+
+print $identity
+
+for i in $identity {
+	for j in $i {
+		if $j > 0 {
+			print YES
+		}
+	}
+}
+
+var count = 0
+
+for i in [
+	1 2 3 5 8
+
+	13 21 34
+
+	] {
+	if $i % 2 == 0 {
+		$count = $count + 1
+	}
+}
+
+print $count even numbers

@@ -1346,9 +1346,16 @@ pub const Parser = struct {
         }
 
         var exprs = std.ArrayList(Expr).init(self.ally);
-        defer exprs.deinit();
+        defer {
+            for (exprs.items) |expr| {
+                expr.deinit(self.ally);
+            }
+            exprs.deinit();
+        }
+        while (self.getIf(.Newline) != null) {}
         while (try self.parseExpr()) |expr| {
             try exprs.append(expr);
+            while (self.getIf(.Newline) != null) {}
         }
 
         if (self.getIf(Token.Kind.RightBrack) == null) {

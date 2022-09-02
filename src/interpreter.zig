@@ -669,7 +669,8 @@ pub const Interpreter = struct {
         defer self.sym_table.dropScope();
 
         for (iterable.inner.array.items) |*value| {
-            try self.sym_table.put(iterator_name, value);
+            var cloned = try value.clone(self.ally);
+            try self.sym_table.put(iterator_name, &cloned);
             for (loop.scope.statements) |*stmnt| {
                 try self.handleStatement(stmnt);
                 if (self.return_just_handled) {
