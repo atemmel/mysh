@@ -1,0 +1,38 @@
+ls attempt
+.
+..
+array.mysh
+array_nesting.mysh
+bad.mysh
+bool_test.mysh
+branch.mysh
+builtin_print_test.mysh
+complications.mysh
+fn.mysh
+gen_outputs.sh
+interpreter_error_tests
+int_test.mysh
+is_my_city.mysh
+logical_op_test.mysh
+output
+pipe_classic.mysh
+pipe.mysh
+predicate.mysh
+scope.mysh
+source.mysh
+string_interpolation.mysh
+subtract_test.mysh
+table_indexing.mysh
+table.mysh
+test_all.sh
+while.mysh
+this should print 2
+2
+this should print lost+found
+lost+found
+this should print lost
+
+found
+lost
+
+found

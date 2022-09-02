@@ -1,2 +1,2 @@
 #!../zig-out/bin/mysh
-ls | wc -w
+pwd | wc -w

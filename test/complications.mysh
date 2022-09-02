@@ -1,7 +1,8 @@
 #!../zig-out/bin/mysh
 
 echo "ls attempt"
-ls -l ../test
+
+ls -a ../test
 
 echo "this should print 2"
 echo 4/2

@@ -4,6 +4,8 @@ var person = table {
 	"a\nb" = "my text"
 }
 
+print dummy
+
 #print $person["the name"] should be James
 
 #print $person["a\nb"] should be my text

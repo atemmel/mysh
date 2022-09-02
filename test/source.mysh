@@ -10,9 +10,11 @@
 
 #TODO:
 # "a b" is considered two separate commands
-var flag = "-l"
+#var flag = "-l"
 
-ls $flag
+#ls $flag
+
+print dummy
 
 # function calls
 #print $myvar
