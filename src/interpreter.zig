@@ -153,7 +153,9 @@ pub const Interpreter = struct {
 
     fn reportErrorLocation(self: *Interpreter, token: *const Token) void {
         const path = self.root_node.path;
-        print("{s}:{}:{}\n\x1b[31merror:\x1b[0m ", .{ path, token.row, token.column });
+        const row = token.row;
+        const column = token.column;
+        print("{s}:{}:{}\n\x1b[31merror:\x1b[0m ", .{ path, row, column });
     }
 
     fn reportTokenCausingError(self: *Interpreter, token: *const Token) void {
@@ -249,8 +251,7 @@ pub const Interpreter = struct {
                         _ = try mysh_builtins.print(self, &value_array);
                     }
                 } else |err| {
-                    std.debug.print("{}\n", .{err});
-                    unreachable;
+                    return err;
                 }
             },
         }
@@ -356,18 +357,51 @@ pub const Interpreter = struct {
     }
 
     fn handleAssignment(self: *Interpreter, assign: *const ast.Assignment) !void {
-        const name = assign.variable.name;
         const maybe_value = try self.handleExpr(&assign.expr, true);
         const value = try self.assertHasValue(maybe_value, assign.token);
 
-        if (assign.variable.specifier) |spec| {
-            switch (spec) {
-                .member => |*member| try self.handleAssignmentMember(name, member, value),
-                .index => undefined,
-            }
-        } else {
-            try self.sym_table.put(name, &value);
+        if (assign.token.kind == .Assign) {
+            try self.writeVariable(&assign.variable, value);
+            return;
         }
+
+        var prior_value = try self.handleVariable(&assign.variable);
+        defer prior_value.deinit(self.ally);
+
+        const new_value = switch (assign.token.kind) {
+            .AddAssign => try self.addValues(&prior_value, &value, assign.token),
+            .SubtractAssign => try self.subtractValues(&prior_value, &value, assign.token),
+            .MultiplyAssign => try self.multiplyValues(&prior_value, &value, assign.token),
+            .DivideAssign => try self.divideValues(&prior_value, &value, assign.token),
+            .ModuloAssign => try self.moduloValues(&prior_value, &value, assign.token),
+            else => unreachable,
+        };
+
+        try self.writeVariable(&assign.variable, new_value);
+    }
+
+    fn writeVariable(self: *Interpreter, variable: *const ast.Variable, value: Value) !void {
+        const name = variable.name;
+        var var_value = self.sym_table.get(name);
+        assert(var_value != null);
+
+        var assigned_value = var_value.?;
+        if (variable.specifier) |specifier| {
+            const assigned_name = switch (specifier) {
+                .member => |member| member.name,
+                .index => unreachable,
+            };
+            try self.assertExpectedType(&assigned_value, .table, variable.token);
+            var table = &assigned_value.inner.table;
+            var prev_value = table.get(assigned_name);
+            if (prev_value != null) {
+                prev_value.?.deinit(self.ally);
+            }
+            try table.put(assigned_name, value);
+            return;
+        }
+        assigned_value.deinit(self.ally);
+        try self.sym_table.put(name, &value);
     }
 
     fn handleAssignmentMember(self: *Interpreter, name: []const u8, member: *const ast.Member, value: Value) !void {
@@ -539,10 +573,10 @@ pub const Interpreter = struct {
         return maybe_value.?;
     }
 
-    fn handleMember(self: *Interpreter, member: *const ast.Member, value: Value) !Value {
-        try self.assertExpectedType(&value, .table, member.token);
+    fn handleMember(self: *Interpreter, member: *const ast.Member, owner: Value) !Value {
+        try self.assertExpectedType(&owner, .table, member.token);
         const name = member.name;
-        const table = &value.inner.table;
+        const table = &owner.inner.table;
         var inner_value = table.get(name);
         //TODO: assert that member exists
         assert(inner_value != null);
@@ -565,12 +599,11 @@ pub const Interpreter = struct {
             else => {},
         }
 
+        //TODO: short circuiting logical operators
         var lhs = (try self.handleExpr(expr_lhs, true)) orelse unreachable;
+        defer lhs.deinit(self.ally);
         var rhs = (try self.handleExpr(expr_rhs, true)) orelse unreachable;
-        defer {
-            lhs.deinit(self.ally);
-            rhs.deinit(self.ally);
-        }
+        defer rhs.deinit(self.ally);
 
         return switch (binary.token.kind) {
             .Add => self.addValues(&lhs, &rhs, binary.token) catch |err| return err,

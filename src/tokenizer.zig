@@ -408,7 +408,7 @@ pub const Tokenizer = struct {
         self.next();
 
         switch (@intToEnum(Token.Kind, index)) {
-            .Subtract, .Add, .Divide, .Multiply => {
+            .Subtract, .Add, .Divide, .Multiply, .Modulo => {
                 if (self.eof() or isAlpha(self.peek())) {
                     self.current = old_current;
                     self.current_column = old_column;
@@ -416,22 +416,34 @@ pub const Tokenizer = struct {
                     return false;
                 }
 
-                // save state
-                const k_current = self.current;
-                const k_current_column = self.current_column;
-                const k_current_row = self.current_row;
+                if (self.peek() == '=') {
+                    index = @enumToInt(switch (@intToEnum(Token.Kind, index)) {
+                        .Add => Token.Kind.AddAssign,
+                        .Subtract => Token.Kind.SubtractAssign,
+                        .Multiply => Token.Kind.MultiplyAssign,
+                        .Divide => Token.Kind.DivideAssign,
+                        .Modulo => Token.Kind.ModuloAssign,
+                        else => unreachable,
+                    });
+                    self.next();
+                } else {
+                    // save state
+                    const k_current = self.current;
+                    const k_current_column = self.current_column;
+                    const k_current_row = self.current_row;
 
-                if (!self.isMathCheck()) {
-                    self.current = old_current;
-                    self.current_column = old_column;
-                    self.current_row = old_row;
-                    return false;
+                    if (!self.isMathCheck()) {
+                        self.current = old_current;
+                        self.current_column = old_column;
+                        self.current_row = old_row;
+                        return false;
+                    }
+
+                    // rewind
+                    self.current = k_current;
+                    self.current_column = k_current_column;
+                    self.current_row = k_current_row;
                 }
-
-                // rewind
-                self.current = k_current;
-                self.current_column = k_current_column;
-                self.current_row = k_current_row;
             },
             .Assign, .Bang, .Less, .Greater => {
                 if (!self.eof() and self.peek() == '=') {
@@ -686,6 +698,14 @@ test "tokenize member access deep" {
     try expectEqualSlices(u8, ".", tokens[3].value);
     try expectEqual(Token.Kind.Identifier, tokens[4].kind);
     try expectEqualSlices(u8, "first", tokens[4].value);
+}
+
+test "tokenize operator assign" {
+    var ally = std.testing.allocator;
+    var tokenizer = Tokenizer.init(ally);
+    var tokens = try tokenizer.tokenize("$i += 1");
+    defer ally.free(tokens);
+    try expectEqual(@as(usize, 3), tokens.len);
 }
 
 //TODO: move various text examples in here

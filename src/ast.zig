@@ -1019,7 +1019,6 @@ pub const Parser = struct {
 
         var expr = (try self.parseFunctionCall()) orelse try self.parseExpr();
 
-        //var expr = try self.parseExpr();
         if (expr == null) {
             self.expected(Expectable.expression);
             return null;
@@ -1027,6 +1026,7 @@ pub const Parser = struct {
 
         var scope = try self.parseScope(.{ .end_with_newline = false });
         if (scope == null) {
+            expr.?.deinit(self.ally);
             self.expected(Expectable.scope);
             return null;
         }
@@ -1064,7 +1064,7 @@ pub const Parser = struct {
                 return branch;
             }
         }
-
+        expr.?.deinit(self.ally);
         self.expectedToken(Token.Kind.Else);
         return null;
     }
@@ -1133,6 +1133,7 @@ pub const Parser = struct {
 
         var scope = try self.parseScope(.{});
         if (scope == null) {
+            iterable.?.deinit(self.ally);
             self.expected(.scope);
             return null;
         }
@@ -1218,11 +1219,15 @@ pub const Parser = struct {
             return null;
         }
 
-        const equals = self.getIf(Token.Kind.Assign);
-        if (equals == null) {
-            self.current = checkpoint;
-            return null;
+        const operator = self.get();
+        switch (operator.kind) {
+            .AddAssign, .SubtractAssign, .MultiplyAssign, .DivideAssign, .ModuloAssign, .Assign => {},
+            else => {
+                self.current = checkpoint;
+                return null;
+            },
         }
+        self.current += 1;
 
         const expr = try self.parseExpr();
         if (expr == null) {
@@ -1237,7 +1242,11 @@ pub const Parser = struct {
             return null;
         }
 
-        return Assignment{ .token = equals.?, .variable = variable.?, .expr = expr.? };
+        return Assignment{
+            .token = operator,
+            .variable = variable.?,
+            .expr = expr.?,
+        };
     }
 
     fn parseBinaryOperator(self: *Parser) ?BinaryOperator {
@@ -1360,7 +1369,6 @@ pub const Parser = struct {
 
         if (self.getIf(Token.Kind.RightBrack) == null) {
             self.expectedToken(Token.Kind.RightBrack);
-            exprs.deinit();
             return null;
         }
 

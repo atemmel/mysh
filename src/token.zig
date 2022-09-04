@@ -20,6 +20,11 @@ pub const Token = struct {
         Multiply, // *
         Divide, // /
         Modulo, // %
+        AddAssign, // +=
+        SubtractAssign, // -=
+        MultiplyAssign, // *=
+        DivideAssign, // /=
+        ModuloAssign, // %=
         Less, // <
         Greater, // >
         Bang, // !
@@ -68,6 +73,11 @@ pub const Token = struct {
         "Multiply",
         "Divide",
         "Modulo",
+        "AddAssign",
+        "SubtractAssign",
+        "MultiplyAssign",
+        "DivideAssign",
+        "ModuloAssign",
         "Less",
         "Greater",
         "Bang",
@@ -115,6 +125,11 @@ pub const Token = struct {
         "*",
         "/",
         "%",
+        "+=",
+        "-=",
+        "*=",
+        "/=",
+        "%=",
         "<",
         ">",
         "!",
@@ -162,6 +177,11 @@ pub const Token = struct {
         5, // *
         5, // /
         5, // %
+        16, // +=
+        16, // -=
+        16, // *=
+        16, // /=
+        16, // %=
         9, // <
         9, // >
         3, // !
@@ -193,9 +213,9 @@ pub const Token = struct {
     pub const keyword_begin = 1;
     pub const keyword_end = 12;
     pub const symbol_begin = 12;
-    pub const symbol_end = 39;
+    pub const symbol_end = 44;
     pub const operator_begin = 12;
-    pub const operator_end = 29;
+    pub const operator_end = 34;
 
     pub fn precedence(self: *const Token) u32 {
         const idx: usize = @enumToInt(self.kind);

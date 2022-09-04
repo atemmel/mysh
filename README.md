@@ -3,21 +3,16 @@
 ### todo:
 
 * astgen
-  * binary operators ~~add~~ ~~subtract~~ ~~multiply~~ ~~divide~~ `+=` `-=` `*=` `/=`
   * indexing + slicing
 
 * interpreter
-  * binary operators ~~add~~ ~~subtract~~ ~~multiply~~ ~~divide~~ `+=` `-=` `*=` `/=`
   * type system
-    * ~~string~~
-    * ~~bool~~
-    * ~~int~~
     * float
-    * list/array ~~literal~~ ~~append~~
     * ~~struct/table/dict~~
 		* nested tables
   * proper error messages
   * indexing + slicing
+  * refcounting instead of copying everything all the time
 
 ### to have:
  * type conversions `(newtype $variable)`(?)
@@ -32,3 +27,21 @@
 ### tofix:
  * repl symtable
  * better repl reader (history, search)
+
+### ideas:
+
+redirection syntax (to not conflict with logical operators)
+
+```sh
+ls |> myfile.txt
+```
+
+pipe assign operator
+
+```sh
+$numbers |= append 6
+
+# is equivalent to
+
+$numbers = $numbers | append 6
+```

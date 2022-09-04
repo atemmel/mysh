@@ -50,11 +50,13 @@ pub const Value = struct {
     };
 
     inner: Inner = undefined,
-    origin: ?*const Token = undefined,
+    origin: ?*const Token = null,
     owned: bool = false,
     may_free: bool = true,
 
-    pub fn clone(self: *const Value, ally: std.mem.Allocator) std.mem.Allocator.Error!Value {
+    pub const CloneError = std.mem.Allocator.Error;
+
+    pub fn clone(self: *const Value, ally: std.mem.Allocator) CloneError!Value {
         switch (self.inner) {
             .string => |string| {
                 if (!self.may_free) {
