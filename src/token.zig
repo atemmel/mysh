@@ -42,6 +42,8 @@ pub const Token = struct {
         RightPar, // )
         LeftBrack, // [
         RightBrack, // ]
+        IndexBegin, // $x[...
+        IndexEnd, // ]
         Member, // .
         Comma, // ,
         Colon, // :
@@ -95,6 +97,8 @@ pub const Token = struct {
         "RightPar",
         "LeftBrack",
         "RightBrack",
+        "IndexBegin",
+        "IndexEnd",
         "Member",
         "Comma",
         "Colon",
@@ -145,6 +149,8 @@ pub const Token = struct {
         "}",
         "(",
         ")",
+        "[",
+        "]",
         "[",
         "]",
         ".",
@@ -208,12 +214,14 @@ pub const Token = struct {
         0,
         0,
         0,
+        0,
+        0,
     };
 
     pub const keyword_begin = 1;
     pub const keyword_end = 12;
     pub const symbol_begin = 12;
-    pub const symbol_end = 44;
+    pub const symbol_end = 46;
     pub const operator_begin = 12;
     pub const operator_end = 34;
 

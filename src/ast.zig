@@ -92,11 +92,13 @@ pub const Variable = struct {
     specifier: ?VariableSpecifier,
 
     fn deinit(self: *const Variable, ally: std.mem.Allocator) void {
-        switch (self.specifier) {
-            .member => {},
-            .index => |*index| {
-                index.deinit(ally);
-            },
+        if (self.specifier) |*specifier| {
+            switch (specifier.*) {
+                .member => {},
+                .index => |*index| {
+                    index.deinit(ally);
+                },
+            }
         }
     }
 };
@@ -121,7 +123,7 @@ pub const Index = struct {
 
     fn deinit(self: *const Index, ally: std.mem.Allocator) void {
         self.index.deinit(ally);
-        ally.free(self.index);
+        ally.destroy(self.index);
     }
 };
 
@@ -286,7 +288,9 @@ pub const Expr = union(ExprKind) {
             .array_literal => |array| {
                 array.deinit(ally);
             },
-            .variable => {},
+            .variable => |variable| {
+                variable.deinit(ally);
+            },
             .binary_operator => |bin| {
                 bin.deinit(ally);
             },
@@ -872,7 +876,7 @@ pub const Parser = struct {
             };
         }
 
-        if (self.parseVariable()) |variable| {
+        if (try self.parseVariable()) |variable| {
             return Expr{
                 .variable = variable,
             };
@@ -971,7 +975,7 @@ pub const Parser = struct {
         return null;
     }
 
-    fn parseVariable(self: *Parser) ?Variable {
+    fn parseVariable(self: *Parser) !?Variable {
         const token = self.getIf(.Variable);
         if (token == null) {
             return null;
@@ -983,6 +987,10 @@ pub const Parser = struct {
         if (self.parseMember()) |member| {
             specifier = VariableSpecifier{
                 .member = member,
+            };
+        } else if (try self.parseIndex()) |index| {
+            specifier = VariableSpecifier{
+                .index = index,
             };
         }
 
@@ -1008,6 +1016,34 @@ pub const Parser = struct {
         return Member{
             .token = token.?,
             .name = identifier.?.value,
+        };
+    }
+
+    fn parseIndex(self: *Parser) !?Index {
+        const token = self.getIf(.IndexBegin);
+        if (token == null) {
+            return null;
+        }
+
+        const expr = try self.parseExpr();
+        if (expr == null) {
+            self.expected(.expression);
+            return null;
+        }
+        const index = try self.ally.create(Expr);
+        index.* = expr.?;
+
+        const end = self.getIf(.IndexEnd);
+        if (end == null) {
+            self.expectedToken(.IndexEnd);
+            expr.?.deinit(self.ally);
+            self.ally.destroy(index);
+            return null;
+        }
+
+        return Index{
+            .token = token.?,
+            .index = index,
         };
     }
 
@@ -1214,7 +1250,7 @@ pub const Parser = struct {
 
     fn parseAssignment(self: *Parser) !?Assignment {
         const checkpoint = self.current;
-        const variable = self.parseVariable();
+        const variable = try self.parseVariable();
         if (variable == null) {
             return null;
         }

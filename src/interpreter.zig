@@ -112,7 +112,7 @@ pub const Interpreter = struct {
 
     pub fn interpretLine(self: *Interpreter, root_node: *ast.Root) !?Value {
         self.root_node = root_node;
-        //TODO: CLone interpreted function (if any)
+        //TODO: Clone interpreted function (if any)
         return self.handleRoot();
     }
 
@@ -387,9 +387,21 @@ pub const Interpreter = struct {
 
         var assigned_value = var_value.?;
         if (variable.specifier) |specifier| {
+            //TODO: this
+            var to_maybe_free: ?Value = null;
+            if (to_maybe_free) |*to_free| {
+                to_free.deinit(self.ally);
+            }
+
             const assigned_name = switch (specifier) {
                 .member => |member| member.name,
-                .index => unreachable,
+                .index => |index| blk: {
+                    const maybe_expr_index = try self.handleExpr(index.index, true);
+                    var expr_index = try self.assertHasValue(maybe_expr_index, variable.token);
+                    assigned_value = expr_index;
+                    try self.assertExpectedType(&expr_index, .string, variable.token);
+                    break :blk expr_index.inner.string;
+                },
             };
             try self.assertExpectedType(&assigned_value, .table, variable.token);
             var table = &assigned_value.inner.table;
@@ -565,7 +577,7 @@ pub const Interpreter = struct {
         if (variable.specifier) |spec| {
             switch (spec) {
                 .member => |*member| maybe_value.? = try self.handleMember(member, maybe_value.?),
-                .index => unreachable,
+                .index => |*index| maybe_value.? = try self.handleStrIndex(index, maybe_value.?),
             }
         } else {
             maybe_value.?.origin = variable.token;
@@ -583,6 +595,24 @@ pub const Interpreter = struct {
         return Value{
             .inner = inner_value.?.inner,
             .origin = member.token,
+            .owned = true,
+        };
+    }
+
+    fn handleStrIndex(self: *Interpreter, index: *const ast.Index, owner: Value) !Value {
+        try self.assertExpectedType(&owner, .table, index.token);
+        var maybe_value_index = try self.handleExpr(index.index, true);
+        var value_index = try self.assertHasValue(maybe_value_index, index.token);
+        defer value_index.deinit(self.ally);
+        try self.assertExpectedType(&value_index, .string, index.token);
+        const name = value_index.inner.string;
+        const table = &owner.inner.table;
+        var inner_value = table.get(name);
+        //TODO: assert that index exists
+        assert(inner_value != null);
+        return Value{
+            .inner = inner_value.?.inner,
+            .origin = value_index.origin,
             .owned = true,
         };
     }

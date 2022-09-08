@@ -30,6 +30,7 @@ pub const Tokenizer = struct {
         self.end = src.len;
         self.current_column = 1;
         self.current_row = 1;
+        self.seeking_index_end = false;
 
         while (!self.eof()) {
             const c = self.peek();
@@ -55,6 +56,17 @@ pub const Tokenizer = struct {
                     self.member_chain_alive = false;
                 } else {
                     self.member_chain_alive = true;
+                }
+                if (self.peek() == '[') {
+                    const idx = self.current;
+                    try self.tokens.append(.{
+                        .kind = .IndexBegin,
+                        .value = self.source[idx .. idx + 1],
+                        .column = self.current_column,
+                        .row = self.current_row,
+                    });
+                    self.next();
+                    self.seeking_index_end = true;
                 }
                 continue;
             }
@@ -408,6 +420,12 @@ pub const Tokenizer = struct {
         self.next();
 
         switch (@intToEnum(Token.Kind, index)) {
+            .RightBrack => {
+                if (self.seeking_index_end) {
+                    index = @enumToInt(Token.Kind.IndexEnd);
+                    self.seeking_index_end = false;
+                }
+            },
             .Subtract, .Add, .Divide, .Multiply, .Modulo => {
                 if (self.eof() or isAlpha(self.peek())) {
                     self.current = old_current;
@@ -512,6 +530,7 @@ pub const Tokenizer = struct {
     current_column: usize = undefined,
     current_row: usize = undefined,
     member_chain_alive: bool = false,
+    seeking_index_end: bool = false,
 };
 
 const expectEqual = std.testing.expectEqual;
