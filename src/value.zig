@@ -5,6 +5,12 @@ pub const ValueArray = std.ArrayList(Value);
 pub const ValueTable = std.StringHashMap(Value);
 
 pub const Value = struct {
+    holder: *Holder,
+    //inner: Inner = undefined,
+    origin: ?*const Token = null,
+    //owned: bool = false,
+    //may_free: bool = true,
+
     pub const Kind = enum {
         string,
         boolean,
@@ -35,10 +41,15 @@ pub const Value = struct {
                     try writer.writeAll("[]");
                 },
                 .table => {
-                    try writer.writeAll("struct");
+                    try writer.writeAll("table");
                 },
             }
         }
+    };
+
+    pub const Holder = struct {
+        inner: Inner,
+        refCount: u32,
     };
 
     pub const Inner = union(Kind) {
@@ -47,12 +58,31 @@ pub const Value = struct {
         integer: i64,
         array: ValueArray,
         table: ValueTable,
-    };
 
-    inner: Inner = undefined,
-    origin: ?*const Token = null,
-    owned: bool = false,
-    may_free: bool = true,
+        pub fn deinit(self: Inner, ally: std.mem.Allocator) void {
+            switch (self.inner) {
+                .string => |string| {
+                    ally.free(string);
+                },
+                .boolean => {},
+                .integer => {},
+                .array => |array| {
+                    for (array.items) |*value| {
+                        value.deinit(ally);
+                    }
+                    array.deinit();
+                },
+                .table => |*table| {
+                    var iterator = table.iterator();
+                    while (iterator.next()) |pair| {
+                        ally.free(pair.key_ptr.*);
+                        pair.value_ptr.deinit(ally);
+                    }
+                    table.deinit();
+                },
+            }
+        }
+    };
 
     pub const CloneError = std.mem.Allocator.Error;
 
@@ -104,79 +134,122 @@ pub const Value = struct {
         }
     }
 
-    pub fn byConversion(original_str: []const u8) Value {
+    pub fn init(ally: std.mem.Allocator, inner: anytype, origin: *const Token) !Value {
+        return switch (@TypeOf(inner)) {
+            []const u8 => initString(ally, inner, origin),
+            i64 => initInteger(ally, inner, origin),
+            bool => initBoolean(ally, inner, origin),
+            ValueArray => initArray(ally, inner, origin),
+            ValueTable => initTable(ally, inner, origin),
+            else => unreachable,
+        };
+    }
+
+    pub fn initString(ally: std.mem.Allocator, str: []const u8, origin: *const Token) !Value {
+        var holder = try ally.create(Holder);
+        holder = .{
+            .inner = .{
+                .string = try ally.dupe(u8, str),
+            },
+            .refCount = 1,
+        };
+        return Value{
+            holder,
+            origin,
+        };
+    }
+
+    pub fn initInteger(ally: std.mem.Allocator, integer: i64, origin: *const Token) !Value {
+        var holder = try ally.create(Holder);
+        holder.* = .{
+            .inner = .{
+                .integer = integer,
+            },
+            .refCount = 1,
+        };
+        return Value{
+            .holder = holder,
+            .origin = origin,
+        };
+    }
+
+    pub fn initBoolean(ally: std.mem.Allocator, boolean: bool, origin: *const Token) !Value {
+        var holder = try ally.create(Holder);
+        holder.* = .{
+            .inner = .{
+                .boolean = boolean,
+            },
+            .refCount = 1,
+        };
+        return Value{
+            .holder = holder,
+            .origin = origin,
+        };
+    }
+
+    pub fn initArray(ally: std.mem.Allocator, array: ValueArray, origin: *const Token) !Value {
+        var holder = try ally.create(Holder);
+        holder.* = .{
+            .inner = .{
+                .array = array,
+            },
+            .refCount = 1,
+        };
+        return Value{
+            .holder = holder,
+            .origin = origin,
+        };
+    }
+
+    pub fn initTable(ally: std.mem.Allocator, table: ValueTable, origin: *const Token) !Value {
+        var holder = try ally.create(Holder);
+        holder.* = .{
+            .inner = .{
+                .table = table,
+            },
+            .refCount = 1,
+        };
+        return Value{
+            .holder = holder,
+            .origin = origin,
+        };
+    }
+
+    pub fn byConversion(ally: std.mem.Allocator, original_str: []const u8, token: *const Token) Value {
         const str = std.mem.trimRight(u8, original_str, &std.ascii.spaces);
 
         if (std.mem.eql(u8, str, "true")) {
-            return Value{
-                .inner = .{
-                    .boolean = true,
-                },
-            };
+            return Value.initBoolean(true, ally, token);
         }
 
         if (std.mem.eql(u8, str, "false")) {
-            return Value{
-                .inner = .{
-                    .boolean = false,
-                },
-            };
+            return Value.initBoolean(false, ally, token);
         }
 
         if (std.fmt.parseInt(i64, str, 0)) |integer| {
-            return Value{
-                .inner = .{
-                    .integer = integer,
-                },
-            };
+            return Value.initInteger(integer, ally, token);
         } else |err| {
             err catch {};
         }
 
         // unconvertable, leave as-is
-        return Value{
-            .inner = .{
-                .string = original_str,
-            },
-        };
+        return Value.initString(ally, original_str, token);
     }
 
     pub fn deinit(self: *Value, ally: std.mem.Allocator) void {
-        if (!self.owned) {
-            self.deinitWithOwnership(ally);
+        self.holder.refCount -= 1;
+        if (self.holder.refCount == 0) {
+            self.holder.inner.deinit(ally);
         }
     }
 
-    pub fn deinitWithOwnership(self: *Value, ally: std.mem.Allocator) void {
-        if (!self.may_free) {
-            return;
-        }
-        switch (self.inner) {
-            .string => |string| {
-                ally.free(string);
-                //unreachable;
-            },
-            .boolean => {},
-            .integer => {},
-            .array => |array| {
-                for (array.items) |*value| {
-                    value.deinit(ally);
-                }
-                array.deinit();
-            },
-            .table => |*table| {
-                var iterator = table.iterator();
-                while (iterator.next()) |pair| {
-                    ally.free(pair.key_ptr.*);
-                    pair.value_ptr.deinit(ally);
-                }
-                table.deinit();
-            },
-        }
+    pub fn ref(self: *Value) Value {
+        self.holder.refCount += 1;
+        return self.*;
     }
 
     pub fn getKind(self: *const Value) Kind {
-        return @as(Value.Kind, self.inner);
+        return @as(Value.Kind, self.holder.inner);
     }
 
     pub fn format(

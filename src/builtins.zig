@@ -6,18 +6,15 @@ const ValueArray = @import("value.zig").ValueArray;
 
 const assert = std.debug.assert;
 
-pub const Signature = fn (interp: *Interpreter, args: []const Value) anyerror!?Value;
+pub const Signature = fn (interp: *Interpreter, args: []Value, token: *const Token) anyerror!?Value;
 
-pub fn print(interp: *Interpreter, args: []const Value) !?Value {
+pub fn print(interp: *Interpreter, args: []Value, token: *const Token) !?Value {
     if (interp.is_piping) {
         var buffer = try std.ArrayList(u8).initCapacity(interp.ally, 64);
         defer buffer.deinit();
         try printWithWriter(buffer.writer(), args);
-        return Value{
-            .inner = .{
-                .string = buffer.toOwnedSlice(),
-            },
-        };
+        //TODO: this copy is not needed
+        return try Value.init(interp.ally, buffer, token);
     }
 
     const stdout = std.io.getStdOut().writer();
@@ -25,7 +22,7 @@ pub fn print(interp: *Interpreter, args: []const Value) !?Value {
     return null;
 }
 
-fn printWithWriter(writer: anytype, args: []const Value) @TypeOf(writer).Error!void {
+fn printWithWriter(writer: anytype, args: []Value) @TypeOf(writer).Error!void {
     for (args) |*arg, idx| {
         try writer.print("{}", .{arg.*});
         if (idx != args.len - 1) {
@@ -51,12 +48,12 @@ fn printWithWriter(writer: anytype, args: []const Value) @TypeOf(writer).Error!v
     try writer.writeByte('\n');
 }
 
-pub fn append(interp: *Interpreter, args: []const Value) !?Value {
+pub fn append(interp: *Interpreter, args: []const Value, token: *const Token) !?Value {
     //TODO: proper error
     assert(args.len >= 2);
     try interp.assertExpectedType(&args[0], .array, interp.calling_token);
 
-    const original_array = &args[0].inner.array;
+    const original_array = &args[0].holder.inner.array;
     const total_new_length = original_array.items.len + args.len - 1;
     var modified_array = try ValueArray.initCapacity(interp.ally, total_new_length);
 
@@ -71,43 +68,38 @@ pub fn append(interp: *Interpreter, args: []const Value) !?Value {
         const element = &args[idx];
         try modified_array.append(try element.clone(interp.ally));
     }
-    return Value{
-        .inner = .{
-            .array = modified_array,
-        },
-    };
+
+    //TODO: prevent copy here
+    return try Value.initArray(interp.ally, modified_array, token);
 }
 
-pub fn filter(interp: *Interpreter, args: []const Value) !?Value {
+pub fn filter(interp: *Interpreter, args: []Value, token: *const Token) !?Value {
     //TODO: proper error handling
     assert(args.len == 2);
     try interp.assertExpectedType(&args[0], .array, interp.calling_token);
     //TODO: this should be some sort of function/lambda type
     try interp.assertExpectedType(&args[1], .string, interp.calling_token);
 
-    const original_array = &args[0].inner.array;
-    const fn_name = args[1].inner.string;
+    const original_array = &args[0].holder.inner.array;
+    const fn_name = args[1].holder.inner.string;
     var modified_array = try ValueArray.initCapacity(interp.ally, original_array.items.len / 2);
 
     for (original_array.items) |*element| {
-        const fn_args: []const Value = &[_]Value{element.*};
-        const fn_result = try interp.executeFunction(fn_name, fn_args, false, true);
+        const fn_args: []Value = &[_]Value{element.*};
+        const fn_result = try interp.executeFunction(fn_name, fn_args, false, true, token);
         assert(fn_result != null);
-        assert(@as(Value.Kind, fn_result.?.inner) == .boolean);
+        assert(fn_result.?.getKind() == .boolean);
 
-        if (fn_result.?.inner.boolean) {
+        if (fn_result.?.holder.inner.boolean) {
             try modified_array.append(try element.clone(interp.ally));
         }
     }
 
-    return Value{
-        .inner = .{
-            .array = modified_array,
-        },
-    };
+    //TODO: prevent copy here
+    return try Value.initArray(interp.ally, modified_array, token);
 }
 
-pub fn len(interp: *Interpreter, args: []const Value) !?Value {
+pub fn len(interp: *Interpreter, args: []Value, token: *const Token) !?Value {
     _ = interp;
     assert(args.len >= 1);
 
@@ -130,9 +122,5 @@ pub fn len(interp: *Interpreter, args: []const Value) !?Value {
         }
     }
 
-    return Value{
-        .inner = .{
-            .integer = length_sum,
-        },
-    };
+    return try Value.init(interp.ally, length_sum, token);
 }

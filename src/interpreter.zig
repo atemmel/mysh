@@ -245,10 +245,10 @@ pub const Interpreter = struct {
                 if (err_maybe_value) |*maybe_value| {
                     if (maybe_value.*) |*value| {
                         defer value.deinit(self.ally);
-                        const value_array = [_]Value{
+                        var value_array = [_]Value{
                             value.*,
                         };
-                        _ = try mysh_builtins.print(self, &value_array);
+                        _ = try mysh_builtins.print(self, value_array[0..], value.origin.?);
                     }
                 } else |err| {
                     return err;
@@ -273,7 +273,7 @@ pub const Interpreter = struct {
         try self.sym_table.put(var_name, &value);
     }
 
-    fn handleFnDeclaration(self: *Interpreter, fn_decl: *const ast.FnDeclaration, args: []const Value) !?Value {
+    fn handleFnDeclaration(self: *Interpreter, fn_decl: *const ast.FnDeclaration, args: []Value) !?Value {
         assert(args.len == fn_decl.args.len);
 
         try self.sym_table.addScope();
@@ -281,10 +281,7 @@ pub const Interpreter = struct {
         var i: usize = 0;
         while (i < args.len) : (i += 1) {
             const args_name = fn_decl.args[i].value;
-            const args_value = Value{
-                .inner = args[i].inner,
-                .may_free = false,
-            };
+            var args_value = args[i].ref();
             try self.sym_table.put(args_name, &args_value);
         }
 
@@ -358,17 +355,17 @@ pub const Interpreter = struct {
 
     fn handleAssignment(self: *Interpreter, assign: *const ast.Assignment) !void {
         const maybe_value = try self.handleExpr(&assign.expr, true);
-        const value = try self.assertHasValue(maybe_value, assign.token);
+        var value = try self.assertHasValue(maybe_value, assign.token);
 
         if (assign.token.kind == .Assign) {
-            try self.writeVariable(&assign.variable, value);
+            try self.writeVariable(&assign.variable, &value);
             return;
         }
 
         var prior_value = try self.handleVariable(&assign.variable);
         defer prior_value.deinit(self.ally);
 
-        const new_value = switch (assign.token.kind) {
+        var new_value = switch (assign.token.kind) {
             .AddAssign => try self.addValues(&prior_value, &value, assign.token),
             .SubtractAssign => try self.subtractValues(&prior_value, &value, assign.token),
             .MultiplyAssign => try self.multiplyValues(&prior_value, &value, assign.token),
@@ -376,11 +373,12 @@ pub const Interpreter = struct {
             .ModuloAssign => try self.moduloValues(&prior_value, &value, assign.token),
             else => unreachable,
         };
+        defer new_value.deinit(self.ally);
 
-        try self.writeVariable(&assign.variable, new_value);
+        try self.writeVariable(&assign.variable, &new_value);
     }
 
-    fn writeVariable(self: *Interpreter, variable: *const ast.Variable, value: Value) !void {
+    fn writeVariable(self: *Interpreter, variable: *const ast.Variable, value: *Value) !void {
         const name = variable.name;
         var var_value = self.sym_table.get(name);
         assert(var_value != null);
@@ -400,20 +398,20 @@ pub const Interpreter = struct {
                     var expr_index = try self.assertHasValue(maybe_expr_index, variable.token);
                     assigned_value = expr_index;
                     try self.assertExpectedType(&expr_index, .string, variable.token);
-                    break :blk expr_index.inner.string;
+                    break :blk expr_index.holder.inner.string;
                 },
             };
             try self.assertExpectedType(&assigned_value, .table, variable.token);
-            var table = &assigned_value.inner.table;
+            var table = &assigned_value.holder.inner.table;
             var prev_value = table.get(assigned_name);
             if (prev_value != null) {
                 prev_value.?.deinit(self.ally);
             }
-            try table.put(assigned_name, value);
+            try table.put(assigned_name, value.ref());
             return;
         }
         assigned_value.deinit(self.ally);
-        try self.sym_table.put(name, &value);
+        try self.sym_table.put(name, value);
     }
 
     fn handleAssignmentMember(self: *Interpreter, name: []const u8, member: *const ast.Member, value: Value) !void {
@@ -588,15 +586,11 @@ pub const Interpreter = struct {
     fn handleMember(self: *Interpreter, member: *const ast.Member, owner: Value) !Value {
         try self.assertExpectedType(&owner, .table, member.token);
         const name = member.name;
-        const table = &owner.inner.table;
+        const table = &owner.holder.inner.table;
         var inner_value = table.get(name);
         //TODO: assert that member exists
         assert(inner_value != null);
-        return Value{
-            .inner = inner_value.?.inner,
-            .origin = member.token,
-            .owned = true,
-        };
+        return inner_value.?.ref();
     }
 
     fn handleStrIndex(self: *Interpreter, index: *const ast.Index, owner: Value) !Value {
@@ -605,16 +599,12 @@ pub const Interpreter = struct {
         var value_index = try self.assertHasValue(maybe_value_index, index.token);
         defer value_index.deinit(self.ally);
         try self.assertExpectedType(&value_index, .string, index.token);
-        const name = value_index.inner.string;
-        const table = &owner.inner.table;
+        const name = value_index.holder.inner.string;
+        const table = &owner.holder.inner.table;
         var inner_value = table.get(name);
         //TODO: assert that index exists
         assert(inner_value != null);
-        return Value{
-            .inner = inner_value.?.inner,
-            .origin = value_index.origin,
-            .owned = true,
-        };
+        return inner_value.?.ref();
     }
 
     fn handleBinaryOperator(self: *Interpreter, binary: *const ast.BinaryOperator) !?Value {
@@ -706,7 +696,7 @@ pub const Interpreter = struct {
         while (true) {
             var maybe_value = try self.handleExpr(&loop.condition, true);
             const value = try self.assertHasValue(maybe_value, loop.token);
-            var inner = value.inner;
+            var inner = value.holder.inner;
             assert(@as(Value.Kind, inner) == .boolean);
             try self.assertExpectedType(&value, .boolean, loop.token);
 
@@ -764,9 +754,9 @@ pub const Interpreter = struct {
         return self.handleExpr(next, true);
     }
 
-    pub fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, has_stdin_arg: bool, capture_stdout: bool) !?Value {
+    pub fn executeFunction(self: *Interpreter, name: []const u8, args: []Value, has_stdin_arg: bool, capture_stdout: bool, token: *const Token) !?Value {
         if (self.builtins.get(name)) |func| {
-            return try func(self, args);
+            return try func(self, args, token);
         } else {
             if (self.root_node.fn_table.get(name)) |*fn_node| {
                 return try self.handleFnDeclaration(fn_node, args);
@@ -804,11 +794,13 @@ pub const Interpreter = struct {
                 if (result.stdout) |stdout| {
                     const shrinked_stdout = std.mem.trimRight(u8, stdout, &std.ascii.spaces);
                     _ = self.ally.resize(stdout, shrinked_stdout.len);
-                    const returned_value = Value.byConversion(shrinked_stdout);
+                    //TODO: no need to copy here
+                    var returned_value = Value.byConversion(self.ally, shrinked_stdout, token);
+                    self.ally.free(shrinked_stdout);
                     // if converted from string
-                    if (@as(Value.Kind, returned_value.inner) != .string) {
+                    if (returned_value.getKind() != .string) {
                         // free string
-                        self.ally.free(shrinked_stdout);
+                        returned_value.deinit(self.ally);
                     }
                     return returned_value;
                 }
@@ -822,71 +814,65 @@ pub const Interpreter = struct {
         try self.assertExpectedType(lhs, .integer, backup_token);
         try self.assertExpectedType(rhs, .integer, backup_token);
 
-        return Value{
-            .inner = .{
-                .integer = lhs.inner.integer + rhs.inner.integer,
-            },
-            .origin = null,
-        };
+        return Value.initInteger(
+            self.ally,
+            lhs.holder.inner.integer + rhs.holder.inner.integer,
+            backup_token,
+        );
     }
 
     fn subtractValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertExpectedType(lhs, .integer, backup_token);
         try self.assertExpectedType(rhs, .integer, backup_token);
 
-        return Value{
-            .inner = .{
-                .integer = lhs.inner.integer - rhs.inner.integer,
-            },
-            .origin = null,
-        };
+        return Value.initInteger(
+            self.ally,
+            lhs.holder.inner.integer - rhs.holder.inner.integer,
+            backup_token,
+        );
     }
 
     fn negateValue(self: *Interpreter, value: *const Value, backup_token: *const Token) !Value {
         try self.assertExpectedType(value, .integer, backup_token);
 
-        return Value{
-            .inner = .{
-                .integer = -value.inner.integer,
-            },
-            .origin = null,
-        };
+        return Value.initInteger(
+            self.ally,
+            -value.holder.inner.integer,
+            backup_token,
+        );
     }
 
     fn multiplyValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertExpectedType(lhs, .integer, backup_token);
         try self.assertExpectedType(rhs, .integer, backup_token);
 
-        return Value{
-            .inner = .{
-                .integer = lhs.inner.integer * rhs.inner.integer,
-            },
-            .origin = null,
-        };
+        return Value.initInteger(
+            self.ally,
+            lhs.holder.inner.integer * rhs.holder.inner.integer,
+            backup_token,
+        );
     }
 
     fn divideValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertExpectedType(lhs, .integer, backup_token);
         try self.assertExpectedType(rhs, .integer, backup_token);
 
-        return Value{
-            .inner = .{
-                .integer = try math.divTrunc(i64, lhs.inner.integer, rhs.inner.integer),
-            },
-            .origin = null,
-        };
+        return Value.initInteger(
+            self.ally,
+            try math.divTrunc(i64, lhs.holder.inner.integer, rhs.holder.inner.integer),
+            backup_token,
+        );
     }
 
     fn moduloValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertExpectedType(lhs, .integer, backup_token);
         try self.assertExpectedType(rhs, .integer, backup_token);
 
-        return Value{
-            .inner = .{
-                .integer = try math.mod(i64, lhs.inner.integer, rhs.inner.integer),
-            },
-            .origin = null,
-        };
+        return Value.initInteger(
+            self.ally,
+            try math.mod(i64, lhs.holder.inner.integer, rhs.holder.inner.integer),
+            backup_token,
+        );
     }
 
     fn lessValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
@@ -894,8 +880,8 @@ pub const Interpreter = struct {
         return Value{
             .inner = .{
                 .boolean = switch (lhs.getKind()) {
-                    .integer => lhs.inner.integer < rhs.inner.integer,
-                    .string => std.mem.lessThan(u8, lhs.inner.string, rhs.inner.string),
+                    .integer => lhs.holder.inner.integer < rhs.holder.inner.integer,
+                    .string => std.mem.lessThan(u8, lhs.holder.inner.string, rhs.holder.inner.string),
                     .array => {
                         std.debug.todo("This should maybe work(?)");
                     },

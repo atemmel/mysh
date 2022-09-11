@@ -51,19 +51,15 @@ pub const SymTable = struct {
         return last_scope;
     }
 
-    pub fn put(self: *SymTable, name: []const u8, value: *const Value) !void {
+    pub fn put(self: *SymTable, name: []const u8, value: *Value) !void {
         const idx = self.lookup(name);
         var scope = &self.scopes.items[idx];
 
         if (scope.getPtr(name)) |prev_value| {
-            prev_value.deinitWithOwnership(self.ally);
+            prev_value.deinit(self.ally);
         }
 
-        const inserted_value: Value = .{
-            .inner = value.inner,
-            .owned = true,
-            .may_free = value.may_free,
-        };
+        const inserted_value = value.ref();
         try scope.put(name, inserted_value);
     }
 
