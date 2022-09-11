@@ -1,8 +1,8 @@
 const std = @import("std");
 const Token = @import("token.zig").Token;
 const Interpreter = @import("interpreter.zig").Interpreter;
-const Value = @import("symtable.zig").Value;
-const ValueArray = @import("symtable.zig").ValueArray;
+const Value = @import("value.zig").Value;
+const ValueArray = @import("value.zig").ValueArray;
 
 const assert = std.debug.assert;
 
