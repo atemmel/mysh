@@ -33,7 +33,7 @@ fn printWithWriter(writer: anytype, args: []Value) @TypeOf(writer).Error!void {
     // trailing newline check
     if (args.len > 0) {
         const last_arg = args[args.len - 1];
-        switch (last_arg.inner) {
+        switch (last_arg.holder.inner) {
             .string => |string| {
                 if (string.len > 0) {
                     const last_byte = string[string.len - 1];
@@ -48,31 +48,22 @@ fn printWithWriter(writer: anytype, args: []Value) @TypeOf(writer).Error!void {
     try writer.writeByte('\n');
 }
 
-pub fn append(interp: *Interpreter, args: []const Value, token: *const Token) !?Value {
+pub fn append(interp: *Interpreter, args: []Value, token: *const Token) !?Value {
+    _ = token;
     //TODO: proper error
     assert(args.len >= 2);
     try interp.assertExpectedType(&args[0], .array, interp.calling_token);
 
-    const original_array = &args[0].holder.inner.array;
-    const total_new_length = original_array.items.len + args.len - 1;
-    var modified_array = try ValueArray.initCapacity(interp.ally, total_new_length);
+    var original_array = &args[0].holder.inner.array;
 
-    // clone prior members
-    for (original_array.items) |*element| {
-        try modified_array.append(try element.clone(interp.ally));
+    try original_array.ensureTotalCapacity(original_array.items.len + args.len);
+    for (args[1..]) |*arg| {
+        try original_array.append(try arg.refOrClone(interp.ally));
     }
-
-    // append args
-    var idx: usize = 1;
-    while (idx < args.len) : (idx += 1) {
-        const element = &args[idx];
-        try modified_array.append(try element.clone(interp.ally));
-    }
-
-    //TODO: prevent copy here
-    return try Value.initArray(interp.ally, modified_array, token);
+    return args[0].ref();
 }
 
+//TODO:
 pub fn filter(interp: *Interpreter, args: []Value, token: *const Token) !?Value {
     //TODO: proper error handling
     assert(args.len == 2);
@@ -106,7 +97,7 @@ pub fn len(interp: *Interpreter, args: []Value, token: *const Token) !?Value {
     var length_sum: i64 = 0;
 
     for (args) |*arg| {
-        switch (arg.inner) {
+        switch (arg.holder.inner) {
             .boolean, .integer => {
                 assert(false);
             },

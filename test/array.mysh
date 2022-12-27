@@ -2,24 +2,25 @@
 
 var numbers = [1 2 3 4]
 
-print numbers is $numbers
+#print numbers is $numbers
 
-$numbers = append $numbers 5
+#$numbers = append $numbers 5
+#append $numbers 5
 
-print numbers is $numbers
+#print numbers is $numbers
 
-$numbers = $numbers | append 6
+#$numbers = $numbers | append 6
 
-print numbers is $numbers
+#print numbers is $numbers
 
-fn isEven x {
-	return $x % 2 == 0
-}
+#fn isEven x {
+	#return $x % 2 == 0
+#}
 
-$numbers | filter isEven
+#$numbers | filter isEven
 
-for i in $numbers | filter isEven {
-	print $i is even
-}
+#for i in $numbers | filter isEven {
+	#print $i is even
+#}
 
-print (len $numbers)
+#print (len $numbers)

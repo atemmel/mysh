@@ -6,10 +6,7 @@ pub const ValueTable = std.StringHashMap(Value);
 
 pub const Value = struct {
     holder: *Holder,
-    //inner: Inner = undefined,
     origin: ?*const Token = null,
-    //owned: bool = false,
-    //may_free: bool = true,
 
     pub const Kind = enum {
         string,
@@ -38,7 +35,7 @@ pub const Value = struct {
                     try writer.writeAll("int");
                 },
                 .array => {
-                    try writer.writeAll("[]");
+                    try writer.writeAll("list");
                 },
                 .table => {
                     try writer.writeAll("table");
@@ -59,8 +56,8 @@ pub const Value = struct {
         array: ValueArray,
         table: ValueTable,
 
-        pub fn deinit(self: Inner, ally: std.mem.Allocator) void {
-            switch (self.inner) {
+        pub fn deinit(self: *Inner, ally: std.mem.Allocator) void {
+            switch (self.*) {
                 .string => |string| {
                     ally.free(string);
                 },
@@ -87,49 +84,32 @@ pub const Value = struct {
     pub const CloneError = std.mem.Allocator.Error;
 
     pub fn clone(self: *const Value, ally: std.mem.Allocator) CloneError!Value {
-        switch (self.inner) {
+        switch (self.holder.inner) {
             .string => |string| {
-                if (!self.may_free) {
-                    return self.*;
-                }
-                return Value{
-                    .inner = .{
-                        .string = try ally.dupe(u8, string),
-                    },
-                };
+                return Value.initString(ally, string, self.origin);
             },
-            .boolean => return self.*,
-            .integer => return self.*,
+            .boolean => |boolean| {
+                return Value.initBoolean(ally, boolean, self.origin);
+            },
+            .integer => |integer| {
+                return Value.initInteger(ally, integer, self.origin);
+            },
             .array => |array| {
-                if (!self.may_free) {
-                    return self.*;
-                }
                 var new_array = try ValueArray.initCapacity(ally, array.items.len);
                 for (array.items) |*old_element| {
                     new_array.appendAssumeCapacity(try old_element.clone(ally));
                 }
-                return Value{
-                    .inner = .{
-                        .array = new_array,
-                    },
-                };
+                return Value.initArray(ally, new_array, self.origin);
             },
             .table => |table| {
-                if (!self.may_free) {
-                    return self.*;
-                }
-                var new_struct = ValueTable.init(ally);
+                var new_table = ValueTable.init(ally);
                 var it = table.iterator();
                 while (it.next()) |pair| {
                     const key = try ally.dupe(u8, pair.key_ptr.*);
                     const value = try pair.value_ptr.clone(ally);
-                    try new_struct.put(key, value);
+                    try new_table.put(key, value);
                 }
-                return Value{
-                    .inner = .{
-                        .table = new_struct,
-                    },
-                };
+                return Value.initTable(ally, new_table, self.origin);
             },
         }
     }
@@ -145,89 +125,73 @@ pub const Value = struct {
         };
     }
 
-    pub fn initString(ally: std.mem.Allocator, str: []const u8, origin: *const Token) !Value {
-        var holder = try ally.create(Holder);
-        holder = .{
-            .inner = .{
+    pub fn initString(ally: std.mem.Allocator, str: []const u8, origin: ?*const Token) !Value {
+        return Value{
+            .holder = try makeHolder(ally, .{
                 .string = try ally.dupe(u8, str),
-            },
-            .refCount = 1,
-        };
-        return Value{
-            holder,
-            origin,
+            }),
+            .origin = origin,
         };
     }
 
-    pub fn initInteger(ally: std.mem.Allocator, integer: i64, origin: *const Token) !Value {
-        var holder = try ally.create(Holder);
-        holder.* = .{
-            .inner = .{
+    pub fn initInteger(ally: std.mem.Allocator, integer: i64, origin: ?*const Token) !Value {
+        return Value{
+            .holder = try makeHolder(ally, .{
                 .integer = integer,
-            },
-            .refCount = 1,
-        };
-        return Value{
-            .holder = holder,
+            }),
             .origin = origin,
         };
     }
 
-    pub fn initBoolean(ally: std.mem.Allocator, boolean: bool, origin: *const Token) !Value {
-        var holder = try ally.create(Holder);
-        holder.* = .{
-            .inner = .{
+    pub fn initBoolean(ally: std.mem.Allocator, boolean: bool, origin: ?*const Token) !Value {
+        return Value{
+            .holder = try makeHolder(ally, .{
                 .boolean = boolean,
-            },
-            .refCount = 1,
-        };
-        return Value{
-            .holder = holder,
+            }),
             .origin = origin,
         };
     }
 
-    pub fn initArray(ally: std.mem.Allocator, array: ValueArray, origin: *const Token) !Value {
-        var holder = try ally.create(Holder);
-        holder.* = .{
-            .inner = .{
+    pub fn initArray(ally: std.mem.Allocator, array: ValueArray, origin: ?*const Token) !Value {
+        return Value{
+            .holder = try makeHolder(ally, .{
                 .array = array,
-            },
-            .refCount = 1,
-        };
-        return Value{
-            .holder = holder,
+            }),
             .origin = origin,
         };
     }
 
-    pub fn initTable(ally: std.mem.Allocator, table: ValueTable, origin: *const Token) !Value {
+    pub fn initTable(ally: std.mem.Allocator, table: ValueTable, origin: ?*const Token) !Value {
+        return Value{
+            .holder = try makeHolder(ally, .{
+                .table = table,
+            }),
+            .origin = origin,
+        };
+    }
+
+    fn makeHolder(ally: std.mem.Allocator, inner: Inner) !*Holder {
         var holder = try ally.create(Holder);
         holder.* = .{
-            .inner = .{
-                .table = table,
-            },
+            .inner = inner,
             .refCount = 1,
         };
-        return Value{
-            .holder = holder,
-            .origin = origin,
-        };
+        return holder;
     }
 
-    pub fn byConversion(ally: std.mem.Allocator, original_str: []const u8, token: *const Token) Value {
+    pub fn byConversion(ally: std.mem.Allocator, original_str: []const u8, token: *const Token) !Value {
         const str = std.mem.trimRight(u8, original_str, &std.ascii.spaces);
 
         if (std.mem.eql(u8, str, "true")) {
-            return Value.initBoolean(true, ally, token);
+            return Value.initBoolean(ally, true, token);
         }
 
         if (std.mem.eql(u8, str, "false")) {
-            return Value.initBoolean(false, ally, token);
+            return Value.initBoolean(ally, false, token);
         }
 
         if (std.fmt.parseInt(i64, str, 0)) |integer| {
-            return Value.initInteger(integer, ally, token);
+            return Value.initInteger(ally, integer, token);
         } else |err| {
             err catch {};
         }
@@ -237,10 +201,20 @@ pub const Value = struct {
     }
 
     pub fn deinit(self: *Value, ally: std.mem.Allocator) void {
+        std.debug.print("deiniting {*}\n", .{self.holder});
+        std.debug.assert(self.holder.refCount >= 0);
         self.holder.refCount -= 1;
         if (self.holder.refCount == 0) {
             self.holder.inner.deinit(ally);
+            ally.destroy(self.holder);
         }
+    }
+
+    pub fn refOrClone(self: *Value, ally: std.mem.Allocator) !Value {
+        return switch (self.holder.inner) {
+            .string, .integer, .boolean => try self.clone(ally),
+            .array, .table => self.ref(),
+        };
     }
 
     pub fn ref(self: *Value) Value {
@@ -261,7 +235,7 @@ pub const Value = struct {
         _ = fmt;
         _ = options;
 
-        switch (self.inner) {
+        switch (self.holder.inner) {
             .string => |string| {
                 try writer.print("{s}", .{string});
             },

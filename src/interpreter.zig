@@ -12,7 +12,6 @@ const mysh_builtins = @import("builtins.zig");
 const ptr = @import("ptr.zig");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
-const todo = std.debug.todo;
 const print = std.debug.print;
 const math = std.math;
 
@@ -145,7 +144,7 @@ pub const Interpreter = struct {
                     self.reportTokenCausingError(mismatch.token);
                 },
                 .argument_count_mismatch => {
-                    todo("Handle argument_count_mismatch error");
+                    std.debug.panic("Handle argument_count_mismatch error", .{});
                 },
             }
         }
@@ -220,6 +219,7 @@ pub const Interpreter = struct {
     }
 
     fn handleStatement(self: *Interpreter, stmnt: *const ast.Statement) !void {
+        self.sym_table.dump();
         switch (stmnt.*) {
             .var_decl => |*var_decl| {
                 try self.handleVarDeclaration(var_decl);
@@ -281,7 +281,7 @@ pub const Interpreter = struct {
         var i: usize = 0;
         while (i < args.len) : (i += 1) {
             const args_name = fn_decl.args[i].value;
-            var args_value = args[i].ref();
+            var args_value = try args[i].refOrClone(self.ally);
             try self.sym_table.put(args_name, &args_value);
         }
 
@@ -336,7 +336,7 @@ pub const Interpreter = struct {
         const condition = try self.assertHasValue(maybe_condition, branch.token);
         try self.assertExpectedType(&condition, .boolean, branch.token);
 
-        if (condition.inner.boolean) {
+        if (condition.holder.inner.boolean) {
             try self.handleScope(&branch.scope);
         } else if (branch.next) |next| {
             try self.handleBranch(next);
@@ -407,10 +407,16 @@ pub const Interpreter = struct {
             if (prev_value != null) {
                 prev_value.?.deinit(self.ally);
             }
-            try table.put(assigned_name, value.ref());
+            try table.put(assigned_name, try value.refOrClone(self.ally));
             return;
         }
-        assigned_value.deinit(self.ally);
+
+        //TODO: maybe unnecessary
+        // edge case for self assignment
+        if (assigned_value.holder != value.holder) {
+            assigned_value.deinit(self.ally);
+        }
+
         try self.sym_table.put(name, value);
     }
 
@@ -437,10 +443,10 @@ pub const Interpreter = struct {
     fn handleExpr(self: *Interpreter, expr: *const ast.Expr, needs_value: bool) anyerror!?Value {
         return switch (expr.*) {
             .bareword => |*bareword| try self.handleBareword(bareword),
-            .identifier => |*identifier| self.handleIdentifier(identifier),
+            .identifier => |*identifier| try self.handleIdentifier(identifier),
             .string_literal => |*string| try self.handleStringLiteral(string),
-            .boolean_literal => |*boolean| self.handleBoolLiteral(boolean),
-            .integer_literal => |*integer| self.handleIntegerLiteral(integer),
+            .boolean_literal => |*boolean| try self.handleBoolLiteral(boolean),
+            .integer_literal => |*integer| try self.handleIntegerLiteral(integer),
             .array_literal => |*array| try self.handleArrayLiteral(array),
             .table_literal => |*table_literal| try self.handleTableLiteral(table_literal),
             .variable => |*variable| try self.handleVariable(variable),
@@ -451,23 +457,11 @@ pub const Interpreter = struct {
     }
 
     fn handleBareword(self: *Interpreter, bareword: *const ast.Bareword) !Value {
-        return Value{
-            .inner = .{
-                .string = try self.ally.dupe(u8, bareword.token.value),
-            },
-            .origin = bareword.token,
-        };
+        return try Value.initString(self.ally, bareword.token.value, bareword.token);
     }
 
-    fn handleIdentifier(self: *Interpreter, identifier: *const ast.Identifier) Value {
-        _ = self;
-        return Value{
-            .inner = .{
-                .string = identifier.token.value,
-            },
-            .may_free = false,
-            .origin = identifier.token,
-        };
+    fn handleIdentifier(self: *Interpreter, identifier: *const ast.Identifier) !Value {
+        return try Value.initString(self.ally, identifier.token.value, identifier.token);
     }
 
     fn handleStringLiteral(self: *Interpreter, string: *const ast.StringLiteral) !Value {
@@ -488,31 +482,19 @@ pub const Interpreter = struct {
             may_free = true;
         }
 
-        return Value{
-            .inner = .{
-                .string = final_string,
-            },
-            .may_free = may_free,
-            .origin = string.token,
+        defer if (may_free) {
+            self.ally.free(final_string);
         };
+
+        return Value.initString(self.ally, final_string, string.token);
     }
 
-    fn handleBoolLiteral(_: *Interpreter, boolean: *const ast.BoolLiteral) Value {
-        return .{
-            .inner = .{
-                .boolean = boolean.value,
-            },
-            .origin = boolean.token,
-        };
+    fn handleBoolLiteral(self: *Interpreter, boolean: *const ast.BoolLiteral) !Value {
+        return try Value.initBoolean(self.ally, boolean.value, boolean.token);
     }
 
-    fn handleIntegerLiteral(_: *Interpreter, integer: *const ast.IntegerLiteral) Value {
-        return .{
-            .inner = .{
-                .integer = integer.value,
-            },
-            .origin = integer.token,
-        };
+    fn handleIntegerLiteral(self: *Interpreter, integer: *const ast.IntegerLiteral) !Value {
+        return try Value.initInteger(self.ally, integer.value, integer.token);
     }
 
     fn handleArrayLiteral(self: *Interpreter, array: *const ast.ArrayLiteral) !Value {
@@ -533,12 +515,7 @@ pub const Interpreter = struct {
 
         assert(value.items.len == array.values.len);
 
-        return Value{
-            .inner = .{
-                .array = value,
-            },
-            .origin = array.token,
-        };
+        return Value.initArray(self.ally, value, array.token);
     }
 
     fn handleTableLiteral(self: *Interpreter, struc: *const ast.TableLiteral) !Value {
@@ -559,12 +536,7 @@ pub const Interpreter = struct {
             try value.put(key, val);
         }
 
-        return Value{
-            .inner = .{
-                .table = value,
-            },
-            .origin = struc.token,
-        };
+        return Value.initTable(self.ally, value, struc.token);
     }
 
     fn handleVariable(self: *Interpreter, variable: *const ast.Variable) !Value {
@@ -572,6 +544,7 @@ pub const Interpreter = struct {
         var maybe_value = self.sym_table.get(name);
         //TODO: this is looking up a variable that does not exist, should be an error message
         assert(maybe_value != null);
+        _ = maybe_value.?.ref();
         if (variable.specifier) |spec| {
             switch (spec) {
                 .member => |*member| maybe_value.? = try self.handleMember(member, maybe_value.?),
@@ -658,7 +631,7 @@ pub const Interpreter = struct {
         var name_value = try self.assertHasValue(maybe_name_value, call.token);
         try self.assertExpectedType(&name_value, .string, call.token);
         defer name_value.deinit(self.ally);
-        const name = name_value.inner.string;
+        const name = name_value.holder.inner.string;
 
         const has_stdin_arg = self.piped_value != null;
         const n_args = if (has_stdin_arg)
@@ -689,7 +662,7 @@ pub const Interpreter = struct {
 
         self.calling_token = call.token;
         const capture_output = needs_value;
-        return try self.executeFunction(name, args_array.items, has_stdin_arg, capture_output);
+        return try self.executeFunction(name, args_array.items, has_stdin_arg, capture_output, call.token);
     }
 
     fn whileLoop(self: *Interpreter, loop: *const ast.Loop.WhileLoop) !void {
@@ -721,7 +694,7 @@ pub const Interpreter = struct {
         try self.sym_table.addScope();
         defer self.sym_table.dropScope();
 
-        for (iterable.inner.array.items) |*value| {
+        for (iterable.holder.inner.array.items) |*value| {
             var cloned = try value.clone(self.ally);
             try self.sym_table.put(iterator_name, &cloned);
             for (loop.scope.statements) |*stmnt| {
@@ -756,7 +729,7 @@ pub const Interpreter = struct {
 
     pub fn executeFunction(self: *Interpreter, name: []const u8, args: []Value, has_stdin_arg: bool, capture_stdout: bool, token: *const Token) !?Value {
         if (self.builtins.get(name)) |func| {
-            return try func(self, args, token);
+            return try func.*(self, args, token);
         } else {
             if (self.root_node.fn_table.get(name)) |*fn_node| {
                 return try self.handleFnDeclaration(fn_node, args);
@@ -795,7 +768,7 @@ pub const Interpreter = struct {
                     const shrinked_stdout = std.mem.trimRight(u8, stdout, &std.ascii.spaces);
                     _ = self.ally.resize(stdout, shrinked_stdout.len);
                     //TODO: no need to copy here
-                    var returned_value = Value.byConversion(self.ally, shrinked_stdout, token);
+                    var returned_value = try Value.byConversion(self.ally, shrinked_stdout, token);
                     self.ally.free(shrinked_stdout);
                     // if converted from string
                     if (returned_value.getKind() != .string) {
@@ -877,184 +850,149 @@ pub const Interpreter = struct {
 
     fn lessValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertTypeEquality(lhs, rhs, backup_token);
-        return Value{
-            .inner = .{
-                .boolean = switch (lhs.getKind()) {
-                    .integer => lhs.holder.inner.integer < rhs.holder.inner.integer,
-                    .string => std.mem.lessThan(u8, lhs.holder.inner.string, rhs.holder.inner.string),
-                    .array => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                    .boolean => {
-                        // should be error
-                        assert(false);
-                        unreachable;
-                    },
-                    .table => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                },
+        const boolean = switch (lhs.getKind()) {
+            .integer => lhs.holder.inner.integer < rhs.holder.inner.integer,
+            .string => std.mem.lessThan(u8, lhs.holder.inner.string, rhs.holder.inner.string),
+            .array => {
+                std.debug.panic("This should maybe work(?)", .{});
             },
-            .origin = null,
+            .boolean => {
+                // should be error
+                assert(false);
+                unreachable;
+            },
+            .table => {
+                std.debug.panic("This should maybe work(?)", .{});
+            },
         };
+        return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
     fn greaterValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertTypeEquality(lhs, rhs, backup_token);
-        return Value{
-            .inner = .{
-                .boolean = switch (lhs.getKind()) {
-                    .integer => lhs.inner.integer > rhs.inner.integer,
-                    .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .gt,
-                    .array => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                    .boolean => {
-                        // should be error
-                        assert(false);
-                        unreachable;
-                    },
-                    .table => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                },
+        const boolean = switch (lhs.getKind()) {
+            .integer => lhs.holder.inner.integer > rhs.holder.inner.integer,
+            .string => std.mem.order(u8, lhs.holder.inner.string, rhs.holder.inner.string) == .gt,
+            .array => {
+                std.debug.panic("This should maybe work(?)", .{});
             },
-            .origin = null,
+            .boolean => {
+                // should be error
+                assert(false);
+                unreachable;
+            },
+            .table => {
+                std.debug.panic("This should maybe work(?)", .{});
+            },
         };
+        return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
     fn notValue(self: *Interpreter, value: *const Value, backup_token: *const Token) !Value {
         try self.assertExpectedType(value, .boolean, backup_token);
-        return Value{
-            .inner = .{
-                .boolean = !value.inner.boolean,
-            },
-            .origin = null,
-        };
+        const boolean = !value.holder.inner.boolean;
+        return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
     fn equalsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertTypeEquality(lhs, rhs, backup_token);
-        return Value{
-            .inner = .{
-                .boolean = switch (lhs.getKind()) {
-                    .integer => lhs.inner.integer == rhs.inner.integer,
-                    .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .eq,
-                    .array => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                    .boolean => {
-                        // should be error
-                        assert(false);
-                        unreachable;
-                    },
-                    .table => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                },
+        const boolean = switch (lhs.getKind()) {
+            .integer => lhs.holder.inner.integer == rhs.holder.inner.integer,
+            .string => std.mem.order(u8, lhs.holder.inner.string, rhs.holder.inner.string) == .eq,
+            .array => {
+                std.debug.panic("This should maybe work(?)", .{});
             },
-            .origin = null,
+            .boolean => {
+                // should be error
+                assert(false);
+                unreachable;
+            },
+            .table => {
+                std.debug.panic("This should maybe work(?)", .{});
+            },
         };
+        _ = boolean;
+        return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
     fn notEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertTypeEquality(lhs, rhs, backup_token);
-        return Value{
-            .inner = .{
-                .boolean = switch (lhs.getKind()) {
-                    .integer => lhs.inner.integer != rhs.inner.integer,
-                    .string => !std.mem.eql(u8, lhs.inner.string, rhs.inner.string),
-                    .array => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                    .boolean => {
-                        // should be error
-                        assert(false);
-                        unreachable;
-                    },
-                    .table => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                },
+        const boolean = switch (lhs.getKind()) {
+            .integer => lhs.holder.inner.integer != rhs.holder.inner.integer,
+            .string => !std.mem.eql(u8, lhs.holder.inner.string, rhs.holder.inner.string),
+            .array => {
+                std.debug.panic("This should maybe work(?)", .{});
             },
-            .origin = null,
+            .boolean => {
+                // should be error
+                assert(false);
+                unreachable;
+            },
+            .table => {
+                std.debug.panic("This should maybe work(?)", .{});
+            },
         };
+        return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
     fn lessEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertTypeEquality(lhs, rhs, backup_token);
-        return Value{
-            .inner = .{
-                .boolean = switch (lhs.getKind()) {
-                    .integer => lhs.inner.integer <= rhs.inner.integer,
-                    .string => switch (std.mem.order(u8, lhs.inner.string, rhs.inner.string)) {
-                        .lt, .eq => true,
-                        .gt => false,
-                    },
-                    .array => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                    .boolean => {
-                        // should be error
-                        assert(false);
-                        unreachable;
-                    },
-                    .table => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                },
+        const boolean = switch (lhs.getKind()) {
+            .integer => lhs.holder.inner.integer <= rhs.holder.inner.integer,
+            .string => switch (std.mem.order(u8, lhs.holder.inner.string, rhs.holder.inner.string)) {
+                .lt, .eq => true,
+                .gt => false,
             },
-            .origin = null,
+            .array => {
+                std.debug.panic("This should maybe work(?)", .{});
+            },
+            .boolean => {
+                // should be error
+                assert(false);
+                unreachable;
+            },
+            .table => {
+                std.debug.panic("This should maybe work(?)", .{});
+            },
         };
+        return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
     fn greaterEqualsValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertTypeEquality(lhs, rhs, backup_token);
-        return Value{
-            .inner = .{
-                .boolean = switch (lhs.getKind()) {
-                    .integer => lhs.inner.integer >= rhs.inner.integer,
-                    .string => switch (std.mem.order(u8, lhs.inner.string, rhs.inner.string)) {
-                        .gt, .eq => true,
-                        .lt => false,
-                    },
-                    .array => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                    .boolean => {
-                        // should be error
-                        assert(false);
-                        unreachable;
-                    },
-                    .table => {
-                        std.debug.todo("This should maybe work(?)");
-                    },
-                },
+        const boolean = switch (lhs.getKind()) {
+            .integer => lhs.holder.inner.integer >= rhs.holder.inner.integer,
+            .string => switch (std.mem.order(u8, lhs.holder.inner.string, rhs.holder.inner.string)) {
+                .gt, .eq => true,
+                .lt => false,
             },
-            .origin = null,
+            .array => {
+                std.debug.panic("This should maybe work(?)", .{});
+            },
+            .boolean => {
+                // should be error
+                assert(false);
+                unreachable;
+            },
+            .table => {
+                std.debug.panic("This should maybe work(?)", .{});
+            },
         };
+        return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
     pub fn logicalAndValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertExpectedType(lhs, .boolean, backup_token);
         try self.assertExpectedType(rhs, .boolean, backup_token);
-        return Value{
-            .inner = .{
-                .boolean = lhs.inner.boolean and rhs.inner.boolean,
-            },
-            .origin = null,
-        };
+        const boolean = lhs.holder.inner.boolean and rhs.holder.inner.boolean;
+        return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
     pub fn logicalOrValues(self: *Interpreter, lhs: *const Value, rhs: *const Value, backup_token: *const Token) !Value {
         try self.assertExpectedType(lhs, .boolean, backup_token);
         try self.assertExpectedType(rhs, .boolean, backup_token);
-        return Value{
-            .inner = .{
-                .boolean = lhs.inner.boolean or rhs.inner.boolean,
-            },
-            .origin = null,
-        };
+        const boolean = lhs.holder.inner.boolean or rhs.holder.inner.boolean;
+        return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
     pub fn assertHasValue(self: *Interpreter, maybe_value: ?Value, reporter: *const Token) !Value {
@@ -1099,8 +1037,6 @@ pub const Interpreter = struct {
         }
     }
 };
-
-const builtin_signature = fn (interp: *Interpreter, args: []const Value) anyerror!?Value;
 
 const builtins_array = .{
     .{ "print", &mysh_builtins.print },

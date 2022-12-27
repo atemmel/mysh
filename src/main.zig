@@ -60,12 +60,13 @@ pub fn doEverything(source: []const u8, canonical_path: []const u8) !bool {
     return true;
 }
 
-pub fn main() anyerror!u8 {
-    var gpa = std.heap.GeneralPurposeAllocator(.{
-        .stack_trace_frames = 10,
-    }){};
-    defer std.debug.assert(!gpa.deinit());
-    ally = gpa.allocator();
+//pub fn main() anyerror!u8 {
+pub fn main() anyerror!void {
+    //var gpa = std.heap.GeneralPurposeAllocator(.{
+    //.stack_trace_frames = 10,
+    //}){};
+    //defer std.debug.assert(!gpa.deinit());
+    ally = std.heap.c_allocator;
     try globals.init(ally);
     defer globals.deinit();
 
@@ -89,10 +90,11 @@ pub fn main() anyerror!u8 {
 
     if (remainder.len > 0) {
         const path = remainder[0];
-        return if (try doEverythingWithPath(path)) 0 else 1;
+        //return if (try doEverythingWithPath(path)) 0 else 1;
+        _ = try doEverythingWithPath(path);
     }
 
-    return try repl.do(ally);
+    //return try repl.do(ally);
 }
 
 comptime {

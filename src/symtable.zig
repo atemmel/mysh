@@ -30,11 +30,12 @@ pub const SymTable = struct {
     }
 
     pub fn dropScope(self: *SymTable) void {
+        self.dump();
         var scope = self.scopes.pop();
         defer scope.deinit();
         var iterator = scope.iterator();
         while (iterator.next()) |entry| {
-            entry.value_ptr.deinitWithOwnership(self.ally);
+            entry.value_ptr.deinit(self.ally);
         }
     }
 
@@ -59,8 +60,7 @@ pub const SymTable = struct {
             prev_value.deinit(self.ally);
         }
 
-        const inserted_value = value.ref();
-        try scope.put(name, inserted_value);
+        try scope.put(name, value.*);
     }
 
     pub fn get(self: *const SymTable, name: []const u8) ?Value {
@@ -78,7 +78,7 @@ pub const SymTable = struct {
             }
             var it = scope.iterator();
             while (it.next()) |entry| {
-                std.debug.print("{s} = {}\n", .{ entry.key_ptr.*, entry.value_ptr });
+                std.debug.print("{s} = {} ({})\n", .{ entry.key_ptr.*, entry.value_ptr, entry.value_ptr.getKind() });
             }
             depth += 1;
         }
