@@ -73,21 +73,32 @@ pub fn filter(interp: *Interpreter, args: []Value, token: *const Token) !?Value 
 
     const original_array = &args[0].holder.inner.array;
     const fn_name = args[1].holder.inner.string;
-    var modified_array = try ValueArray.initCapacity(interp.ally, original_array.items.len / 2);
+    var modified_array = try ValueArray.initCapacity(interp.ally, original_array.items.len);
 
     for (original_array.items) |*element| {
         const fn_args: []Value = &[_]Value{element.*};
-        const fn_result = try interp.executeFunction(fn_name, fn_args, false, true, token);
+        var fn_result = try interp.executeFunction(fn_name, fn_args, false, true, token);
         assert(fn_result != null);
+        defer fn_result.?.deinit(interp.ally);
         assert(fn_result.?.getKind() == .boolean);
 
         if (fn_result.?.holder.inner.boolean) {
-            try modified_array.append(try element.clone(interp.ally));
+            try modified_array.append(try element.refOrClone(interp.ally));
         }
     }
 
+    var old = original_array.*;
+    defer {
+        for (old.items) |*val| {
+            val.deinit(interp.ally);
+        }
+        old.deinit();
+    }
+    original_array.* = modified_array;
+
     //TODO: prevent copy here
-    return try Value.initArray(interp.ally, modified_array, token);
+    //return try Value.initArray(interp.ally, modified_array, token);
+    return args[0].ref();
 }
 
 pub fn len(interp: *Interpreter, args: []Value, token: *const Token) !?Value {

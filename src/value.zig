@@ -127,7 +127,7 @@ pub const Value = struct {
 
     pub fn initString(ally: std.mem.Allocator, str: []const u8, origin: ?*const Token) !Value {
         return Value{
-            .holder = try makeHolder(ally, .{
+            .holder = try initHolder(ally, .{
                 .string = try ally.dupe(u8, str),
             }),
             .origin = origin,
@@ -136,7 +136,7 @@ pub const Value = struct {
 
     pub fn initInteger(ally: std.mem.Allocator, integer: i64, origin: ?*const Token) !Value {
         return Value{
-            .holder = try makeHolder(ally, .{
+            .holder = try initHolder(ally, .{
                 .integer = integer,
             }),
             .origin = origin,
@@ -145,7 +145,7 @@ pub const Value = struct {
 
     pub fn initBoolean(ally: std.mem.Allocator, boolean: bool, origin: ?*const Token) !Value {
         return Value{
-            .holder = try makeHolder(ally, .{
+            .holder = try initHolder(ally, .{
                 .boolean = boolean,
             }),
             .origin = origin,
@@ -154,7 +154,7 @@ pub const Value = struct {
 
     pub fn initArray(ally: std.mem.Allocator, array: ValueArray, origin: ?*const Token) !Value {
         return Value{
-            .holder = try makeHolder(ally, .{
+            .holder = try initHolder(ally, .{
                 .array = array,
             }),
             .origin = origin,
@@ -163,19 +163,20 @@ pub const Value = struct {
 
     pub fn initTable(ally: std.mem.Allocator, table: ValueTable, origin: ?*const Token) !Value {
         return Value{
-            .holder = try makeHolder(ally, .{
+            .holder = try initHolder(ally, .{
                 .table = table,
             }),
             .origin = origin,
         };
     }
 
-    fn makeHolder(ally: std.mem.Allocator, inner: Inner) !*Holder {
+    fn initHolder(ally: std.mem.Allocator, inner: Inner) !*Holder {
         var holder = try ally.create(Holder);
         holder.* = .{
             .inner = inner,
             .refCount = 1,
         };
+        std.debug.print("initing {*}\n", .{holder});
         return holder;
     }
 
@@ -211,6 +212,7 @@ pub const Value = struct {
     }
 
     pub fn refOrClone(self: *Value, ally: std.mem.Allocator) !Value {
+        std.debug.print("ref/cloning: {*}\n", .{self.holder});
         return switch (self.holder.inner) {
             .string, .integer, .boolean => try self.clone(ally),
             .array, .table => self.ref(),

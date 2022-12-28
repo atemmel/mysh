@@ -30,7 +30,6 @@ pub const SymTable = struct {
     }
 
     pub fn dropScope(self: *SymTable) void {
-        self.dump();
         var scope = self.scopes.pop();
         defer scope.deinit();
         var iterator = scope.iterator();
@@ -72,15 +71,19 @@ pub const SymTable = struct {
     pub fn dump(self: *const SymTable) void {
         var depth: usize = 0;
         for (self.scopes.items) |*scope| {
-            var i: usize = 0;
-            while (i < depth) : (i += 1) {
-                std.debug.print("  ", .{});
-            }
+            pad(depth);
             var it = scope.iterator();
             while (it.next()) |entry| {
-                std.debug.print("{s} = {} ({})\n", .{ entry.key_ptr.*, entry.value_ptr, entry.value_ptr.getKind() });
+                std.debug.print("({*}) {s} = {}\n", .{ entry.value_ptr.holder, entry.key_ptr.*, entry.value_ptr });
             }
             depth += 1;
+        }
+    }
+
+    fn pad(u: usize) void {
+        var i: usize = 0;
+        while (i < u) : (i += 1) {
+            std.debug.print("  ", .{});
         }
     }
 };

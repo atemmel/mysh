@@ -333,7 +333,8 @@ pub const Interpreter = struct {
         }
 
         const maybe_condition = try self.handleExpr(&branch.condition.?, true);
-        const condition = try self.assertHasValue(maybe_condition, branch.token);
+        var condition = try self.assertHasValue(maybe_condition, branch.token);
+        defer condition.deinit(self.ally);
         try self.assertExpectedType(&condition, .boolean, branch.token);
 
         if (condition.holder.inner.boolean) {
@@ -362,8 +363,9 @@ pub const Interpreter = struct {
             return;
         }
 
+        defer value.deinit(self.ally);
         var prior_value = try self.handleVariable(&assign.variable);
-        defer prior_value.deinit(self.ally);
+        //defer prior_value.deinit(self.ally);
 
         var new_value = switch (assign.token.kind) {
             .AddAssign => try self.addValues(&prior_value, &value, assign.token),
@@ -373,7 +375,7 @@ pub const Interpreter = struct {
             .ModuloAssign => try self.moduloValues(&prior_value, &value, assign.token),
             else => unreachable,
         };
-        defer new_value.deinit(self.ally);
+        //defer new_value.deinit(self.ally);
 
         try self.writeVariable(&assign.variable, &new_value);
     }
@@ -629,8 +631,8 @@ pub const Interpreter = struct {
     fn handleCall(self: *Interpreter, call: *const ast.FunctionCall, needs_value: bool) !?Value {
         var maybe_name_value = try self.handleExpr(call.name, true);
         var name_value = try self.assertHasValue(maybe_name_value, call.token);
+        //defer name_value.deinit(self.ally);
         try self.assertExpectedType(&name_value, .string, call.token);
-        defer name_value.deinit(self.ally);
         const name = name_value.holder.inner.string;
 
         const has_stdin_arg = self.piped_value != null;
@@ -714,12 +716,7 @@ pub const Interpreter = struct {
         }
 
         self.piped_value = (try self.handleExpr(current, true)) orelse unreachable;
-        //defer {
-        //if (self.piped_value) |*val| {
-        //val.deinit(self.ally);
-        //self.piped_value = null;
-        //}
-        //}
+
         if (unpipe) {
             self.is_piping = false;
         }
@@ -911,7 +908,6 @@ pub const Interpreter = struct {
                 std.debug.panic("This should maybe work(?)", .{});
             },
         };
-        _ = boolean;
         return Value.initBoolean(self.ally, boolean, backup_token);
     }
 
