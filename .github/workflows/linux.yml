@@ -21,6 +21,8 @@ jobs:
           version: 0.9.1
 
       - uses: nektro/actions-setup-zigmod@v1
+        with:
+          version: r78
       - run: zigmod version
       - run: zigmod fetch
 
