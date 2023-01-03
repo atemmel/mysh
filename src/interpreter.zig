@@ -12,7 +12,6 @@ const mysh_builtins = @import("builtins.zig");
 const ptr = @import("ptr.zig");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
-const todo = std.debug.todo;
 const print = std.debug.print;
 const math = std.math;
 
@@ -145,7 +144,7 @@ pub const Interpreter = struct {
                     self.reportTokenCausingError(mismatch.token);
                 },
                 .argument_count_mismatch => {
-                    todo("Handle argument_count_mismatch error");
+                    std.debug.panic("Handle argument_count_mismatch error", .{});
                 },
             }
         }
@@ -766,7 +765,7 @@ pub const Interpreter = struct {
 
     pub fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, has_stdin_arg: bool, capture_stdout: bool) !?Value {
         if (self.builtins.get(name)) |func| {
-            return try func(self, args);
+            return try func.*(self, args);
         } else {
             if (self.root_node.fn_table.get(name)) |*fn_node| {
                 return try self.handleFnDeclaration(fn_node, args);
@@ -897,7 +896,7 @@ pub const Interpreter = struct {
                     .integer => lhs.inner.integer < rhs.inner.integer,
                     .string => std.mem.lessThan(u8, lhs.inner.string, rhs.inner.string),
                     .array => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                     .boolean => {
                         // should be error
@@ -905,7 +904,7 @@ pub const Interpreter = struct {
                         unreachable;
                     },
                     .table => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                 },
             },
@@ -921,7 +920,7 @@ pub const Interpreter = struct {
                     .integer => lhs.inner.integer > rhs.inner.integer,
                     .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .gt,
                     .array => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                     .boolean => {
                         // should be error
@@ -929,7 +928,7 @@ pub const Interpreter = struct {
                         unreachable;
                     },
                     .table => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                 },
             },
@@ -955,7 +954,7 @@ pub const Interpreter = struct {
                     .integer => lhs.inner.integer == rhs.inner.integer,
                     .string => std.mem.order(u8, lhs.inner.string, rhs.inner.string) == .eq,
                     .array => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                     .boolean => {
                         // should be error
@@ -963,7 +962,7 @@ pub const Interpreter = struct {
                         unreachable;
                     },
                     .table => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                 },
             },
@@ -979,7 +978,7 @@ pub const Interpreter = struct {
                     .integer => lhs.inner.integer != rhs.inner.integer,
                     .string => !std.mem.eql(u8, lhs.inner.string, rhs.inner.string),
                     .array => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                     .boolean => {
                         // should be error
@@ -987,7 +986,7 @@ pub const Interpreter = struct {
                         unreachable;
                     },
                     .table => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                 },
             },
@@ -1006,7 +1005,7 @@ pub const Interpreter = struct {
                         .gt => false,
                     },
                     .array => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                     .boolean => {
                         // should be error
@@ -1014,7 +1013,7 @@ pub const Interpreter = struct {
                         unreachable;
                     },
                     .table => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                 },
             },
@@ -1033,7 +1032,7 @@ pub const Interpreter = struct {
                         .lt => false,
                     },
                     .array => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                     .boolean => {
                         // should be error
@@ -1041,7 +1040,7 @@ pub const Interpreter = struct {
                         unreachable;
                     },
                     .table => {
-                        std.debug.todo("This should maybe work(?)");
+                        std.debug.panic("This should maybe work(?)", .{});
                     },
                 },
             },

@@ -11,7 +11,8 @@ pub const SpawnCommandOutput = struct {
 };
 
 pub fn cmd(ally: std.mem.Allocator, args: []const []const u8, opts: SpawnCommandOptions) !SpawnCommandOutput {
-    var proc = std.ChildProcess.init(args, ally);
+    var proc = try std.ChildProcess.init(args, ally);
+    defer proc.deinit();
 
     var captured_stdout: []u8 = &.{};
     errdefer ally.free(captured_stdout);
