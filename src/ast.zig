@@ -1144,7 +1144,6 @@ pub const Parser = struct {
     }
 
     fn parseForInLoop(self: *Parser) !?Loop.ForInLoop {
-        _ = self;
         const token = self.getIf(Token.Kind.For);
         if (token == null) {
             return null;

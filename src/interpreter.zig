@@ -765,7 +765,7 @@ pub const Interpreter = struct {
 
     pub fn executeFunction(self: *Interpreter, name: []const u8, args: []const Value, has_stdin_arg: bool, capture_stdout: bool) !?Value {
         if (self.builtins.get(name)) |func| {
-            return try func.*(self, args);
+            return try func(self, args);
         } else {
             if (self.root_node.fn_table.get(name)) |*fn_node| {
                 return try self.handleFnDeclaration(fn_node, args);
